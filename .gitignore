@@ -1,3 +1,38 @@
+# ---> Android
+# Gradle
+.gradle/
+build/
+*/build/
+*/build/
+!/gradle/wrapper/gradle-wrapper.jar
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# Log/OS
+*.log
+.DS_Store
+
+# Android Studio
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Capture
+captures/
+
+# Keystore files (debug.keystore is fine to commit for personal project)
+*.jks
+*.keystore
+
+# External native build folder
+.externalNativeBuild/
+
+# Google Services (google-services.json)
+google-services.json
+
 # ---> Kotlin
 # Compiled class file
 *.class
@@ -26,3 +61,33 @@ replay_pid*
 
 # Kotlin Gradle plugin data, see https://kotlinlang.org/docs/whatsnew20.html#new-directory-for-kotlin-data-in-gradle-projects
 .kotlin/
+
+# ---> Gradle
+.gradle/
+build/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# ---> macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ---> Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ---> IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
