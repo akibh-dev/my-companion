@@ -29,8 +29,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.akib.mycompanion.data.notification.AndroidReminderNotifier
-import kotlinx.coroutines.launch
 import java.util.Calendar
+import kotlinx.coroutines.launch
 
 /** Connects [RemindersScreen] to its ViewModel and to Android (notification permission, time picker). */
 @Composable

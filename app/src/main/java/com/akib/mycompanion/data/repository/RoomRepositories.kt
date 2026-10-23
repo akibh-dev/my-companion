@@ -8,9 +8,9 @@ import com.akib.mycompanion.domain.model.Contact
 import com.akib.mycompanion.domain.model.Reminder
 import com.akib.mycompanion.domain.repository.ContactRepository
 import com.akib.mycompanion.domain.repository.ReminderRepository
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import javax.inject.Inject
 
 class RoomContactRepository @Inject constructor(private val dao: ContactDao) : ContactRepository {
     override fun observeAll(): Flow<List<Contact>> = dao.observeAll().map { list -> list.map { it.toDomain() } }

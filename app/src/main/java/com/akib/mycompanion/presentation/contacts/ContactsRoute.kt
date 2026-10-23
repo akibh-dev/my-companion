@@ -43,7 +43,8 @@ fun ContactsRoute(
         viewModel.events.collect { event ->
             scope.launch {
                 when (event) {
-                    is ContactsEvent.Message -> snackbarHostState.showSnackbar(event.text, duration = SnackbarDuration.Long)
+                    is ContactsEvent.Message ->
+                        snackbarHostState.showSnackbar(event.text, duration = SnackbarDuration.Long)
                     is ContactsEvent.Removed -> {
                         val result = snackbarHostState.showSnackbar(
                             message = "Removed ${event.contact.name}",

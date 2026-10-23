@@ -11,6 +11,7 @@ import com.akib.mycompanion.domain.usecase.CancelReminderUseCase
 import com.akib.mycompanion.domain.usecase.ScheduleReminderUseCase
 import com.akib.mycompanion.domain.usecase.ScheduleResult
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,7 +22,6 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 /** The "When" chips. */
 sealed interface WhenChoice {

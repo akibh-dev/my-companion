@@ -5,9 +5,9 @@ import android.content.Context
 import android.content.Intent
 import com.akib.mycompanion.di.ApplicationScope
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 /** Alarm fired, or Snooze / Done tapped on a reminder notification. */
 @AndroidEntryPoint

@@ -7,9 +7,9 @@ import com.akib.mycompanion.di.IoDispatcher
 import com.akib.mycompanion.domain.port.PhonebookSource
 import com.akib.mycompanion.domain.port.PickedPhone
 import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
 
 /**
  * Reads the phone number the user picked with ACTION_PICK on Phone.CONTENT_URI.

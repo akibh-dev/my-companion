@@ -10,8 +10,8 @@ import androidx.lifecycle.lifecycleScope
 import com.akib.mycompanion.domain.usecase.CallContactUseCase
 import com.akib.mycompanion.presentation.contacts.CallMessages
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlinx.coroutines.launch
 
 /**
  * Invisible activity behind the home-screen shortcuts and the "Call" button on reminders.
