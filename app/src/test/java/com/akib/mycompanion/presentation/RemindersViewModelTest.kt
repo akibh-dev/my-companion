@@ -156,16 +156,18 @@ class RemindersViewModelTest {
 
     @Test
     fun `cancelling removes it from the list`() = runTest {
-        viewModel.onTitleChange("Stretch")
-        viewModel.onChoiceChange(WhenChoice.InMinutes(30))
-        viewModel.onSubmit()
-        val id = reminders.all.single().id
-
         viewModel.events.test {
+            viewModel.onTitleChange("Stretch")
+            viewModel.onChoiceChange(WhenChoice.InMinutes(30))
+            viewModel.onSubmit()
+            assertThat(awaitItem()).isEqualTo(RemindersEvent.Message("Reminder set for Today, 10:30 AM"))
+            val id = reminders.all.single().id
+
             viewModel.onCancel(id)
+
             assertThat(awaitItem()).isEqualTo(RemindersEvent.Message("Reminder removed"))
+            assertThat(reminders.all).isEmpty()
+            assertThat(scheduler.cancelled).containsExactly(id)
         }
-        assertThat(reminders.all).isEmpty()
-        assertThat(scheduler.cancelled).containsExactly(id)
     }
 }
