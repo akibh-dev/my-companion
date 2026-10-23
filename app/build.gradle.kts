@@ -105,6 +105,15 @@ dependencies {
     kapt(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
 
+    // YouTube background player
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.session)
+    implementation(libs.media3.datasource)
+    implementation(libs.coroutines.guava)
+    implementation(libs.newpipe.extractor)
+    implementation(libs.okhttp)
+    implementation(libs.coil.compose)
+
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     kapt(libs.room.compiler)
@@ -121,6 +130,7 @@ dependencies {
     testImplementation(platform(libs.compose.bom))
     testImplementation(libs.compose.ui.test.junit4)
     testImplementation(libs.room.testing)
+    testImplementation(libs.okhttp.mockwebserver)
     testImplementation(libs.hilt.android.testing)
     kaptTest(libs.hilt.compiler)
 
