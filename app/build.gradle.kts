@@ -52,6 +52,8 @@ android {
             isIncludeAndroidResources = true
             isReturnDefaultValues = true
             all { test ->
+                // Robolectric keeps a copy of the Android framework per sandbox.
+                test.maxHeapSize = "3g"
                 test.testLogging {
                     events("failed")
                     exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL

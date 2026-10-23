@@ -20,7 +20,7 @@ import org.robolectric.annotation.Config
 /** Smoke test: the real app (Hilt graph, Room, both tabs) starts and navigates. */
 @OptIn(ExperimentalTestApi::class)
 @HiltAndroidTest
-@Config(application = HiltTestApplication::class, qualifiers = "w411dp-h891dp")
+@Config(application = HiltTestApplication::class)
 @RunWith(AndroidJUnit4::class)
 class MainActivityTest {
 
