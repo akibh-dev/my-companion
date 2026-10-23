@@ -36,7 +36,7 @@ Docs/
 
 **What you have**:
 - Compose app with two tabs, Hilt, Room, AlarmManager, notifications, home-screen shortcuts
-- ~100 JVM tests (unit, Robolectric, Compose UI) run on every push
+- 133 JVM tests (unit, Robolectric, Compose UI) run on every push
 
 **Files to read first**:
 1. `03-whatsapp-call-and-reminders.md` — What the features do and how
