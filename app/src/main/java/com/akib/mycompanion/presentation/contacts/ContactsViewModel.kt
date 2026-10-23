@@ -36,6 +36,7 @@ data class ContactEditor(
 ) {
     val isNew: Boolean get() = id == null
     val canSave: Boolean get() = name.isNotBlank() && phone.isNotBlank()
+    val title: String get() = if (isNew) "Add person" else "Edit person"
 }
 
 data class ContactsUiState(

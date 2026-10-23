@@ -4,8 +4,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -14,7 +12,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.akib.mycompanion.domain.model.Contact
 import com.akib.mycompanion.presentation.contacts.ContactEditor
-import com.akib.mycompanion.presentation.contacts.ContactEditorDialog
+import com.akib.mycompanion.presentation.contacts.ContactEditorForm
 import com.akib.mycompanion.presentation.contacts.ContactsScreen
 import com.akib.mycompanion.presentation.contacts.ContactsUiState
 import com.akib.mycompanion.ui.theme.CompanionTheme
@@ -90,49 +88,38 @@ class ContactsScreenTest {
     }
 
     @Test
-    fun `editor only saves when both fields are filled and shows errors`() {
+    fun `editor form takes typing, picks from the phone book and shows errors`() {
         var editor by mutableStateOf(ContactEditor())
         compose.setContent {
             CompanionTheme {
-                ContactEditorDialog(
+                ContactEditorForm(
                     editor = editor,
                     onNameChange = { editor = editor.copy(name = it) },
                     onPhoneChange = { editor = editor.copy(phone = it) },
                     onPickFromPhonebook = { events += "pick" },
-                    onSave = { events += "save" },
-                    onDismiss = { events += "dismiss" },
                 )
             }
         }
-
-        compose.onNodeWithText("Add person").assertIsDisplayed()
-        compose.onNodeWithText("Save").assertIsNotEnabled()
 
         compose.onNodeWithText("Name").performTextInput("Akib")
         compose.onNodeWithText("WhatsApp number").performTextInput("01811123456")
-        compose.onNodeWithText("Save").assertIsEnabled().performClick()
         compose.onNodeWithText("Choose from phone contacts").performClick()
+        compose.onNodeWithText("Local numbers starting with 0 get +880 added").assertIsDisplayed()
 
         editor = editor.copy(phoneError = "Already saved as Mum")
         compose.onNodeWithText("Already saved as Mum").assertIsDisplayed()
-        assertThat(events).containsExactly("save", "pick").inOrder()
+
+        assertThat(editor.name).isEqualTo("Akib")
+        assertThat(editor.phone).isEqualTo("01811123456")
+        assertThat(events).containsExactly("pick")
     }
 
     @Test
-    fun `editing an existing person says so`() {
-        compose.setContent {
-            CompanionTheme {
-                ContactEditorDialog(
-                    editor = ContactEditor(id = 1, name = "Mum", phone = "+8801711123456"),
-                    onNameChange = {},
-                    onPhoneChange = {},
-                    onPickFromPhonebook = {},
-                    onSave = {},
-                    onDismiss = {},
-                )
-            }
-        }
-
-        compose.onNodeWithText("Edit person").assertIsDisplayed()
+    fun `editor can only save with both fields and is titled by mode`() {
+        assertThat(ContactEditor().canSave).isFalse()
+        assertThat(ContactEditor(name = "Akib").canSave).isFalse()
+        assertThat(ContactEditor(name = "Akib", phone = "0181").canSave).isTrue()
+        assertThat(ContactEditor().title).isEqualTo("Add person")
+        assertThat(ContactEditor(id = 1).title).isEqualTo("Edit person")
     }
 }

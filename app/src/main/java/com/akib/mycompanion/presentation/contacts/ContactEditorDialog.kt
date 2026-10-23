@@ -32,44 +32,9 @@ fun ContactEditorDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (editor.isNew) "Add person" else "Edit person") },
+        title = { Text(editor.title) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(onClick = onPickFromPhonebook, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Filled.AccountCircle, contentDescription = null)
-                    Spacer(Modifier.size(8.dp))
-                    Text("Choose from phone contacts")
-                }
-                OutlinedTextField(
-                    value = editor.name,
-                    onValueChange = onNameChange,
-                    label = { Text("Name") },
-                    singleLine = true,
-                    isError = editor.nameError != null,
-                    supportingText = editor.nameError?.let { { Text(it) } },
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Words,
-                        imeAction = ImeAction.Next,
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = editor.phone,
-                    onValueChange = onPhoneChange,
-                    label = { Text("WhatsApp number") },
-                    placeholder = { Text("+8801711123456") },
-                    singleLine = true,
-                    isError = editor.phoneError != null,
-                    supportingText = {
-                        Text(editor.phoneError ?: "Local numbers starting with 0 get +880 added")
-                    },
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Phone,
-                        imeAction = ImeAction.Done,
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            ContactEditorForm(editor, onNameChange, onPhoneChange, onPickFromPhonebook)
         },
         confirmButton = {
             TextButton(onClick = onSave, enabled = editor.canSave) { Text("Save") }
@@ -78,4 +43,50 @@ fun ContactEditorDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         },
     )
+}
+
+/** The dialog's fields, separate so they can be tested without a dialog window. */
+@Composable
+fun ContactEditorForm(
+    editor: ContactEditor,
+    onNameChange: (String) -> Unit,
+    onPhoneChange: (String) -> Unit,
+    onPickFromPhonebook: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        OutlinedButton(onClick = onPickFromPhonebook, modifier = Modifier.fillMaxWidth()) {
+            Icon(Icons.Filled.AccountCircle, contentDescription = null)
+            Spacer(Modifier.size(8.dp))
+            Text("Choose from phone contacts")
+        }
+        OutlinedTextField(
+            value = editor.name,
+            onValueChange = onNameChange,
+            label = { Text("Name") },
+            singleLine = true,
+            isError = editor.nameError != null,
+            supportingText = editor.nameError?.let { { Text(it) } },
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Words,
+                imeAction = ImeAction.Next,
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = editor.phone,
+            onValueChange = onPhoneChange,
+            label = { Text("WhatsApp number") },
+            placeholder = { Text("+8801711123456") },
+            singleLine = true,
+            isError = editor.phoneError != null,
+            supportingText = {
+                Text(editor.phoneError ?: "Local numbers starting with 0 get +880 added")
+            },
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Phone,
+                imeAction = ImeAction.Done,
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
