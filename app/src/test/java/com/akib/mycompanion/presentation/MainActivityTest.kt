@@ -9,9 +9,14 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.akib.mycompanion.MainActivity
+import com.akib.mycompanion.di.PlaybackModule
+import com.akib.mycompanion.domain.port.Playback
+import com.akib.mycompanion.fakes.FakePlayback
+import dagger.hilt.android.testing.BindValue
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
+import dagger.hilt.android.testing.UninstallModules
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -20,6 +25,7 @@ import org.robolectric.annotation.Config
 /** Smoke test: the real app (Hilt graph, Room, both tabs) starts and navigates. */
 @OptIn(ExperimentalTestApi::class)
 @HiltAndroidTest
+@UninstallModules(PlaybackModule::class)
 @Config(application = HiltTestApplication::class)
 @RunWith(AndroidJUnit4::class)
 class MainActivityTest {
@@ -29,6 +35,11 @@ class MainActivityTest {
 
     @get:Rule(order = 1)
     val compose = createAndroidComposeRule<MainActivity>()
+
+    /** Don't start the real media service in a UI test. */
+    @BindValue
+    @JvmField
+    val playback: Playback = FakePlayback()
 
     @Test
     fun `opens on People and switches to Reminders`() {

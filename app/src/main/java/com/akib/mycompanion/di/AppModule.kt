@@ -129,7 +129,12 @@ abstract class BindingsModule {
 
     @Binds
     abstract fun audioStreams(impl: NewPipeYouTube): AudioStreamSource
+}
 
+/** On its own so UI tests can swap in a fake player instead of starting the media service. */
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class PlaybackModule {
     @Binds
     abstract fun playback(impl: MediaControllerPlayback): Playback
 }
