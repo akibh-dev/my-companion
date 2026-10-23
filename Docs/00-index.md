@@ -11,6 +11,7 @@ Docs/
 ├── 02-quick-reference.md    # Essential facts & commands
 ├── 03-whatsapp-call-and-reminders.md  # How the two features work
 ├── 04-testing.md            # Test layers, tools and patterns
+├── 05-youtube-player.md     # Background player, queue, playlists
 ├── architecture/            # Architectural decision records (ADRs)
 │   ├── 001-mvvm-clean.md
 │   ├── 002-hilt-vs-koin.md
@@ -32,7 +33,7 @@ Docs/
 
 ## Current Project State
 
-**Status**: ✅ People (one-tap WhatsApp calls) and Reminders (custom notifications) working, fully tested in CI
+**Status**: ✅ People (one-tap WhatsApp calls), Reminders (custom notifications) and Player (YouTube background audio, queue, playlists), tested in CI
 
 **What you have**:
 - Compose app with two tabs, Hilt, Room, AlarmManager, notifications, home-screen shortcuts
@@ -40,8 +41,9 @@ Docs/
 
 **Files to read first**:
 1. `03-whatsapp-call-and-reminders.md` — What the features do and how
-2. `04-testing.md` — How the tests are organised
-3. `01-hello-world-explained.md` — Basics of every file
+2. `05-youtube-player.md` — The YouTube player
+3. `04-testing.md` — How the tests are organised
+4. `01-hello-world-explained.md` — Basics of every file
 
 ## How to Use This Documentation
 

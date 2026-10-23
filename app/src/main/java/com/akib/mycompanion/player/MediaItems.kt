@@ -21,7 +21,8 @@ object MediaItems {
 
     fun uriFor(videoId: String): Uri = Uri.parse("$SCHEME:$videoId")
 
-    fun videoId(uri: Uri?): String? = uri?.takeIf { it.scheme == SCHEME }?.schemeSpecificPart?.takeIf { it.isNotEmpty() }
+    fun videoId(uri: Uri?): String? =
+        uri?.takeIf { it.scheme == SCHEME }?.schemeSpecificPart?.takeIf { it.isNotEmpty() }
 
     fun from(video: Video): MediaItem = MediaItem.Builder()
         .setMediaId(video.id)

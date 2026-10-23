@@ -40,4 +40,14 @@ class MainActivityTest {
         compose.onNodeWithText("Send now").assertIsDisplayed()
         compose.onNodeWithText("Nothing scheduled").performScrollTo().assertIsDisplayed()
     }
+
+    @Test
+    fun `player tab shows the link box`() {
+        compose.waitUntilAtLeastOneExists(hasText("No one here yet"), timeoutMillis = 10_000)
+
+        compose.onNodeWithText("Player").performClick()
+
+        compose.onNodeWithText("Open link").assertIsDisplayed()
+        compose.onNodeWithText("Up next").assertIsDisplayed()
+    }
 }

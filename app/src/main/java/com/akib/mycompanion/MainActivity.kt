@@ -71,7 +71,9 @@ class MainActivity : ComponentActivity() {
 
         fun openPlayerIntent(context: Context): Intent = Intent(context, MainActivity::class.java)
             .putExtra(EXTRA_TAB, Tab.PLAYER.name)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            .addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP,
+            )
     }
 }
 
