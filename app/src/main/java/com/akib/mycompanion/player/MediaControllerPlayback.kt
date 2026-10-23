@@ -114,15 +114,19 @@ class MediaControllerPlayback @Inject constructor(
         if (connecting) return
         connecting = true
 
-        val token = SessionToken(context, ComponentName(context, PlaybackService::class.java))
-        val future = MediaController.Builder(context, token).buildAsync()
+        val future = try {
+            val token = SessionToken(context, ComponentName(context, PlaybackService::class.java))
+            MediaController.Builder(context, token).buildAsync()
+        } catch (_: RuntimeException) {
+            failConnecting()
+            return
+        }
         future.addListener(
             {
                 connecting = false
                 val connected = runCatching { future.get() }.getOrNull()
                 if (connected == null) {
-                    pending.clear()
-                    mutableState.value = mutableState.value.copy(error = "Couldn't start the player")
+                    failConnecting()
                     return@addListener
                 }
                 controller = connected
@@ -133,6 +137,12 @@ class MediaControllerPlayback @Inject constructor(
             },
             ContextCompat.getMainExecutor(context),
         )
+    }
+
+    private fun failConnecting() {
+        connecting = false
+        pending.clear()
+        mutableState.value = mutableState.value.copy(error = "Couldn't start the player")
     }
 
     private fun publish(player: Player) {

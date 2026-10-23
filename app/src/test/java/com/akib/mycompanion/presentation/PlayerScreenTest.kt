@@ -5,14 +5,18 @@ import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.akib.mycompanion.domain.model.PlaybackState
 import com.akib.mycompanion.domain.model.Playlist
@@ -106,6 +110,11 @@ class PlayerScreenTest {
         override fun onDeletePlaylist(playlist: Playlist) = record("delete:${playlist.id}")
     }
 
+    /** Lazy lists only compose what's on screen; scroll the list until the node exists. */
+    private fun scrollTo(matcher: SemanticsMatcher) {
+        compose.onNode(hasScrollAction()).performScrollToNode(matcher)
+    }
+
     private fun show(state: PlayerUiState = PlayerUiState(), link: VideoActionsUiState = VideoActionsUiState()) =
         compose.setContent { CompanionTheme { PlayerScreen(state = state, link = link, actions = actions) } }
 
@@ -172,12 +181,13 @@ class PlayerScreenTest {
     fun `up next lists the queue, jumps and removes`() {
         show(PlayerUiState(playback = PlaybackState(queue = listOf(a, b), currentIndex = 0)))
 
-        compose.onNodeWithText("2 videos").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Second song").performScrollTo().performClick()
-        compose.onNodeWithContentDescription("Remove Second song from queue").performScrollTo().performClick()
-        compose.onNodeWithText("Save as playlist").performScrollTo().performClick()
+        scrollTo(hasText("2 videos"))
+        compose.onNodeWithText("Save as playlist").performClick()
+        scrollTo(hasText("Second song"))
+        compose.onNodeWithText("Second song").performClick()
+        compose.onNodeWithContentDescription("Remove Second song from queue").performClick()
 
-        assertThat(calls).containsExactly("skipTo:1", "removeQueue:1", "saveQueue").inOrder()
+        assertThat(calls).containsExactly("saveQueue", "skipTo:1", "removeQueue:1").inOrder()
     }
 
     @Test

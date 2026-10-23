@@ -61,9 +61,9 @@ class PlayerViewModelTest {
         viewModel.onCycleRepeat()
         viewModel.onToggleShuffle()
 
-        assertThat(playback.calls.drop(1)).containsExactly(
-            "toggle", "next", "previous", "seek:30000", "skipTo:2", "removeAt:1", "repeat", "shuffle",
-        ).inOrder()
+        assertThat(playback.calls.drop(1))
+            .containsExactly("toggle", "next", "previous", "seek:30000", "skipTo:2", "removeAt:1", "repeat", "shuffle")
+            .inOrder()
     }
 
     @Test
