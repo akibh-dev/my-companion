@@ -7,6 +7,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.akib.mycompanion.domain.model.Contact
 import com.akib.mycompanion.presentation.reminders.ChoiceChip
@@ -20,7 +21,10 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
 
+// A typical phone screen, so the whole form and list fit.
+@Config(qualifiers = "w411dp-h891dp")
 @RunWith(AndroidJUnit4::class)
 class RemindersScreenTest {
 
@@ -124,7 +128,7 @@ class RemindersScreenTest {
         )
         show(RemindersUiState(presets = presets, upcoming = listOf(upcoming)))
 
-        compose.onNodeWithText("Tomorrow, 8:00 AM · Daily · Call Mum").assertIsDisplayed()
+        compose.onNodeWithText("Tomorrow, 8:00 AM · Daily · Call Mum").performScrollTo().assertIsDisplayed()
         compose.onNodeWithContentDescription("Cancel Medicine").performClick()
 
         assertThat(events).containsExactly("cancel:9")
@@ -134,7 +138,7 @@ class RemindersScreenTest {
     fun `nothing scheduled is said plainly`() {
         show(RemindersUiState(presets = presets))
 
-        compose.onNodeWithText("Nothing scheduled").assertIsDisplayed()
+        compose.onNodeWithText("Nothing scheduled").performScrollTo().assertIsDisplayed()
     }
 
     @Test

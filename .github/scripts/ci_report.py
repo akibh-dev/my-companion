@@ -72,7 +72,7 @@ def main():
     ktlint_lines = log.splitlines()
     for path in glob.glob("app/build/reports/ktlint/**/*.txt", recursive=True):
         ktlint_lines += read(path).splitlines()
-    ktlint = sorted({l.strip() for l in ktlint_lines if re.search(r"\.kts?:\d+:\d+", l) and not l.startswith("e: ")})[:80]
+    ktlint = sorted({l.strip() for l in ktlint_lines if re.search(r"\.kts?:\d+:\d+", l) and not l.startswith(("e: ", "w: "))})[:80]
     lint = lint_errors()
     failed_tasks = re.findall(r"Execution failed for task '([^']+)'", log)
 

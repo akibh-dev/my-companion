@@ -6,6 +6,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.akib.mycompanion.MainActivity
 import dagger.hilt.android.testing.HiltAndroidRule
@@ -19,7 +20,7 @@ import org.robolectric.annotation.Config
 /** Smoke test: the real app (Hilt graph, Room, both tabs) starts and navigates. */
 @OptIn(ExperimentalTestApi::class)
 @HiltAndroidTest
-@Config(application = HiltTestApplication::class)
+@Config(application = HiltTestApplication::class, qualifiers = "w411dp-h891dp")
 @RunWith(AndroidJUnit4::class)
 class MainActivityTest {
 
@@ -37,6 +38,6 @@ class MainActivityTest {
         compose.onNodeWithText("Reminders").performClick()
 
         compose.onNodeWithText("Send now").assertIsDisplayed()
-        compose.onNodeWithText("Nothing scheduled").assertIsDisplayed()
+        compose.onNodeWithText("Nothing scheduled").performScrollTo().assertIsDisplayed()
     }
 }
