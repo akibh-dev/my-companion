@@ -12,3 +12,10 @@ max_line_length = 120
 ktlint_code_style = android_studio
 # Composables are PascalCase by convention.
 ktlint_function_naming_ignore_when_annotated_with = Composable
+# Trailing commas are allowed (cleaner diffs) but not forced.
+ij_kotlin_allow_trailing_comma = true
+ij_kotlin_allow_trailing_comma_on_call_site = true
+ktlint_standard_trailing-comma-on-call-site = disabled
+ktlint_standard_trailing-comma-on-declaration-site = disabled
+# Let short expression bodies wrap when it reads better.
+ktlint_standard_function-signature = disabled

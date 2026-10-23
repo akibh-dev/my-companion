@@ -1,12 +1,18 @@
 package com.akib.mycompanion.domain.repository
 
 import com.akib.mycompanion.domain.model.Contact
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.Flow
 
 interface ContactRepository {
-    val contacts: StateFlow<List<Contact>>
+    /** All contacts, sorted by name. */
+    fun observeAll(): Flow<List<Contact>>
 
-    fun add(name: String, phone: String)
+    suspend fun get(id: Long): Contact?
 
-    fun remove(id: String)
+    suspend fun findByPhone(phone: String): Contact?
+
+    /** Inserts when [Contact.id] is 0, otherwise updates. Returns the saved contact with its id. */
+    suspend fun save(contact: Contact): Contact
+
+    suspend fun delete(id: Long)
 }

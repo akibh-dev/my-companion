@@ -12,6 +12,7 @@ hilt = "2.51.1"
 androidxHilt = "1.2.0"
 room = "2.6.1"
 ktlintGradle = "12.1.1"
+desugarJdkLibs = "2.0.4"
 
 # Testing
 junit = "4.13.2"
@@ -24,6 +25,7 @@ androidxTestExt = "1.1.5"
 androidxTestRunner = "1.5.2"
 
 [libraries]
+desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugarJdkLibs" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }
