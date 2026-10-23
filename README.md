@@ -97,8 +97,10 @@ app/
 - [x] Basic Home screen with ViewModel
 - [x] Notification domain + data layer (skeleton)
 - [x] Documentation structure
+- [x] Contacts tab with one-tap WhatsApp call icon ([details](Docs/03-whatsapp-call-and-reminders.md))
+- [x] Custom + scheduled notifications with snooze action
 
-**Next**: Implement notification channels + test notification
+**Next**: Persist reminders across reboot, then YouTube background playback
 
 ## 📖 Learning Resources
 
