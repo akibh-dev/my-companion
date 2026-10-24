@@ -22,6 +22,7 @@ Built as a **learning vehicle** for Android development.
 | [Docs/00-index.md](Docs/00-index.md) | Documentation index and templates |
 | [Docs/03-whatsapp-call-and-reminders.md](Docs/03-whatsapp-call-and-reminders.md) | How calls and reminders work |
 | [Docs/04-testing.md](Docs/04-testing.md) | Test layers, tools and patterns |
+| [Docs/05-youtube-player.md](Docs/05-youtube-player.md) | YouTube background player, queue, playlists |
 | [Docs/architecture/](Docs/architecture/) | Architecture Decision Records (ADRs) |
 | [Docs/references/](Docs/references/) | Quick reference sheets (coroutines, lifecycle, Gradle) |
 | [Docs/resources/](Docs/resources/) | Curated external learning resources |
@@ -86,6 +87,7 @@ app/
 │   ├── domain/             # Pure Kotlin: entities, repositories, usecases
 │   ├── data/               # Repository impl, Room, DataStore, Media3
 │   ├── presentation/       # ViewModels, Compose screens, call activity, shortcuts
+│   ├── player/             # Media3 playback service and controller
 │   ├── system/             # Broadcast receivers (alarms, boot)
 │   └── ui/theme/           # Material 3 theme
 └── src/test/               # JUnit, MockK, Turbine, Robolectric, Compose UI tests
@@ -96,12 +98,13 @@ app/
 - [x] Gradle Kotlin DSL + version catalog, Hilt, Room, Compose + Material 3
 - [x] **People**: one-tap WhatsApp voice calls, pick from phone book, edit/undo, home-screen call shortcuts
 - [x] **Reminders**: custom notifications now / later / at a time, daily repeat, Snooze / Done / Call buttons, survive reboot
+- [x] **Player**: share a YouTube video → play in the background (notification + lock-screen controls), queue, permanent playlists ([details](Docs/05-youtube-player.md))
 - [x] Tests: domain, ViewModel, Robolectric (Room, alarms, notifications, receivers) and Compose UI ([Docs/04-testing.md](Docs/04-testing.md))
 - [x] CI: ktlint, unit tests, Android lint, debug APK on every push
 
 How it works: [Docs/03-whatsapp-call-and-reminders.md](Docs/03-whatsapp-call-and-reminders.md)
 
-**Next**: YouTube background playback
+**Next**: notification listener, quick settings tile
 
 ### Install on your phone
 Download `my-companion-debug-apk` from the latest green **Android CI** run (Actions tab), or run `./gradlew installDebug` with the phone connected.

@@ -1,13 +1,13 @@
 package com.akib.mycompanion
 
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -18,41 +18,80 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import com.akib.mycompanion.presentation.contacts.ContactsRoute
+import com.akib.mycompanion.presentation.player.PlayerRoute
 import com.akib.mycompanion.presentation.reminders.RemindersRoute
 import com.akib.mycompanion.ui.theme.CompanionTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    /** Tab asked for by an intent (e.g. "Play now" from the share sheet, tapping the media notification). */
+    private var requestedTab by mutableStateOf<Tab?>(null)
+
+    /** Bumped on every request so asking for the same tab twice still switches to it. */
+    private var requestCount by mutableIntStateOf(0)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        if (savedInstanceState == null) handle(intent)
         setContent {
             CompanionTheme {
-                CompanionRoot()
+                CompanionRoot(requestedTab, requestCount)
             }
         }
     }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handle(intent)
+    }
+
+    private fun handle(intent: Intent?) {
+        val tab = intent?.getStringExtra(EXTRA_TAB)?.let { name -> Tab.entries.firstOrNull { it.name == name } }
+        if (tab != null) {
+            requestedTab = tab
+            requestCount++
+        }
+    }
+
+    companion object {
+        const val EXTRA_TAB = "tab"
+
+        fun openPlayerIntent(context: Context): Intent = Intent(context, MainActivity::class.java)
+            .putExtra(EXTRA_TAB, Tab.PLAYER.name)
+            .addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP,
+            )
+    }
 }
 
-enum class Tab(val label: String, val title: String, val icon: ImageVector) {
-    PEOPLE("People", "Call someone", Icons.Filled.Person),
-    REMINDERS("Reminders", "Reminders", Icons.Filled.Notifications),
+enum class Tab(val label: String, val title: String, @DrawableRes val icon: Int) {
+    PEOPLE("People", "Call someone", R.drawable.ic_call),
+    REMINDERS("Reminders", "Reminders", R.drawable.ic_notification),
+    PLAYER("Player", "Player", R.drawable.ic_music_note),
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CompanionRoot() {
-    var tab by rememberSaveable { mutableStateOf(Tab.PEOPLE) }
+fun CompanionRoot(requestedTab: Tab? = null, requestCount: Int = 0) {
+    var tab by rememberSaveable { mutableStateOf(requestedTab ?: Tab.PEOPLE) }
     val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(requestCount) {
+        if (requestedTab != null) tab = requestedTab
+    }
 
     Scaffold(
         topBar = { CenterAlignedTopAppBar(title = { Text(tab.title) }) },
@@ -62,7 +101,7 @@ fun CompanionRoot() {
                     NavigationBarItem(
                         selected = tab == item,
                         onClick = { tab = item },
-                        icon = { Icon(item.icon, contentDescription = null) },
+                        icon = { Icon(painterResource(item.icon), contentDescription = null) },
                         label = { Text(item.label) },
                     )
                 }
@@ -74,6 +113,7 @@ fun CompanionRoot() {
         when (tab) {
             Tab.PEOPLE -> ContactsRoute(snackbarHostState, modifier)
             Tab.REMINDERS -> RemindersRoute(snackbarHostState, modifier)
+            Tab.PLAYER -> PlayerRoute(snackbarHostState, modifier)
         }
     }
 }
