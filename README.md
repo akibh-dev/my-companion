@@ -20,6 +20,8 @@ Built as a **learning vehicle** for Android development.
 | [plan/02-tech-stack.md](plan/02-tech-stack.md) | Technical decisions with rationale |
 | [plan/03-learning-roadmap.md](plan/03-learning-roadmap.md) | Phase-by-phase learning path |
 | [Docs/00-index.md](Docs/00-index.md) | Documentation index and templates |
+| [Docs/03-whatsapp-call-and-reminders.md](Docs/03-whatsapp-call-and-reminders.md) | How calls and reminders work |
+| [Docs/04-testing.md](Docs/04-testing.md) | Test layers, tools and patterns |
 | [Docs/architecture/](Docs/architecture/) | Architecture Decision Records (ADRs) |
 | [Docs/references/](Docs/references/) | Quick reference sheets (coroutines, lifecycle, Gradle) |
 | [Docs/resources/](Docs/resources/) | Curated external learning resources |
@@ -83,22 +85,26 @@ app/
 │   ├── di/                 # Hilt modules
 │   ├── domain/             # Pure Kotlin: entities, repositories, usecases
 │   ├── data/               # Repository impl, Room, DataStore, Media3
-│   ├── presentation/       # ViewModels, Compose UI, Services, Receivers
+│   ├── presentation/       # ViewModels, Compose screens, call activity, shortcuts
+│   ├── system/             # Broadcast receivers (alarms, boot)
 │   └── ui/theme/           # Material 3 theme
-├── src/test/               # Unit tests (JUnit, MockK, Turbine)
-└── src/androidTest/        # Instrumented tests (Compose Testing)
+└── src/test/               # JUnit, MockK, Turbine, Robolectric, Compose UI tests
 ```
 
 ## 🎯 Current Status
 
-- [x] Project setup with Gradle Kotlin DSL + Version Catalog
-- [x] Hilt DI configured
-- [x] Compose + Material 3 theme
-- [x] Basic Home screen with ViewModel
-- [x] Notification domain + data layer (skeleton)
-- [x] Documentation structure
+- [x] Gradle Kotlin DSL + version catalog, Hilt, Room, Compose + Material 3
+- [x] **People**: one-tap WhatsApp voice calls, pick from phone book, edit/undo, home-screen call shortcuts
+- [x] **Reminders**: custom notifications now / later / at a time, daily repeat, Snooze / Done / Call buttons, survive reboot
+- [x] Tests: domain, ViewModel, Robolectric (Room, alarms, notifications, receivers) and Compose UI ([Docs/04-testing.md](Docs/04-testing.md))
+- [x] CI: ktlint, unit tests, Android lint, debug APK on every push
 
-**Next**: Implement notification channels + test notification
+How it works: [Docs/03-whatsapp-call-and-reminders.md](Docs/03-whatsapp-call-and-reminders.md)
+
+**Next**: YouTube background playback
+
+### Install on your phone
+Download `my-companion-debug-apk` from the latest green **Android CI** run (Actions tab), or run `./gradlew installDebug` with the phone connected.
 
 ## 📖 Learning Resources
 
