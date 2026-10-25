@@ -39,7 +39,7 @@ subprojects {
                                 languageVersion.set(JavaLanguageVersion.of(21))
                             },
                         )
-                        test.maxHeapSize = "3g"
+                        test.maxHeapSize = "2g"
                         test.testLogging {
                             events("failed")
                             exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL

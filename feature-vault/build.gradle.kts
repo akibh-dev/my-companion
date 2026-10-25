@@ -18,6 +18,7 @@ kapt {
 dependencies {
     api(project(":core"))
     implementation(libs.biometric)
+    implementation(libs.fragment)
     implementation(libs.androidx.core.ktx)
     implementation(libs.okhttp)
     implementation(platform(libs.compose.bom))

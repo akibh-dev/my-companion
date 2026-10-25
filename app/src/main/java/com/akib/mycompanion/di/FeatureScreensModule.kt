@@ -9,6 +9,10 @@ import com.akib.mycompanion.context.ui.PlacesRoute
 import com.akib.mycompanion.context.ui.RuleEditorRoute
 import com.akib.mycompanion.context.ui.RuleHistoryRoute
 import com.akib.mycompanion.context.ui.RulesRoute
+import com.akib.mycompanion.presentation.home.HomeLink
+import com.akib.mycompanion.vault.ui.VaultItemRoute
+import com.akib.mycompanion.vault.ui.VaultRoute
+import com.akib.mycompanion.vault.ui.VaultTrashBackupRoute
 import com.akib.mycompanion.voice.ui.VoiceRoute
 import dagger.Module
 import dagger.Provides
@@ -63,6 +67,27 @@ object FeatureScreensModule {
 
     @Provides @IntoSet
     fun voice() = Screen("voice", "Voice mode") { s -> VoiceRoute(s.modifier) }
+
+    // ---- Vault (Phase 3) ----
+
+    @Provides @IntoSet
+    fun vault() = Screen("vault", "Vault") { s ->
+        VaultRoute(onOpenItem = {
+            s.navigate("vault-item/$it")
+        }, onOpenTrashAndBackup = { s.navigate("vault-more") }, modifier = s.modifier)
+    }
+
+    @Provides @IntoSet
+    fun vaultItem() = Screen(
+        "vault-item/{id}",
+        "Vault item"
+    ) { s -> VaultItemRoute(onDone = s.back, modifier = s.modifier) }
+
+    @Provides @IntoSet
+    fun vaultMore() = Screen("vault-more", "Trash & backup") { s -> VaultTrashBackupRoute(s.modifier) }
+
+    @Provides @IntoSet
+    fun vaultLink() = HomeLink("Vault", "Encrypted links, notes, images and files", "vault")
 
     /** Route argument for "create a new one" (not a number, so the editor starts empty). */
     private const val NEW = "new"

@@ -114,6 +114,7 @@ dependencies {
     implementation(project(":feature-vault"))
     implementation(project(":feature-capture"))
     implementation(libs.navigation.compose)
+    implementation(libs.fragment)
     implementation(libs.work.runtime)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
