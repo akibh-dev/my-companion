@@ -5,8 +5,10 @@ import com.akib.mycompanion.data.youtube.CachingStreamResolver
 import com.akib.mycompanion.data.youtube.OkHttpDownloader
 import com.akib.mycompanion.data.youtube.ResolvedStream
 import com.akib.mycompanion.data.youtube.StreamHeaders
+import com.akib.mycompanion.data.youtube.YouTubeException
 import com.akib.mycompanion.fakes.FakeClock
 import com.google.common.truth.Truth.assertThat
+import java.net.UnknownHostException
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -14,9 +16,39 @@ import org.junit.After
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.schabi.newpipe.extractor.downloader.Request
+import org.schabi.newpipe.extractor.exceptions.AgeRestrictedContentException
+import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException
+import org.schabi.newpipe.extractor.exceptions.GeographicRestrictionException
+import org.schabi.newpipe.extractor.exceptions.ParsingException
+import org.schabi.newpipe.extractor.exceptions.PrivateContentException
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException
+import org.schabi.newpipe.extractor.exceptions.SignInConfirmNotBotException
+import org.schabi.newpipe.extractor.exceptions.YoutubeMusicPremiumContentException
 
 class YouTubeDataTest {
+
+    // ---- Error wording (device test finding #8) ----
+
+    @Test
+    fun `extractor errors become plain sentences, most specific first`() {
+        fun say(error: Exception) = YouTubeException.from(error).message
+
+        assertThat(say(PrivateContentException("private"))).isEqualTo("This video is private")
+        assertThat(say(AgeRestrictedContentException("age"))).contains("age-restricted")
+        assertThat(say(GeographicRestrictionException("geo"))).contains("your country")
+        assertThat(say(YoutubeMusicPremiumContentException())).contains("Premium")
+        assertThat(say(ContentNotAvailableException("Video unavailable"))).contains("isn't available")
+        assertThat(say(SignInConfirmNotBotException("bot"))).contains("not a bot")
+        assertThat(say(ParsingException("JSON response is too short"))).contains("Check the link")
+        assertThat(say(UnknownHostException("www.youtube.com"))).contains("internet connection")
+    }
+
+    @Test
+    fun `the extractor's own message is kept as the cause`() {
+        val raw = ParsingException("JSON response is too short")
+
+        assertThat(YouTubeException.from(raw).cause).isSameInstanceAs(raw)
+    }
 
     // ---- Stream URL cache ----
 

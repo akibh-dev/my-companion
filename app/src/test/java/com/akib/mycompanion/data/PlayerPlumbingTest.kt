@@ -10,11 +10,13 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.akib.mycompanion.data.youtube.AudioStreamSource
 import com.akib.mycompanion.data.youtube.CachingStreamResolver
 import com.akib.mycompanion.data.youtube.ResolvedStream
+import com.akib.mycompanion.data.youtube.YouTubeException
 import com.akib.mycompanion.domain.model.RepeatMode
 import com.akib.mycompanion.fakes.FakeClock
 import com.akib.mycompanion.fakes.video
 import com.akib.mycompanion.player.MediaControllerPlayback
 import com.akib.mycompanion.player.MediaItems
+import com.akib.mycompanion.player.PlaybackErrors
 import com.akib.mycompanion.player.RetryExpiredStream
 import com.akib.mycompanion.player.YouTubeSpecResolver
 import com.google.common.truth.Truth.assertThat
@@ -105,6 +107,20 @@ class PlayerPlumbingTest {
         retry.onMediaItemTransition(null, Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
         retry.onPlayerError(error)
         verify(exactly = 2) { player.prepare() }
+    }
+
+    @Test
+    fun `player errors read like sentences, even after crossing to the controller`() {
+        fun say(cause: Throwable?, code: Int) =
+            // toBundle/fromBundle is what the MediaController receives from the service.
+            PlaybackErrors.message(PlaybackException.fromBundle(PlaybackException("x", cause, code).toBundle()))
+
+        assertThat(say(YouTubeException("This video is private"), PlaybackException.ERROR_CODE_IO_UNSPECIFIED))
+            .isEqualTo("This video is private")
+        assertThat(say(null, PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED)).contains("No internet")
+        assertThat(say(null, PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS)).contains("refused")
+        assertThat(say(null, PlaybackException.ERROR_CODE_DECODING_FAILED)).contains("format")
+        assertThat(say(null, PlaybackException.ERROR_CODE_TIMEOUT)).contains("ERROR_CODE_TIMEOUT")
     }
 
     @Test

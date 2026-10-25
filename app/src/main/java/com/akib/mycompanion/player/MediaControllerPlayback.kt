@@ -182,7 +182,7 @@ class MediaControllerPlayback @Inject constructor(
                 else -> RepeatMode.OFF
             },
             shuffle = player.shuffleModeEnabled,
-            error = player.playerError?.let { "Couldn't play this: ${it.errorCodeName}" },
+            error = player.playerError?.let(PlaybackErrors::message),
         )
     }
 }

@@ -90,7 +90,8 @@ class VideoActionsViewModel @Inject constructor(
             status.value = when (val result = loadVideo(text)) {
                 is LoadVideoResult.Loaded -> LinkStatus.Ready(result.video)
                 LoadVideoResult.NotYouTube -> LinkStatus.Error("That's not a YouTube video link")
-                is LoadVideoResult.Failed -> LinkStatus.Error("Couldn't load the video: ${result.reason}")
+                // Already a sentence ("This video is private"), worded by the data layer.
+                is LoadVideoResult.Failed -> LinkStatus.Error(result.reason)
             }
         }
     }

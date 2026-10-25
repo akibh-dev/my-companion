@@ -60,7 +60,7 @@ class NewPipeYouTube @Inject constructor(
                 trackType = stream.audioTrackType?.name,
             )
         }
-        val chosen = AudioStreamPicker.pick(candidates) ?: throw IOException("No playable audio for this video")
+        val chosen = AudioStreamPicker.pick(candidates) ?: throw YouTubeException("No playable audio for this video")
         return ResolvedStream(
             url = chosen.url,
             headers = StreamHeaders.forUrl(chosen.url),
@@ -73,7 +73,9 @@ class NewPipeYouTube @Inject constructor(
         return try {
             StreamInfo.getInfo(ServiceList.YouTube, "https://www.youtube.com/watch?v=$videoId")
         } catch (e: ExtractionException) {
-            throw IOException(e.message ?: "YouTube refused this video", e)
+            throw YouTubeException.from(e)
+        } catch (e: IOException) {
+            throw YouTubeException.from(e)
         }
     }
 
