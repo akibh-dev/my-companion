@@ -68,4 +68,63 @@ class PlaceDetectorTest {
         runCurrent()
         assertThat(log.read().map { it.message }).contains("no location access: places are detected by Wi-Fi only")
     }
+
+    // ---- Shared by context rules and keep-screen-on ----
+
+    private val noLocation = "no location access: places are detected by Wi-Fi only"
+
+    private suspend fun registrations() = log.read().count { it.message == noLocation }
+
+    @Test
+    fun `two features share one watcher, which survives the first one stopping`() = runTest {
+        shadowOf(app).denyPermissions(Manifest.permission.ACCESS_FINE_LOCATION)
+        val rules = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())
+        val screenOn = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())
+
+        detector.start(rules)
+        detector.start(screenOn)
+        runCurrent()
+        assertThat(detector.userCount).isEqualTo(2)
+        assertThat(registrations()).isEqualTo(1) // registered once, not per feature
+
+        detector.onProximity(3, entering = true)
+        rules.cancel()
+        runCurrent()
+        assertThat(detector.userCount).isEqualTo(1)
+        assertThat(detector.inside.value).containsExactly(3L) // still known while one feature runs
+
+        val before = registrations()
+        places.value = places.value + Place(id = 4, name = "Gym", latitude = 23.7, longitude = 90.3)
+        runCurrent()
+        assertThat(registrations()).isEqualTo(before + 1) // the handed-over watcher still follows changes
+
+        screenOn.cancel()
+        runCurrent()
+        assertThat(detector.userCount).isEqualTo(0)
+        assertThat(detector.inside.value).isEmpty() // nothing stale once nobody watches
+
+        val after = registrations()
+        places.value = places.value.drop(1)
+        runCurrent()
+        assertThat(registrations()).isEqualTo(after) // stopped for good
+    }
+
+    @Test
+    fun `a feature can start again after everyone stopped`() = runTest {
+        shadowOf(app).denyPermissions(Manifest.permission.ACCESS_FINE_LOCATION)
+        val first = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())
+        detector.start(first)
+        runCurrent()
+        first.cancel()
+        runCurrent()
+
+        val again = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())
+        val before = registrations()
+        detector.start(again)
+        runCurrent()
+        assertThat(detector.userCount).isEqualTo(1)
+        assertThat(registrations()).isEqualTo(before + 1)
+        again.cancel()
+        runCurrent()
+    }
 }

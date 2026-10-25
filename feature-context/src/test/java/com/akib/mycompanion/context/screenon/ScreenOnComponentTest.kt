@@ -1,11 +1,14 @@
 package com.akib.mycompanion.context.screenon
 
+import com.akib.mycompanion.context.device.PlaceDetector
 import com.akib.mycompanion.context.screenon.Samples.sample
 import com.akib.mycompanion.context.screenon.Samples.times
 import com.akib.mycompanion.core.log.AppLog
 import com.akib.mycompanion.core.settings.Feature
 import com.akib.mycompanion.core.settings.Settings
 import com.google.common.truth.Truth.assertThat
+import io.mockk.mockk
+import io.mockk.verify
 import java.nio.file.Files
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -39,6 +42,7 @@ class ScreenOnComponentTest {
         }
     }
     private val status = ScreenOnStatus()
+    private val places = mockk<PlaceDetector>(relaxed = true)
     private val component = ScreenOnComponent(
         object : ScreenOnSensors {
             override fun screenOn(): Flow<Boolean> = screenFlow
@@ -56,6 +60,7 @@ class ScreenOnComponentTest {
         },
         status,
         AppLog(Files.createTempDirectory("log").toFile(), mirrorToLogcat = false),
+        places,
     )
 
     /** Holds the phone up (45°, in a hand) from [from] to [to] ms. */
@@ -162,6 +167,13 @@ class ScreenOnComponentTest {
         runCurrent()
 
         assertThat(keepAwake.holding).isFalse()
+        scope.cancel()
+    }
+
+    @Test
+    fun `starts live place detection for the outside check`() = runTest {
+        val scope = started()
+        verify { places.start(scope) }
         scope.cancel()
     }
 }

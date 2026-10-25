@@ -1,5 +1,6 @@
 package com.akib.mycompanion.context.screenon
 
+import com.akib.mycompanion.context.device.PlaceDetector
 import com.akib.mycompanion.core.host.HostedComponent
 import com.akib.mycompanion.core.log.AppLog
 import com.akib.mycompanion.core.settings.Feature
@@ -33,6 +34,7 @@ class ScreenOnComponent @Inject constructor(
     private val preferences: ScreenOnPreferences,
     private val status: ScreenOnStatus,
     private val log: AppLog,
+    private val places: PlaceDetector,
 ) : HostedComponent {
     override val name = "keep-screen-on"
 
@@ -41,6 +43,8 @@ class ScreenOnComponent @Inject constructor(
     override fun isWanted(settings: Settings) = settings.isActive(Feature.KEEP_SCREEN_ON)
 
     override fun start(scope: CoroutineScope) {
+        // Live arriving/leaving for the "outside" check, shared with context rules (FR-3.10).
+        places.start(scope)
         scope.launch {
             try {
                 sensors.screenOn().collectLatest { screenOn ->

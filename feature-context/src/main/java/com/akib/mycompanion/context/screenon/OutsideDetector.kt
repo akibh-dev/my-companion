@@ -34,7 +34,7 @@ interface OutsideDetector {
 }
 
 /**
- * Inside = a saved place [PlaceDetector] reports (live while context rules run), a saved place
+ * Inside = a saved place [PlaceDetector] reports (live while keep-screen-on or context rules run), a saved place
  * around a recent last-known location (so it also works with context rules off), or a saved
  * place's Wi-Fi network scanned or connected nearby.
  */

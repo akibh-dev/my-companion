@@ -18,10 +18,13 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
@@ -41,21 +44,68 @@ class PlaceDetector @Inject constructor(
     val inside: StateFlow<Set<Long>> = mutableInside.asStateFlow()
     private var watched: List<Place> = emptyList()
 
-    /** Runs while context rules are on: re-registers alerts whenever places change. */
+    /** Scopes of the features using the detector; the watcher runs in the first. */
+    private val users = mutableListOf<CoroutineScope>()
+    private var watcher: Job? = null
+
+    /** Bumped for each new watcher, so a watcher that was handed over doesn't undo its successor. */
+    private var generation = 0
+
+    /**
+     * Watches places for as long as [scope] lives (context rules, keep-screen-on). Shared: the
+     * alerts are registered once however many features use it, survive one of them stopping, and
+     * are removed only when the last one stops.
+     */
     fun start(scope: CoroutineScope) {
+        synchronized(users) {
+            users += scope
+            if (watcher?.isActive != true) watcher = launchWatcher(scope)
+        }
         scope.launch {
+            try {
+                awaitCancellation()
+            } finally {
+                leave(scope)
+            }
+        }
+    }
+
+    /** How many features are using the detector now (for tests and the log). */
+    val userCount: Int get() = synchronized(users) { users.size }
+
+    private fun leave(scope: CoroutineScope) {
+        synchronized(users) {
+            users -= scope
+            // The watcher lived in the scope that just ended: hand it to a feature still running.
+            val next = users.firstOrNull { it.isActive }
+            if (watcher?.isActive != true && next != null) watcher = launchWatcher(next)
+        }
+    }
+
+    private fun launchWatcher(scope: CoroutineScope): Job {
+        val mine = ++generation
+        return scope.launch { watch(mine) }
+    }
+
+    /** Re-registers alerts whenever places change; cleans up when the feature hosting it stops. */
+    private suspend fun watch(mine: Int) {
+        try {
             repository.places.collect { places ->
                 unregister()
                 watched = places
                 register(places)
                 checkWifi()
             }
-        }
-        scope.launch {
-            try {
-                kotlinx.coroutines.awaitCancellation()
-            } finally {
+        } finally {
+            val current = synchronized(users) { mine == generation }
+            if (current) {
                 unregister()
+                watched = emptyList()
+                if (userCount == 0) {
+                    byLocation.value = emptySet()
+                    byWifi.value = emptySet()
+                    publish()
+                }
             }
         }
     }
