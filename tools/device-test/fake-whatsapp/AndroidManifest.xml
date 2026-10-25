@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Test double for WhatsApp (package com.whatsapp), for emulators where the real app can't be installed.
+
+    It declares the two intents My Companion sends and logs exactly what it receives (tag FakeWhatsApp):
+      1. Voice call: ACTION_VIEW + content://com.android.contacts/data/<id> + the WhatsApp voip MIME type
+      2. Chat fallback: ACTION_VIEW + https://wa.me/<digits>
+    Build with ./build.sh, install with adb install -r build/fake-whatsapp.apk.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.whatsapp"
+    android:versionCode="1"
+    android:versionName="fake-1">
+
+    <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="34" />
+
+    <application android:label="Fake WhatsApp">
+        <!-- singleTop + onNewIntent: a second call while this is on screen is still logged. -->
+        <activity
+            android:name=".FakeActivity"
+            android:exported="true"
+            android:launchMode="singleTop">
+            <!-- A filter with a MIME type but no scheme also matches content: URIs. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="vnd.android.cursor.item/vnd.com.whatsapp.voip.call" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="wa.me" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
