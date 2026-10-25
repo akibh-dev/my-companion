@@ -3,8 +3,11 @@ package com.akib.mycompanion.presentation.health
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -23,11 +26,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.akib.mycompanion.core.permissions.Requirement
@@ -40,6 +45,13 @@ import com.akib.mycompanion.core.permissions.Requirement
 fun PermissionsScreen(requirements: List<Requirement>, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     var checks by remember { mutableIntStateOf(0) }
+    var asking by remember { mutableStateOf<Requirement?>(null) }
+    // Runtime permissions are asked in the app; if that's refused (or more is needed), the system screen opens.
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        checks++
+        asking?.let { if (!it.isGranted(context)) open(context, it) }
+        asking = null
+    }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { checks++ }
     val sorted = remember(requirements, checks) {
         requirements.map {
@@ -58,7 +70,17 @@ fun PermissionsScreen(requirements: List<Requirement>, modifier: Modifier = Modi
             )
         }
         items(sorted, key = { it.first.id }) { (requirement, granted) ->
-            RequirementCard(requirement, granted) { open(context, requirement) }
+            RequirementCard(requirement, granted) {
+                val missing = requirement.runtimePermissions.filter { p ->
+                    ContextCompat.checkSelfPermission(context, p) != PackageManager.PERMISSION_GRANTED
+                }
+                if (missing.isEmpty()) {
+                    open(context, requirement)
+                } else {
+                    asking = requirement
+                    ask.launch(missing.toTypedArray())
+                }
+            }
         }
     }
 }
@@ -82,7 +104,9 @@ private fun RequirementCard(requirement: Requirement, granted: Boolean, onOpen: 
                 requirement.steps.forEachIndexed { index, step ->
                     Text("${index + 1}. $step", style = MaterialTheme.typography.bodySmall)
                 }
-                FilledTonalButton(onClick = onOpen) { Text("Open settings") }
+                FilledTonalButton(
+                    onClick = onOpen
+                ) { Text(if (requirement.runtimePermissions.isEmpty()) "Open settings" else "Allow") }
             }
         }
     }

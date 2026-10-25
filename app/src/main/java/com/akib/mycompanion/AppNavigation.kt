@@ -40,11 +40,22 @@ import com.akib.mycompanion.presentation.log.LogRoute
 import com.akib.mycompanion.presentation.player.PlayerRoute
 import com.akib.mycompanion.presentation.reminders.RemindersRoute
 
-/** A screen opened from Home, over the tabs, with a back arrow. */
+/** What a screen gets: where to draw, the snackbar host, and how to move between screens. */
+class ScreenScope(
+    val modifier: Modifier,
+    val snackbars: SnackbarHostState,
+    val navigate: (String) -> Unit,
+    val back: () -> Unit,
+)
+
+/**
+ * A screen opened from Home, over the tabs, with a back arrow. [route] may carry an `{id}` argument
+ * ("rule/{id}"), which the screen's ViewModel reads from its SavedStateHandle.
+ */
 data class Screen(
     val route: String,
     val title: String,
-    val content: @Composable (modifier: Modifier, snackbars: SnackbarHostState, onBack: () -> Unit) -> Unit,
+    val content: @Composable (ScreenScope) -> Unit,
 )
 
 /** Which screen each feature's card opens; features add theirs as they're built. */
@@ -68,11 +79,9 @@ fun CompanionRoot(
     val snackbarHostState = remember { SnackbarHostState() }
     val screens = remember(requirements, extraScreens) {
         listOf(
-            Screen(PERMISSIONS_ROUTE, "Permissions & health") { modifier, _, _ ->
-                PermissionsScreen(requirements, modifier)
-            },
-            Screen("ai", "AI engines") { modifier, _, _ -> AiEnginesRoute(modifier) },
-            Screen("log", "Log") { modifier, _, _ -> LogRoute(modifier) },
+            Screen(PERMISSIONS_ROUTE, "Permissions & health") { PermissionsScreen(requirements, it.modifier) },
+            Screen("ai", "AI engines") { AiEnginesRoute(it.modifier) },
+            Screen("log", "Log") { LogRoute(it.modifier) },
         ) + extraScreens
     }
     val links = remember(homeLinks) {
@@ -141,7 +150,16 @@ fun CompanionRoot(
             composable(Tab.REMINDERS.route) { RemindersRoute(snackbarHostState, modifier) }
             composable(Tab.PLAYER.route) { PlayerRoute(snackbarHostState, modifier) }
             screens.forEach { item ->
-                composable(item.route) { item.content(modifier, snackbarHostState) { navController.popBackStack() } }
+                composable(item.route) {
+                    item.content(
+                        ScreenScope(
+                            modifier,
+                            snackbarHostState,
+                            { navController.navigate(it) },
+                            { navController.popBackStack() }
+                        )
+                    )
+                }
             }
         }
     }

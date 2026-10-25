@@ -19,4 +19,6 @@ data class Requirement(
     val settingsIntent: (Context) -> Intent,
     /** Extra steps, e.g. "Allow restricted settings" for sideloaded apps (plan §3). */
     val steps: List<String> = emptyList(),
+    /** Runtime permissions the app can ask for itself before sending you to [settingsIntent]. */
+    val runtimePermissions: List<String> = emptyList(),
 )

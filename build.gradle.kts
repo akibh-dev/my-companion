@@ -49,8 +49,14 @@ subprojects {
             }
             lint {
                 abortOnError = true
+                ignoreTestSources = true
                 checkDependencies = false
-                disable += setOf("GradleDependency", "NewerVersionAvailable", "AndroidGradlePluginVersion", "OldTargetApi")
+                disable += setOf(
+                    "GradleDependency",
+                    "NewerVersionAvailable",
+                    "AndroidGradlePluginVersion",
+                    "OldTargetApi",
+                )
             }
         }
         extensions.configure<LibraryAndroidComponentsExtension> {

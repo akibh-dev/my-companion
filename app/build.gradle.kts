@@ -62,6 +62,8 @@ android {
 
     lint {
         abortOnError = true
+        // Lint's Kotlin 2 analysis can crash on test files; tests aren't linted anyway.
+        ignoreTestSources = true
         warningsAsErrors = false
         checkDependencies = false
         // Version-bump nags are not actionable for CI.
