@@ -2,6 +2,9 @@ package com.akib.mycompanion.context.ui
 
 import android.app.TimePickerDialog
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import android.text.format.DateFormat
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -9,7 +12,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
@@ -30,6 +35,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,6 +49,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.akib.mycompanion.context.data.ContextRepository
+import com.akib.mycompanion.context.device.InstalledApp
+import com.akib.mycompanion.context.device.hasUsageAccess
+import com.akib.mycompanion.context.device.launchableApps
 import com.akib.mycompanion.context.domain.DndMode
 import com.akib.mycompanion.context.domain.Place
 import com.akib.mycompanion.context.domain.Rule
@@ -54,6 +63,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.DayOfWeek
 import java.time.LocalTime
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -61,6 +71,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class RuleDraft(
     val id: Long = 0,
@@ -237,6 +248,7 @@ private val TRIGGER_KINDS: List<Pair<String, (List<Place>) -> Trigger>> = listOf
     "Charging" to { _ -> Trigger.Charging(true) },
     "Bluetooth device" to { _ -> Trigger.BluetoothDevice("") },
     "Wi-Fi network" to { _ -> Trigger.WifiNetwork("") },
+    "App in use" to { _ -> Trigger.AppInForeground("", "") },
 )
 
 private val ACTION_KINDS: List<Pair<String, () -> RuleAction>> = listOf(
@@ -286,6 +298,7 @@ private fun TriggerDialog(initial: Trigger, places: List<Place>, onDismiss: () -
         is Trigger.WifiNetwork -> t.ssid.isNotBlank()
         is Trigger.AtPlace -> places.any { it.id == t.placeId }
         is Trigger.Charging -> true
+        is Trigger.AppInForeground -> t.packageName.isNotBlank()
     }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -339,6 +352,9 @@ private fun TriggerDialog(initial: Trigger, places: List<Place>, onDismiss: () -
                                 { it == t.inside }
                             ) { trigger = t.copy(inside = it) }
                         }
+                    }
+                    is Trigger.AppInForeground -> AppPicker(t.packageName) {
+                        trigger = Trigger.AppInForeground(it.packageName, it.label)
                     }
                 }
             }
@@ -431,4 +447,48 @@ private fun pickTime(context: Context, initial: LocalTime, onPicked: (LocalTime)
         initial.minute,
         DateFormat.is24HourFormat(context)
     ).show()
+}
+
+/** Choose the app for an "App in use" trigger; reminds you that it needs Usage access. */
+@Composable
+private fun AppPicker(selected: String, onPick: (InstalledApp) -> Unit) {
+    val context = LocalContext.current
+    var apps by remember { mutableStateOf<List<InstalledApp>?>(null) }
+    var query by remember { mutableStateOf("") }
+    LaunchedEffect(Unit) { apps = withContext(Dispatchers.IO) { launchableApps(context) } }
+
+    if (!hasUsageAccess(context)) {
+        Text(
+            "Needs Usage access so the app can see which app is open.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+        OutlinedButton(onClick = {
+            context.startActivity(
+                Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, Uri.fromParts("package", context.packageName, null))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+        }) { Text("Allow usage access") }
+    }
+    OutlinedTextField(
+        value = query,
+        onValueChange = { query = it },
+        label = { Text("Search apps") },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    val shown = apps.orEmpty().filter { it.label.contains(query.trim(), ignoreCase = true) }
+    when {
+        apps == null -> Text("Loading apps…")
+        shown.isEmpty() -> Text("No app matches")
+        else -> LazyColumn(Modifier.heightIn(max = 280.dp)) {
+            items(shown, key = { it.packageName }) { app ->
+                FilterChip(
+                    selected = app.packageName == selected,
+                    onClick = { onPick(app) },
+                    label = { Text(app.label) },
+                )
+            }
+        }
+    }
 }

@@ -21,7 +21,17 @@ sealed interface Trigger {
 
     /** Inside (or, with [inside] false, away from) a saved place. */
     data class AtPlace(val placeId: Long, val inside: Boolean = true) : Trigger
+
+    /**
+     * This app is open on the screen (FR-3.7), e.g. a navigation app turns Do Not Disturb on.
+     * [label] is the app's name when the rule was made, for showing it without looking it up.
+     */
+    data class AppInForeground(val packageName: String, val label: String = packageName) : Trigger
 }
+
+/** True when a rule needs to know which app is open, so the app watcher runs only then (battery). */
+fun List<Rule>.watchForegroundApp(): Boolean =
+    any { rule -> rule.enabled && rule.triggers.any { it is Trigger.AppInForeground } }
 
 enum class SoundMode { NORMAL, VIBRATE, SILENT }
 
@@ -93,6 +103,8 @@ data class ContextSnapshot(
     val bluetoothDevices: Set<String> = emptySet(),
     val wifiSsid: String? = null,
     val insidePlaces: Set<Long> = emptySet(),
+    /** Package of the app on screen; null when unknown, the screen is off, or nothing needs it. */
+    val foregroundApp: String? = null,
 )
 
 object RuleEvaluator {
@@ -106,6 +118,7 @@ object RuleEvaluator {
         is Trigger.BluetoothDevice -> snapshot.bluetoothDevices.any { it.equals(trigger.name, ignoreCase = true) }
         is Trigger.WifiNetwork -> snapshot.wifiSsid?.equals(trigger.ssid, ignoreCase = true) == true
         is Trigger.AtPlace -> (trigger.placeId in snapshot.insidePlaces) == trigger.inside
+        is Trigger.AppInForeground -> snapshot.foregroundApp == trigger.packageName
     }
 
     private fun inWindow(window: Trigger.TimeWindow, now: LocalDateTime): Boolean {
@@ -140,6 +153,7 @@ object RuleCodec {
             is Trigger.BluetoothDevice -> line("BLUETOOTH", trigger.name)
             is Trigger.WifiNetwork -> line("WIFI", trigger.ssid)
             is Trigger.AtPlace -> line("PLACE", trigger.placeId.toString(), trigger.inside.toString())
+            is Trigger.AppInForeground -> line("APP", trigger.packageName, trigger.label)
         }
     }
 
@@ -155,6 +169,7 @@ object RuleCodec {
                 "BLUETOOTH" -> Trigger.BluetoothDevice(f[1])
                 "WIFI" -> Trigger.WifiNetwork(f[1])
                 "PLACE" -> Trigger.AtPlace(f[1].toLong(), f[2].toBoolean())
+                "APP" -> Trigger.AppInForeground(f[1], f.getOrNull(2)?.takeIf { it.isNotBlank() } ?: f[1])
                 else -> null
             }
         }.getOrNull()

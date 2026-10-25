@@ -3,6 +3,7 @@ package com.akib.mycompanion.context
 import com.akib.mycompanion.context.data.ContextRepository
 import com.akib.mycompanion.context.device.ContextSensors
 import com.akib.mycompanion.context.device.DeviceSettings
+import com.akib.mycompanion.context.device.ForegroundApps
 import com.akib.mycompanion.context.device.PlaceDetector
 import com.akib.mycompanion.context.device.RulesComponent
 import com.akib.mycompanion.context.device.RulesEngine
@@ -32,6 +33,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -78,6 +81,15 @@ class RulesComponentTest {
     private val snapshot = MutableStateFlow(ContextSnapshot(LocalDateTime.of(2026, 10, 25, 10, 0)))
     private val repository = mockk<ContextRepository> { every { rules } returns this@RulesComponentTest.rules }
     private val places = mockk<PlaceDetector>(relaxed = true)
+
+    /** The app in front, and how many collectors are watching it right now. */
+    private val foreground = MutableStateFlow<String?>(null)
+    private var watchers = 0
+    private val apps = object : ForegroundApps {
+        override fun hasAccess() = true
+        override fun current(): Flow<String?> =
+            foreground.onStart { watchers++ }.onCompletion { watchers-- }
+    }
     private val component = RulesComponent(
         repository,
         object : ContextSensors {
@@ -85,6 +97,14 @@ class RulesComponentTest {
         },
         places,
         engine,
+        apps,
+    )
+
+    private val inMaps = Rule(
+        id = 2,
+        name = "Navigation",
+        triggers = listOf(Trigger.AppInForeground("com.google.android.apps.maps", "Maps")),
+        actions = listOf(RuleAction.Sound(SoundMode.SILENT)),
     )
 
     @Test
@@ -132,6 +152,43 @@ class RulesComponentTest {
         rules.value = listOf(charging.copy(enabled = false))
         runCurrent()
         assertThat(device.values["ringer"]).isEqualTo("NORMAL")
+        scope.cancel()
+    }
+
+    @Test
+    fun `the app watcher runs only while a rule needs it`() = runTest {
+        val scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())
+        component.start(scope)
+        runCurrent()
+        assertThat(watchers).isEqualTo(0)
+
+        rules.value = listOf(charging, inMaps)
+        runCurrent()
+        assertThat(watchers).isEqualTo(1)
+
+        rules.value = listOf(charging, inMaps.copy(enabled = false))
+        runCurrent()
+        assertThat(watchers).isEqualTo(0)
+        scope.cancel()
+    }
+
+    @Test
+    fun `a rule follows the app in front`() = runTest {
+        val scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())
+        rules.value = listOf(inMaps)
+        component.start(scope)
+        runCurrent()
+        assertThat(device.values["ringer"]).isEqualTo("NORMAL")
+
+        foreground.value = "com.google.android.apps.maps"
+        runCurrent()
+        assertThat(device.values["ringer"]).isEqualTo("SILENT")
+        assertThat(engine.active.value).containsExactly(2L)
+
+        foreground.value = "com.android.chrome"
+        runCurrent()
+        assertThat(device.values["ringer"]).isEqualTo("NORMAL")
+        assertThat(engine.active.value).isEmpty()
         scope.cancel()
     }
 }

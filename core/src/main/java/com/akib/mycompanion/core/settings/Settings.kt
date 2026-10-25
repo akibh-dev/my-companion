@@ -16,7 +16,10 @@ import kotlinx.coroutines.flow.map
 
 /** Features with their own on/off switch (plan, Phase 1: "a switch per feature"). */
 enum class Feature(val title: String, val description: String) {
-    CONTEXT_RULES("Context rules", "Change Wi-Fi, sound and Do Not Disturb by place, time, charging or Bluetooth"),
+    CONTEXT_RULES(
+        "Context rules",
+        "Change Wi-Fi, sound and Do Not Disturb by place, time, charging, Bluetooth or the app in use",
+    ),
     AUTO_REPLY("Auto-reply", "Answer chat messages for you while you're busy"),
     MISSED_CALL_SMS("Missed-call SMS", "Text people back when you miss their call"),
     VOICE_MODE("Voice mode", "Read incoming messages aloud"),

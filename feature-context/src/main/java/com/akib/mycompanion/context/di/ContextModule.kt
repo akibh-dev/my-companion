@@ -15,10 +15,13 @@ import com.akib.mycompanion.context.device.AndroidContextSensors
 import com.akib.mycompanion.context.device.AndroidDeviceSettings
 import com.akib.mycompanion.context.device.ContextSensors
 import com.akib.mycompanion.context.device.DeviceSettings
+import com.akib.mycompanion.context.device.ForegroundApps
 import com.akib.mycompanion.context.device.RulesComponent
 import com.akib.mycompanion.context.device.RunRecorder
 import com.akib.mycompanion.context.device.StoredTakenOver
 import com.akib.mycompanion.context.device.TakenOverStorage
+import com.akib.mycompanion.context.device.UsageStatsForegroundApps
+import com.akib.mycompanion.context.device.hasUsageAccess
 import com.akib.mycompanion.core.host.HostedComponent
 import com.akib.mycompanion.core.permissions.Requirement
 import com.akib.mycompanion.core.settings.Feature
@@ -39,6 +42,8 @@ abstract class ContextModule {
     @Binds abstract fun sensors(impl: AndroidContextSensors): ContextSensors
 
     @Binds abstract fun takenOver(impl: StoredTakenOver): TakenOverStorage
+
+    @Binds abstract fun foregroundApps(impl: UsageStatsForegroundApps): ForegroundApps
 
     @Binds @IntoSet
     abstract fun rulesComponent(impl: RulesComponent): HostedComponent
@@ -110,6 +115,20 @@ abstract class ContextModule {
                     Uri.fromParts("package", it.packageName, null)
                 )
             },
+        )
+
+        @Provides @IntoSet
+        fun usageAccess() = Requirement(
+            id = "usage_access",
+            title = "Usage access",
+            why = "Only needed for rules that start when a certain app is open.",
+            feature = Feature.CONTEXT_RULES,
+            isGranted = ::hasUsageAccess,
+            settingsIntent = {
+                Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, Uri.fromParts("package", it.packageName, null))
+            },
+            // Android 17 words it "Permit access to app usage data"; older versions "Permit usage access".
+            steps = listOf("Switch on \"Permit access to app usage data\" (or \"Permit usage access\")"),
         )
 
         private fun granted(context: Context, permission: String) =

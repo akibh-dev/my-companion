@@ -5,6 +5,7 @@ import com.akib.mycompanion.context.data.TakenOverStore
 import com.akib.mycompanion.context.domain.ContextSnapshot
 import com.akib.mycompanion.context.domain.Rule
 import com.akib.mycompanion.context.domain.RuleEvaluator
+import com.akib.mycompanion.context.domain.watchForegroundApp
 import com.akib.mycompanion.core.context.ContextStatus
 import com.akib.mycompanion.core.host.HostedComponent
 import com.akib.mycompanion.core.log.AppLog
@@ -17,12 +18,17 @@ import com.akib.mycompanion.core.time.Clock
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -96,12 +102,17 @@ class RulesEngine @Inject constructor(
     }
 }
 
-/** Runs the rules in the background service while "Context rules" is on and nothing is paused. */
+/**
+ * Runs the rules in the background service while "Context rules" is on and nothing is paused.
+ * The foreground-app watcher only runs while an enabled rule has an "App in use" trigger.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
 class RulesComponent @Inject constructor(
     private val repository: ContextRepository,
     private val sensors: ContextSensors,
     private val places: PlaceDetector,
     private val engine: RulesEngine,
+    private val apps: ForegroundApps,
 ) : HostedComponent {
     override val name = "context-rules"
 
@@ -111,7 +122,13 @@ class RulesComponent @Inject constructor(
         places.start(scope)
         scope.launch {
             try {
-                combine(repository.rules, sensors.snapshots()) { rules, snapshot -> rules to snapshot }
+                val foregroundApp = repository.rules
+                    .map { it.watchForegroundApp() }
+                    .distinctUntilChanged()
+                    .flatMapLatest { watch -> if (watch) apps.current() else flowOf(null) }
+                combine(repository.rules, sensors.snapshots(), foregroundApp) { rules, snapshot, app ->
+                    rules to snapshot.copy(foregroundApp = app)
+                }
                     .collectLatest { (rules, snapshot) -> engine.run(rules, snapshot) }
             } finally {
                 withContext(NonCancellable) { engine.restoreAll() }

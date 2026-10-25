@@ -21,6 +21,7 @@ object Describe {
             val name = places[trigger.placeId]?.name ?: "a deleted place"
             if (trigger.inside) "At $name" else "Away from $name"
         }
+        is Trigger.AppInForeground -> "Using ${trigger.label}"
     }
 
     fun action(action: RuleAction): String = when (action) {

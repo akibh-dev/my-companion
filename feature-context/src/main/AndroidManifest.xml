@@ -22,6 +22,21 @@
         xmlns:tools="http://schemas.android.com/tools"
         tools:ignore="ProtectedPermissions" />
 
+    <!-- "App in use" trigger (FR-3.7): reads which app is in front. Granted in system settings
+         (Usage access), not at runtime. -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        xmlns:tools="http://schemas.android.com/tools"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- The rule editor lists apps with a launcher icon to choose from. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
     <application>
         <receiver
             android:name=".device.ProximityReceiver"
