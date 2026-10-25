@@ -6,6 +6,7 @@ import com.akib.mycompanion.domain.model.ReminderTime
 import com.akib.mycompanion.domain.model.Repeat
 import com.akib.mycompanion.domain.time.ReminderTimeCalculator
 import com.akib.mycompanion.domain.usecase.CancelReminderUseCase
+import com.akib.mycompanion.domain.usecase.CleanUpRemindersUseCase
 import com.akib.mycompanion.domain.usecase.DismissReminderUseCase
 import com.akib.mycompanion.domain.usecase.FireReminderUseCase
 import com.akib.mycompanion.domain.usecase.RestoreRemindersUseCase
@@ -37,7 +38,8 @@ class ReminderUseCasesTest {
     private val snooze = SnoozeReminderUseCase(reminders, notifier, scheduler, calculator)
     private val dismiss = DismissReminderUseCase(reminders, notifier)
     private val cancel = CancelReminderUseCase(reminders, scheduler, notifier)
-    private val restore = RestoreRemindersUseCase(reminders, scheduler, fire, clock)
+    private val cleanUp = CleanUpRemindersUseCase(reminders, clock)
+    private val restore = RestoreRemindersUseCase(reminders, scheduler, fire, cleanUp, clock)
 
     // ---- Scheduling ----
 
@@ -209,6 +211,20 @@ class ReminderUseCasesTest {
         assertThat(reminders.get(missed.id)!!.delivered).isTrue()
         assertThat(reminders.get(oldDone.id)).isNull()
         assertThat(reminders.get(recentDone.id)).isNotNull()
+    }
+
+    @Test
+    fun `clean-up drops delivered reminders older than a day and nothing else`() = runTest {
+        val pendingOld = reminders.save(reminder(title = "pending", trigger = millisAt(2026, 10, 20, 9, 0)))
+        val oldDone = reminders.save(reminder(title = "old", trigger = millisAt(2026, 10, 22, 9, 59), delivered = true))
+        val recentDone = reminders.save(
+            reminder(title = "recent", trigger = millisAt(2026, 10, 22, 10, 1), delivered = true),
+        )
+
+        cleanUp()
+
+        assertThat(reminders.all.map { it.id }).containsExactly(pendingOld.id, recentDone.id)
+        assertThat(reminders.get(oldDone.id)).isNull()
     }
 
     private fun reminder(

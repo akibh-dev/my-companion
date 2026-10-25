@@ -14,6 +14,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.akib.mycompanion.MainActivity
 import com.akib.mycompanion.R
+import com.akib.mycompanion.Tab
 import com.akib.mycompanion.domain.model.Contact
 import com.akib.mycompanion.domain.model.Reminder
 import com.akib.mycompanion.domain.port.ReminderNotifier
@@ -65,8 +66,7 @@ class AndroidReminderNotifier @Inject constructor(
     private fun openAppIntent(id: Int): PendingIntent = PendingIntent.getActivity(
         context,
         requestCode(id, ACTION_OPEN),
-        Intent(context, MainActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+        MainActivity.openTabIntent(context, Tab.REMINDERS),
         FLAGS,
     )
 

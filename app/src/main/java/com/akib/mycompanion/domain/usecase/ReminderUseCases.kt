@@ -160,17 +160,29 @@ class RestoreRemindersUseCase @Inject constructor(
     private val reminders: ReminderRepository,
     private val scheduler: AlarmScheduler,
     private val fire: FireReminderUseCase,
+    private val cleanUp: CleanUpRemindersUseCase,
     private val clock: Clock,
 ) {
     suspend operator fun invoke() {
+        cleanUp()
         val now = clock.nowMillis()
-        reminders.deleteDeliveredBefore(now - CLEANUP_AFTER_MILLIS)
         reminders.getPending().forEach { reminder ->
             if (reminder.triggerAtMillis > now) scheduler.schedule(reminder) else fire(reminder.id)
         }
     }
+}
+
+/**
+ * Delivered one-off reminders are kept for a day, so Snooze / Done / Call on a notification still
+ * left in the shade find them. After that they're deleted. Runs at boot and at app start.
+ */
+class CleanUpRemindersUseCase @Inject constructor(
+    private val reminders: ReminderRepository,
+    private val clock: Clock,
+) {
+    suspend operator fun invoke() = reminders.deleteDeliveredBefore(clock.nowMillis() - KEEP_DELIVERED_MILLIS)
 
     companion object {
-        const val CLEANUP_AFTER_MILLIS = 24 * 60 * 60 * 1000L
+        const val KEEP_DELIVERED_MILLIS = 24 * 60 * 60 * 1000L
     }
 }

@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.lifecycleScope
+import com.akib.mycompanion.domain.usecase.CleanUpRemindersUseCase
 import com.akib.mycompanion.presentation.contacts.ContactsRoute
 import com.akib.mycompanion.presentation.player.PlayerRoute
 import com.akib.mycompanion.presentation.reminders.RemindersRoute
@@ -44,6 +45,8 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var refreshHomeShortcuts: RefreshHomeShortcuts
 
+    @Inject lateinit var cleanUpReminders: CleanUpRemindersUseCase
+
     /** Tab asked for by an intent (e.g. "Play now" from the share sheet, tapping the media notification). */
     private var requestedTab by mutableStateOf<Tab?>(null)
 
@@ -55,7 +58,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) {
             handle(intent)
-            lifecycleScope.launch { refreshHomeShortcuts() }
+            lifecycleScope.launch {
+                refreshHomeShortcuts()
+                cleanUpReminders()
+            }
         }
         setContent {
             CompanionTheme {
@@ -80,8 +86,11 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val EXTRA_TAB = "tab"
 
-        fun openPlayerIntent(context: Context): Intent = Intent(context, MainActivity::class.java)
-            .putExtra(EXTRA_TAB, Tab.PLAYER.name)
+        fun openPlayerIntent(context: Context): Intent = openTabIntent(context, Tab.PLAYER)
+
+        /** Brings the app forward on [tab]; an already-open app gets it in onNewIntent. */
+        fun openTabIntent(context: Context, tab: Tab): Intent = Intent(context, MainActivity::class.java)
+            .putExtra(EXTRA_TAB, tab.name)
             .addFlags(
                 Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP,
             )
