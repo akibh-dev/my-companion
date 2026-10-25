@@ -1,5 +1,8 @@
 package com.akib.mycompanion.presentation.player
 
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.clearText
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.akib.mycompanion.domain.model.Playlist
@@ -37,8 +40,8 @@ sealed interface LinkStatus {
     data class Error(val message: String) : LinkStatus
 }
 
+/** The typed link isn't here: it's [VideoActionsViewModel.link] (Compose text state, device finding #5). */
 data class VideoActionsUiState(
-    val link: String = "",
     val status: LinkStatus = LinkStatus.Idle,
     val playlists: List<Playlist> = emptyList(),
     val newPlaylistError: String? = null,
@@ -64,7 +67,9 @@ class VideoActionsViewModel @Inject constructor(
     private val createPlaylist: CreatePlaylistUseCase,
 ) : ViewModel() {
 
-    private val link = MutableStateFlow("")
+    /** The Player tab's link box. The keyboard writes here directly; nothing round-trips through a flow. */
+    val link = TextFieldState()
+
     private val status = MutableStateFlow<LinkStatus>(LinkStatus.Idle)
     private val newPlaylistError = MutableStateFlow<String?>(null)
     private val eventChannel = Channel<VideoActionsEvent>(Channel.BUFFERED)
@@ -72,18 +77,18 @@ class VideoActionsViewModel @Inject constructor(
     private var loading: Job? = null
 
     val uiState: StateFlow<VideoActionsUiState> =
-        combine(link, status, playlists.observePlaylists(), newPlaylistError) { link, status, lists, error ->
-            VideoActionsUiState(link = link, status = status, playlists = lists, newPlaylistError = error)
+        combine(status, playlists.observePlaylists(), newPlaylistError) { status, lists, error ->
+            VideoActionsUiState(status = status, playlists = lists, newPlaylistError = error)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), VideoActionsUiState())
 
-    fun onLinkChange(text: String) {
-        link.value = text
+    /** The user changed the link: an error about the old one no longer applies. */
+    fun onLinkEdited() {
         if (status.value is LinkStatus.Error) status.value = LinkStatus.Idle
     }
 
-    /** Looks the link up. Called with the shared text, or with the link box contents. */
-    fun onSubmit(text: String = link.value) {
-        link.value = text
+    /** Looks the link up. Called with the shared or pasted text, or with the link box contents. */
+    fun onSubmit(text: String = link.text.toString()) {
+        if (link.text.toString() != text) link.setTextAndPlaceCursorAtEnd(text)
         loading?.cancel()
         status.value = LinkStatus.Loading
         loading = viewModelScope.launch {
@@ -148,7 +153,7 @@ class VideoActionsViewModel @Inject constructor(
     private fun readyVideo(): Video? = (status.value as? LinkStatus.Ready)?.video
 
     private fun finish(openPlayer: Boolean) {
-        link.value = ""
+        link.clearText()
         status.value = LinkStatus.Idle
         viewModelScope.launch { eventChannel.send(VideoActionsEvent.Done(openPlayer)) }
     }

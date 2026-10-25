@@ -1,5 +1,8 @@
 package com.akib.mycompanion.presentation.contacts
 
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.clearText
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.akib.mycompanion.di.IoDispatcher
@@ -26,17 +29,19 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** The add/edit person dialog. [id] is null for a new person. */
+/**
+ * The add/edit person dialog. [id] is null for a new person. The typed name and number aren't here: they
+ * live in [ContactsViewModel.name] and [ContactsViewModel.phone] (Compose text state, device finding #5).
+ */
 data class ContactEditor(
     val id: Long? = null,
-    val name: String = "",
-    val phone: String = "",
     val nameError: String? = null,
     val phoneError: String? = null,
 ) {
     val isNew: Boolean get() = id == null
-    val canSave: Boolean get() = name.isNotBlank() && phone.isNotBlank()
     val title: String get() = if (isNew) "Add person" else "Edit person"
+
+    fun canSave(name: CharSequence, phone: CharSequence): Boolean = name.isNotBlank() && phone.isNotBlank()
 }
 
 data class ContactsUiState(
@@ -63,6 +68,10 @@ class ContactsViewModel @Inject constructor(
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : ViewModel() {
 
+    /** What's typed in the dialog. The keyboard writes here directly; nothing round-trips through a flow. */
+    val name = TextFieldState()
+    val phone = TextFieldState()
+
     private val editor = MutableStateFlow<ContactEditor?>(null)
     private val eventChannel = Channel<ContactsEvent>(Channel.BUFFERED)
     val events: Flow<ContactsEvent> = eventChannel.receiveAsFlow()
@@ -82,16 +91,22 @@ class ContactsViewModel @Inject constructor(
         )
 
     fun onAddClick() {
+        name.clearText()
+        phone.clearText()
         editor.value = ContactEditor()
     }
 
     fun onEditClick(contact: Contact) {
-        editor.value = ContactEditor(id = contact.id, name = contact.name, phone = contact.phone)
+        name.setTextAndPlaceCursorAtEnd(contact.name)
+        phone.setTextAndPlaceCursorAtEnd(contact.phone)
+        editor.value = ContactEditor(id = contact.id)
     }
 
-    fun onNameChange(name: String) = editor.update { it?.copy(name = name, nameError = null) }
+    /** The user changed the name: its error no longer applies. */
+    fun onNameEdited() = editor.update { it?.copy(nameError = null) }
 
-    fun onPhoneChange(phone: String) = editor.update { it?.copy(phone = phone, phoneError = null) }
+    /** The user changed the number: its error no longer applies. */
+    fun onPhoneEdited() = editor.update { it?.copy(phoneError = null) }
 
     fun onDismissEditor() {
         editor.value = null
@@ -99,8 +114,10 @@ class ContactsViewModel @Inject constructor(
 
     fun onSaveEditor() {
         val current = editor.value ?: return
+        val nameText = name.text.toString()
+        val phoneText = phone.text.toString()
         viewModelScope.launch {
-            when (val result = saveContact(current.id, current.name, current.phone)) {
+            when (val result = saveContact(current.id, nameText, phoneText)) {
                 is SaveContactResult.Saved -> {
                     editor.value = null
                     if (!current.isNew) shortcuts.update(result.contact)
@@ -123,15 +140,9 @@ class ContactsViewModel @Inject constructor(
                 eventChannel.send(ContactsEvent.Message("Couldn't read that contact"))
                 return@launch
             }
-            editor.update { current ->
-                val base = current ?: ContactEditor()
-                base.copy(
-                    name = base.name.ifBlank { picked.name },
-                    phone = picked.number,
-                    nameError = null,
-                    phoneError = null,
-                )
-            }
+            if (name.text.isBlank()) name.setTextAndPlaceCursorAtEnd(picked.name)
+            phone.setTextAndPlaceCursorAtEnd(picked.number)
+            editor.update { current -> (current ?: ContactEditor()).copy(nameError = null, phoneError = null) }
         }
     }
 

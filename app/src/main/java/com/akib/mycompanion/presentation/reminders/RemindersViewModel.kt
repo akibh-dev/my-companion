@@ -1,5 +1,7 @@
 package com.akib.mycompanion.presentation.reminders
 
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.clearText
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.akib.mycompanion.domain.model.Contact
@@ -55,9 +57,11 @@ enum class RepeatChoice(val label: String) {
     EVERY("Every few hours"),
 }
 
+/**
+ * Everything on the form except the typed text: title and message live in [RemindersViewModel.title]
+ * and [RemindersViewModel.message] (Compose text state, see device finding #5).
+ */
 data class ReminderForm(
-    val title: String = "",
-    val message: String = "",
     val choice: WhenChoice = WhenChoice.Now,
     val repeat: RepeatChoice = RepeatChoice.NEVER,
     /** For [RepeatChoice.DAYS]. */
@@ -66,8 +70,12 @@ data class ReminderForm(
     val everyMinutes: Int = 60,
     val contactId: Long? = null,
 ) {
-    val canSubmit: Boolean
-        get() = (title.isNotBlank() || message.isNotBlank()) && (repeat != RepeatChoice.DAYS || days.isNotEmpty())
+    /** "On days" needs at least one day ticked. */
+    val repeatComplete: Boolean get() = repeat != RepeatChoice.DAYS || days.isNotEmpty()
+
+    /** A reminder needs a title or a message, and a complete repeat choice. */
+    fun canSubmit(title: CharSequence, message: CharSequence): Boolean =
+        (title.isNotBlank() || message.isNotBlank()) && repeatComplete
 }
 
 data class UpcomingReminder(
@@ -116,6 +124,13 @@ class RemindersViewModel @Inject constructor(
     private val calculator: ReminderTimeCalculator,
 ) : ViewModel() {
 
+    /**
+     * The typed title and message. Owned by Compose text state, which the keyboard writes to directly;
+     * a StateFlow round trip here made fast typing drop or reorder letters (device finding #5).
+     */
+    val title = TextFieldState()
+    val message = TextFieldState()
+
     private val form = MutableStateFlow(ReminderForm())
     private val eventChannel = Channel<RemindersEvent>(Channel.BUFFERED)
     val events: Flow<RemindersEvent> = eventChannel.receiveAsFlow()
@@ -150,10 +165,6 @@ class RemindersViewModel @Inject constructor(
                 },
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), RemindersUiState())
-
-    fun onTitleChange(title: String) = form.update { it.copy(title = title) }
-
-    fun onMessageChange(message: String) = form.update { it.copy(message = message) }
 
     fun onChoiceChange(choice: WhenChoice) = form.update { it.copy(choice = choice) }
 
@@ -200,22 +211,24 @@ class RemindersViewModel @Inject constructor(
     fun onSubmit() {
         val current = form.value
         val repeat = current.toRepeat() ?: return
+        val titleText = title.text.toString()
+        val messageText = message.text.toString()
         viewModelScope.launch {
             val result = scheduleReminder(
-                title = current.title,
-                message = current.message,
+                title = titleText,
+                message = messageText,
                 time = current.choice.toReminderTime(),
                 repeat = repeat,
                 contactId = current.contactId,
             )
             val message = when (result) {
                 is ScheduleResult.Scheduled -> {
-                    form.value = ReminderForm()
+                    resetForm()
                     val time = formatter.format(result.reminder.triggerAtMillis)
                     "Reminder set for $time" + then(result.reminder.repeat)
                 }
                 is ScheduleResult.Shown -> {
-                    form.value = ReminderForm()
+                    resetForm()
                     "Notification sent" + then(result.reminder.repeat)
                 }
                 ScheduleResult.NotificationsBlocked -> "Notifications are turned off for My Companion"
@@ -224,6 +237,12 @@ class RemindersViewModel @Inject constructor(
             }
             eventChannel.send(RemindersEvent.Message(message))
         }
+    }
+
+    private fun resetForm() {
+        title.clearText()
+        message.clearText()
+        form.value = ReminderForm()
     }
 
     /** ", then every day" / ", then every Sun, Thu"; empty for a one-off. */

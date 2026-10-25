@@ -1,5 +1,7 @@
 package com.akib.mycompanion.presentation
 
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -8,6 +10,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.akib.mycompanion.domain.model.Contact
 import com.akib.mycompanion.presentation.reminders.ChoiceChip
@@ -38,23 +41,29 @@ class RemindersScreenTest {
         ChoiceChip(WhenChoice.InMinutes(15), "15 min", selected = false),
     )
 
-    private fun show(state: RemindersUiState, notificationsAllowed: Boolean = true) = compose.setContent {
-        CompanionTheme {
-            RemindersScreen(
-                state = state,
-                notificationsAllowed = notificationsAllowed,
-                onAllowNotifications = { events += "allow" },
-                onTitleChange = { events += "title:$it" },
-                onMessageChange = { events += "message:$it" },
-                onChoiceChange = { events += "choice:$it" },
-                onPickTime = { events += "pickTime" },
-                onRepeatChange = { events += "repeat:$it" },
-                onDayToggle = { events += "day:$it" },
-                onEveryChange = { events += "every:$it" },
-                onContactChange = { events += "contact:$it" },
-                onSubmit = { events += "submit" },
-                onCancelReminder = { events += "cancel:$it" },
-            )
+    private val title = TextFieldState()
+    private val message = TextFieldState()
+
+    private fun show(state: RemindersUiState, notificationsAllowed: Boolean = true, titleText: String = "") {
+        title.setTextAndPlaceCursorAtEnd(titleText)
+        compose.setContent {
+            CompanionTheme {
+                RemindersScreen(
+                    state = state,
+                    title = title,
+                    message = message,
+                    notificationsAllowed = notificationsAllowed,
+                    onAllowNotifications = { events += "allow" },
+                    onChoiceChange = { events += "choice:$it" },
+                    onPickTime = { events += "pickTime" },
+                    onRepeatChange = { events += "repeat:$it" },
+                    onDayToggle = { events += "day:$it" },
+                    onEveryChange = { events += "every:$it" },
+                    onContactChange = { events += "contact:$it" },
+                    onSubmit = { events += "submit" },
+                    onCancelReminder = { events += "cancel:$it" },
+                )
+            }
         }
     }
 
@@ -66,8 +75,20 @@ class RemindersScreenTest {
     }
 
     @Test
+    fun `typing goes into the text state and enables sending`() {
+        show(RemindersUiState(presets = presets))
+
+        compose.onNodeWithText("Title").performTextInput("Stay hydrated")
+        compose.onNodeWithText("Message").performTextInput("Drink water")
+
+        assertThat(title.text.toString()).isEqualTo("Stay hydrated")
+        assertThat(message.text.toString()).isEqualTo("Drink water")
+        compose.onNodeWithText("Send now").assertIsEnabled()
+    }
+
+    @Test
     fun `send now with content submits`() {
-        show(RemindersUiState(form = ReminderForm(title = "Hello"), presets = presets))
+        show(RemindersUiState(presets = presets), titleText = "Hello")
 
         compose.onNodeWithText("Send now").assertIsEnabled().performClick()
 
@@ -76,8 +97,8 @@ class RemindersScreenTest {
 
     @Test
     fun `a later time changes the button to set reminder`() {
-        val form = ReminderForm(title = "Hi", choice = WhenChoice.InMinutes(15))
-        show(RemindersUiState(form = form, presets = presets))
+        val form = ReminderForm(choice = WhenChoice.InMinutes(15))
+        show(RemindersUiState(form = form, presets = presets), titleText = "Hi")
 
         compose.onNodeWithText("Set reminder").assertIsDisplayed()
     }
@@ -94,19 +115,23 @@ class RemindersScreenTest {
 
     @Test
     fun `repeat choices are offered and on days shows the weekdays`() {
-        val form =
-            ReminderForm(
-                title = "Hi",
-                choice = WhenChoice.At(8, 0),
-                repeat = RepeatChoice.DAYS,
-                days = setOf(DayOfWeek.SUNDAY)
-            )
+        val form = ReminderForm(
+            choice = WhenChoice.At(8, 0),
+            repeat = RepeatChoice.DAYS,
+            days = setOf(DayOfWeek.SUNDAY),
+        )
         val dayChips = listOf(
             DayChip(DayOfWeek.SUNDAY, "Sun", selected = true),
             DayChip(DayOfWeek.MONDAY, "Mon", selected = false),
         )
         show(
-            RemindersUiState(form = form, pickedTimeLabel = "8:00 AM", dayChips = dayChips, repeatSummary = "Every Sun")
+            RemindersUiState(
+                form = form,
+                pickedTimeLabel = "8:00 AM",
+                dayChips = dayChips,
+                repeatSummary = "Every Sun",
+            ),
+            titleText = "Hi",
         )
 
         compose.onNodeWithText("Every Sun").assertIsDisplayed()
@@ -118,9 +143,12 @@ class RemindersScreenTest {
 
     @Test
     fun `every few hours offers intervals`() {
-        val form = ReminderForm(title = "Water", repeat = RepeatChoice.EVERY, everyMinutes = 60)
+        val form = ReminderForm(repeat = RepeatChoice.EVERY, everyMinutes = 60)
         val everyChips = listOf(EveryChip(60, "1 h", selected = true), EveryChip(120, "2 h", selected = false))
-        show(RemindersUiState(form = form, presets = presets, everyChips = everyChips, repeatSummary = "Every 1 h"))
+        show(
+            RemindersUiState(form = form, presets = presets, everyChips = everyChips, repeatSummary = "Every 1 h"),
+            titleText = "Water",
+        )
 
         compose.onNodeWithText("2 h").performClick()
 

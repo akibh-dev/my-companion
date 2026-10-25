@@ -21,7 +21,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.akib.mycompanion.domain.model.Playlist
 import com.akib.mycompanion.domain.model.PlaylistItem
 import com.akib.mycompanion.presentation.common.ObserveAsEvents
-import kotlinx.coroutines.Dispatchers
 
 /** Which name/confirm dialog is open. */
 private sealed interface PlayerDialog {
@@ -42,9 +41,8 @@ fun PlayerRoute(
     linkViewModel: VideoActionsViewModel = hiltViewModel(),
 ) {
     val state by playerViewModel.uiState.collectAsStateWithLifecycle()
-    // Main.immediate: the typed link must come back to the TextField in the same frame. With the default
-    // (next frame) the field briefly gets an older value back and fast typing drops or reorders letters.
-    val link by linkViewModel.uiState.collectAsStateWithLifecycle(context = Dispatchers.Main.immediate)
+    // The typed link isn't in this state (it's linkViewModel.link, a TextFieldState).
+    val link by linkViewModel.uiState.collectAsStateWithLifecycle()
     val clipboard = LocalClipboardManager.current
     var dialog by remember { mutableStateOf<PlayerDialog?>(null) }
 
@@ -62,7 +60,7 @@ fun PlayerRoute(
 
     val actions = remember(playerViewModel, linkViewModel) {
         object : PlayerActions {
-            override fun onLinkChange(text: String) = linkViewModel.onLinkChange(text)
+            override fun onLinkEdited() = linkViewModel.onLinkEdited()
 
             override fun onPaste() {
                 val text = clipboard.getText()?.text.orEmpty()
@@ -128,7 +126,7 @@ fun PlayerRoute(
         }
     }
 
-    PlayerScreen(state = state, link = link, actions = actions, modifier = modifier)
+    PlayerScreen(state = state, link = link, linkText = linkViewModel.link, actions = actions, modifier = modifier)
 
     when (val open = dialog) {
         null -> Unit
