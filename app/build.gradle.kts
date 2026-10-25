@@ -77,6 +77,12 @@ android {
     }
 }
 
+androidComponents {
+    // Compose UI tests need ui-test-manifest, which only the debug build has, so `./gradlew test`
+    // runs the debug unit tests only (same as CI's testDebugUnitTest).
+    beforeVariants(selector().withBuildType("release")) { it.enableUnitTest = false }
+}
+
 kapt {
     correctErrorTypes = true
 }
