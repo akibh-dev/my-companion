@@ -13,7 +13,6 @@ import com.akib.mycompanion.data.phonebook.AndroidPhonebookSource
 import com.akib.mycompanion.data.repository.RoomContactRepository
 import com.akib.mycompanion.data.repository.RoomPlaylistRepository
 import com.akib.mycompanion.data.repository.RoomReminderRepository
-import com.akib.mycompanion.data.time.SystemClock
 import com.akib.mycompanion.data.whatsapp.AndroidWhatsAppGateway
 import com.akib.mycompanion.data.youtube.AudioStreamSource
 import com.akib.mycompanion.data.youtube.NewPipeYouTube
@@ -26,7 +25,6 @@ import com.akib.mycompanion.domain.port.WhatsAppGateway
 import com.akib.mycompanion.domain.repository.ContactRepository
 import com.akib.mycompanion.domain.repository.PlaylistRepository
 import com.akib.mycompanion.domain.repository.ReminderRepository
-import com.akib.mycompanion.domain.time.Clock
 import com.akib.mycompanion.player.MediaControllerPlayback
 import com.akib.mycompanion.presentation.shortcuts.AndroidHomeShortcuts
 import com.akib.mycompanion.presentation.shortcuts.HomeShortcuts
@@ -116,9 +114,6 @@ abstract class BindingsModule {
 
     @Binds
     abstract fun shortcuts(impl: AndroidHomeShortcuts): HomeShortcuts
-
-    @Binds
-    abstract fun clock(impl: SystemClock): Clock
 
     @Binds
     @Singleton

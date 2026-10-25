@@ -25,3 +25,14 @@ dependencyResolutionManagement {
 
 rootProject.name = "my-companion"
 include(":app")
+
+// Plan §2: fragile parts in their own modules; the AI models sit behind ai-api.
+include(":core")
+include(":ai-api")
+include(":ai-models")
+include(":adapters-messaging")
+include(":feature-context")
+include(":feature-autoreply")
+include(":feature-voice")
+include(":feature-vault")
+include(":feature-capture")

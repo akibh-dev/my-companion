@@ -2,11 +2,14 @@ package com.akib.mycompanion.presentation
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.akib.mycompanion.MainActivity
 import com.akib.mycompanion.di.PlaybackModule
@@ -42,23 +45,37 @@ class MainActivityTest {
     val playback: Playback = FakePlayback()
 
     @Test
-    fun `opens on People and switches to Reminders`() {
+    fun `opens on Home with the pause switch, and switches tabs`() {
+        compose.waitUntilAtLeastOneExists(hasText("Running"), timeoutMillis = 10_000)
+        compose.onNodeWithText("My Companion").assertIsDisplayed()
+
+        compose.onNodeWithText("People").performClick()
         compose.waitUntilAtLeastOneExists(hasText("No one here yet"), timeoutMillis = 10_000)
-        compose.onNodeWithText("Call someone").assertIsDisplayed()
 
         compose.onNodeWithText("Reminders").performClick()
-
         compose.onNodeWithText("Send now").assertIsDisplayed()
         compose.onNodeWithText("Nothing scheduled").performScrollTo().assertIsDisplayed()
     }
 
     @Test
     fun `player tab shows the link box`() {
-        compose.waitUntilAtLeastOneExists(hasText("No one here yet"), timeoutMillis = 10_000)
+        compose.waitUntilAtLeastOneExists(hasText("Running"), timeoutMillis = 10_000)
 
         compose.onNodeWithText("Player").performClick()
 
         compose.onNodeWithText("Open link").assertIsDisplayed()
         compose.onNodeWithText("Up next").assertIsDisplayed()
+    }
+
+    @Test
+    fun `home opens the log and comes back`() {
+        compose.waitUntilAtLeastOneExists(hasText("Running"), timeoutMillis = 10_000)
+
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Log"))
+        compose.onNodeWithText("Log").performClick()
+        compose.waitUntilAtLeastOneExists(hasText("Heartbeat gaps"), timeoutMillis = 10_000)
+        compose.onNodeWithContentDescription("Back").performClick()
+
+        compose.waitUntilAtLeastOneExists(hasText("My Companion"), timeoutMillis = 10_000)
     }
 }

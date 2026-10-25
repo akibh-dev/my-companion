@@ -102,6 +102,17 @@ ktlint {
 }
 
 dependencies {
+    implementation(project(":core"))
+    implementation(project(":ai-api"))
+    implementation(project(":ai-models"))
+    implementation(project(":adapters-messaging"))
+    implementation(project(":feature-context"))
+    implementation(project(":feature-autoreply"))
+    implementation(project(":feature-voice"))
+    implementation(project(":feature-vault"))
+    implementation(project(":feature-capture"))
+    implementation(libs.navigation.compose)
+    implementation(libs.work.runtime)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)

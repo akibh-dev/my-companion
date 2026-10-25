@@ -3,11 +3,14 @@ package com.akib.mycompanion.system
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import com.akib.mycompanion.core.host.ServiceHost
+import com.akib.mycompanion.core.settings.SettingsStore
 import com.akib.mycompanion.di.ApplicationScope
 import com.akib.mycompanion.presentation.shortcuts.RefreshHomeShortcuts
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -21,6 +24,10 @@ class BootReceiver : BroadcastReceiver() {
 
     @Inject lateinit var refreshHomeShortcuts: RefreshHomeShortcuts
 
+    @Inject lateinit var settingsStore: SettingsStore
+
+    @Inject lateinit var serviceHost: ServiceHost
+
     @Inject
     @ApplicationScope
     lateinit var scope: CoroutineScope
@@ -31,6 +38,8 @@ class BootReceiver : BroadcastReceiver() {
         scope.launch {
             try {
                 events.restoreAll()
+                // Restart background features after a reboot (NFR-7). Allowed from BOOT_COMPLETED.
+                serviceHost.sync(settingsStore.settings.first())
                 if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) refreshHomeShortcuts()
             } finally {
                 pending?.finish()

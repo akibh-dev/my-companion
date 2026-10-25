@@ -1,8 +1,14 @@
-package com.akib.mycompanion.data.time
+package com.akib.mycompanion.core.time
 
-import com.akib.mycompanion.domain.time.Clock
 import java.time.ZoneId
 import javax.inject.Inject
+
+/** Wall-clock time, swappable in tests. */
+interface Clock {
+    fun nowMillis(): Long
+
+    val zone: ZoneId
+}
 
 class SystemClock @Inject constructor() : Clock {
     override fun nowMillis(): Long = System.currentTimeMillis()
