@@ -36,17 +36,17 @@ class ScheduleReminderUseCase @Inject constructor(
         title: String,
         message: String,
         time: ReminderTime,
-        repeat: Repeat = Repeat.NONE,
+        repeat: Repeat = Repeat.Never,
         contactId: Long? = null,
     ): ScheduleResult {
         if (title.isBlank() && message.isBlank()) return ScheduleResult.EmptyContent
-        if (!time.isValid()) return ScheduleResult.InvalidTime
+        if (!time.isValid() || !repeat.isValid()) return ScheduleResult.InvalidTime
 
         val reminder = reminders.save(
             Reminder(
                 title = title.trim().ifEmpty { DEFAULT_TITLE },
                 message = message.trim(),
-                triggerAtMillis = calculator.firstTrigger(time),
+                triggerAtMillis = calculator.firstTrigger(time, repeat),
                 repeat = repeat,
                 contactId = contactId,
             ),
@@ -56,6 +56,25 @@ class ScheduleReminderUseCase @Inject constructor(
             val shown = fire(reminder.id)
             return if (shown) ScheduleResult.Shown(reminder) else ScheduleResult.NotificationsBlocked
         }
+        scheduler.schedule(reminder)
+        return ScheduleResult.Scheduled(reminder)
+    }
+
+    /**
+     * A one-off reminder at an exact moment, e.g. picked with date and time pickers by another feature
+     * ("Remind me…" on a vault item, FR-2.16). A moment that has already passed is [ScheduleResult.InvalidTime].
+     */
+    suspend fun at(title: String, message: String, atMillis: Long): ScheduleResult {
+        if (title.isBlank() && message.isBlank()) return ScheduleResult.EmptyContent
+        if (atMillis <= calculator.inMinutes(0)) return ScheduleResult.InvalidTime
+
+        val reminder = reminders.save(
+            Reminder(
+                title = title.trim().ifEmpty { DEFAULT_TITLE },
+                message = message.trim(),
+                triggerAtMillis = atMillis,
+            ),
+        )
         scheduler.schedule(reminder)
         return ScheduleResult.Scheduled(reminder)
     }
@@ -72,7 +91,7 @@ class ScheduleReminderUseCase @Inject constructor(
 }
 
 /**
- * The alarm went off: post the notification, then either queue tomorrow's (daily)
+ * The alarm went off: post the notification, then either queue the next time (repeating)
  * or mark it delivered (one-off). Returns whether the notification was posted.
  */
 class FireReminderUseCase @Inject constructor(
@@ -87,18 +106,15 @@ class FireReminderUseCase @Inject constructor(
         val contact = reminder.contactId?.let { contacts.get(it) }
         val shown = notifier.show(reminder, contact)
 
-        when (reminder.repeat) {
-            Repeat.DAILY -> {
-                val nextTrigger = calculator.nextDaily(reminder.triggerAtMillis)
-                scheduler.schedule(reminders.save(reminder.copy(triggerAtMillis = nextTrigger)))
-            }
-            Repeat.NONE -> reminders.save(reminder.copy(delivered = true))
+        when (val nextTrigger = calculator.next(reminder.repeat, reminder.triggerAtMillis)) {
+            null -> reminders.save(reminder.copy(delivered = true))
+            else -> scheduler.schedule(reminders.save(reminder.copy(triggerAtMillis = nextTrigger)))
         }
         return shown
     }
 }
 
-/** "Snooze" on a notification: a one-off copy fires again in [minutes]. Daily schedules are left untouched. */
+/** "Snooze" on a notification: a one-off copy fires again in [minutes]. Repeating schedules are left untouched. */
 class SnoozeReminderUseCase @Inject constructor(
     private val reminders: ReminderRepository,
     private val notifier: ReminderNotifier,
@@ -113,12 +129,12 @@ class SnoozeReminderUseCase @Inject constructor(
             original.copy(
                 id = 0,
                 triggerAtMillis = calculator.inMinutes(minutes),
-                repeat = Repeat.NONE,
+                repeat = Repeat.Never,
                 delivered = false,
             ),
         )
         scheduler.schedule(snoozed)
-        if (original.repeat == Repeat.NONE) reminders.delete(original.id)
+        if (!original.repeat.isRepeating) reminders.delete(original.id)
         return snoozed
     }
 
@@ -160,17 +176,29 @@ class RestoreRemindersUseCase @Inject constructor(
     private val reminders: ReminderRepository,
     private val scheduler: AlarmScheduler,
     private val fire: FireReminderUseCase,
+    private val cleanUp: CleanUpRemindersUseCase,
     private val clock: Clock,
 ) {
     suspend operator fun invoke() {
+        cleanUp()
         val now = clock.nowMillis()
-        reminders.deleteDeliveredBefore(now - CLEANUP_AFTER_MILLIS)
         reminders.getPending().forEach { reminder ->
             if (reminder.triggerAtMillis > now) scheduler.schedule(reminder) else fire(reminder.id)
         }
     }
+}
+
+/**
+ * Delivered one-off reminders are kept for a day, so Snooze / Done / Call on a notification still
+ * left in the shade find them. After that they're deleted. Runs at boot and at app start.
+ */
+class CleanUpRemindersUseCase @Inject constructor(
+    private val reminders: ReminderRepository,
+    private val clock: Clock,
+) {
+    suspend operator fun invoke() = reminders.deleteDeliveredBefore(clock.nowMillis() - KEEP_DELIVERED_MILLIS)
 
     companion object {
-        const val CLEANUP_AFTER_MILLIS = 24 * 60 * 60 * 1000L
+        const val KEEP_DELIVERED_MILLIS = 24 * 60 * 60 * 1000L
     }
 }

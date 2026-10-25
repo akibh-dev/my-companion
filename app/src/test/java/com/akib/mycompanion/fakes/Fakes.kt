@@ -164,6 +164,9 @@ class FakePhonebook(var result: PickedPhone? = null) : PhonebookSource {
 class FakeHomeShortcuts(override var isSupported: Boolean = true) : HomeShortcuts {
     val pinned = mutableListOf<Contact>()
     val updated = mutableListOf<Contact>()
+    val disabled = mutableListOf<Long>()
+    val enabled = mutableListOf<Contact>()
+    val refreshed = mutableListOf<List<Contact>>()
 
     override fun pin(contact: Contact): Boolean {
         if (!isSupported) return false
@@ -173,6 +176,18 @@ class FakeHomeShortcuts(override var isSupported: Boolean = true) : HomeShortcut
 
     override fun update(contact: Contact) {
         updated += contact
+    }
+
+    override fun refreshPinned(contacts: List<Contact>) {
+        refreshed += contacts
+    }
+
+    override fun disable(contactId: Long) {
+        disabled += contactId
+    }
+
+    override fun enable(contact: Contact) {
+        enabled += contact
     }
 }
 

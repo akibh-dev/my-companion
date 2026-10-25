@@ -4,9 +4,14 @@
         <item name="android:windowBackground">@android:color/white</item>
     </style>
 
-    <!-- Invisible activity used by call shortcuts. -->
+    <!-- See-through activities: call shortcuts and the share sheet. -->
     <style name="Theme.MyCompanion.Invisible" parent="android:Theme.Translucent.NoTitleBar">
         <item name="android:windowNoDisplay">false</item>
         <item name="android:windowAnimationStyle">@null</item>
+        <!-- Translucent themes don't draw system-bar backgrounds, which left the bars black (and the
+             dark clock invisible). Draw them, transparent, so the app behind shows through. -->
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
 </resources>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Quick actions widget: follows the wallpaper colours (system palette). -->
+    <color name="widget_background">@android:color/system_neutral1_50</color>
+    <color name="widget_action">@android:color/system_accent1_100</color>
+    <color name="widget_text">@android:color/system_neutral1_900</color>
+
+    <style name="Widget.MyCompanion.Action" parent="">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_marginStart">3dp</item>
+        <item name="android:layout_marginEnd">3dp</item>
+        <item name="android:background">@drawable/widget_action_background</item>
+        <item name="android:drawableTint">@color/widget_text</item>
+        <item name="android:drawablePadding">2dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:paddingTop">6dp</item>
+        <item name="android:paddingBottom">6dp</item>
+        <item name="android:textColor">@color/widget_text</item>
+        <item name="android:textSize">12sp</item>
+    </style>
+</resources>

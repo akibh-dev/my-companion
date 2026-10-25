@@ -2,12 +2,16 @@
 
 Android app for reviving features on my own terms. NO CAP.
 
-Personal Android app (Kotlin) to bring back features often locked behind paid subscriptions:
-- Custom notifications
-- YouTube background playback
-- Notification listener
-- Quick settings tiles
-- And more...
+Personal Android app (Kotlin) for the Nothing CMF Phone 1 (Android 16), on-device only:
+- **People** – one-tap WhatsApp calls and home-screen call icons
+- **Reminders** – custom notifications, repeating daily, on chosen days, monthly or every few hours
+- **Player** – YouTube background audio with queue and playlists
+- **Context rules** – sound mode, Do Not Disturb, volume, brightness (and Wi-Fi/Bluetooth prompts) by time, place, charging, Bluetooth or Wi-Fi; offline map for places
+- **Auto-reply & missed-call SMS** – replies through WhatsApp, Messenger, Signal, Telegram and Messages notifications
+- **Voice mode** – reads incoming messages aloud, privately
+- **Vault** – encrypted links, notes, images and files with search, share target and backup
+- **Quick capture** and **keep screen on outdoors** (Phase 4), widgets and data export (Phase 5)
+- AI features run behind interfaces with dummy models until the local models are ready
 
 Built as a **learning vehicle** for Android development.
 
@@ -19,10 +23,14 @@ Built as a **learning vehicle** for Android development.
 | [plan/01-project-overview.md](plan/01-project-overview.md) | Project vision, features, timeline |
 | [plan/02-tech-stack.md](plan/02-tech-stack.md) | Technical decisions with rationale |
 | [plan/03-learning-roadmap.md](plan/03-learning-roadmap.md) | Phase-by-phase learning path |
+| [Docs/learning/README.md](Docs/learning/README.md) | **Start here** — how to start + step-by-step learning path |
 | [Docs/00-index.md](Docs/00-index.md) | Documentation index and templates |
 | [Docs/03-whatsapp-call-and-reminders.md](Docs/03-whatsapp-call-and-reminders.md) | How calls and reminders work |
 | [Docs/04-testing.md](Docs/04-testing.md) | Test layers, tools and patterns |
 | [Docs/05-youtube-player.md](Docs/05-youtube-player.md) | YouTube background player, queue, playlists |
+| [Docs/07-feature-test-report.md](Docs/07-feature-test-report.md) | Full module unit results, instrumented feature tests and emulator checks |
+| [Docs/06-device-test-report.md](Docs/06-device-test-report.md) | Emulator test results, bugs found, next steps (in progress) |
+| [tools/device-test/](tools/device-test/) | Command-line helpers for testing on an emulator (fake WhatsApp, UI driver) |
 | [Docs/architecture/](Docs/architecture/) | Architecture Decision Records (ADRs) |
 | [Docs/references/](Docs/references/) | Quick reference sheets (coroutines, lifecycle, Gradle) |
 | [Docs/resources/](Docs/resources/) | Curated external learning resources |
@@ -100,6 +108,7 @@ app/
 - [x] **Reminders**: custom notifications now / later / at a time, daily repeat, Snooze / Done / Call buttons, survive reboot
 - [x] **Player**: share a YouTube video → play in the background (notification + lock-screen controls), queue, permanent playlists ([details](Docs/05-youtube-player.md))
 - [x] Tests: domain, ViewModel, Robolectric (Room, alarms, notifications, receivers) and Compose UI ([Docs/04-testing.md](Docs/04-testing.md))
+- [x] Tested end to end on an Android 17 emulator — 8 fixes pending ([Docs/06-device-test-report.md](Docs/06-device-test-report.md))
 - [x] CI: ktlint, unit tests, Android lint, debug APK on every push
 
 How it works: [Docs/03-whatsapp-call-and-reminders.md](Docs/03-whatsapp-call-and-reminders.md)

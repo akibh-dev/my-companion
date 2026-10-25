@@ -6,8 +6,6 @@ import android.app.TimePickerDialog
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
-import android.net.Uri
-import android.os.Build
 import android.provider.Settings
 import android.text.format.DateFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -15,22 +13,20 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.akib.mycompanion.data.notification.AndroidReminderNotifier
+import com.akib.mycompanion.presentation.common.ObserveAsEvents
 import java.util.Calendar
-import kotlinx.coroutines.launch
 
 /** Connects [RemindersScreen] to its ViewModel and to Android (notification permission, time picker). */
 @Composable
@@ -39,15 +35,13 @@ fun RemindersRoute(
     modifier: Modifier = Modifier,
     viewModel: RemindersViewModel = hiltViewModel(),
 ) {
+    // Typed text isn't in this state (it's the ViewModel's TextFieldStates), so the usual collection is fine.
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
 
-    LaunchedEffect(viewModel) {
-        viewModel.events.collect { event ->
-            when (event) {
-                is RemindersEvent.Message -> scope.launch { snackbarHostState.showSnackbar(event.text) }
-            }
+    ObserveAsEvents(viewModel.events) { event ->
+        when (event) {
+            is RemindersEvent.Message -> snackbarHostState.showSnackbar(event.text)
         }
     }
 
@@ -78,16 +72,10 @@ fun RemindersRoute(
 
     RemindersScreen(
         state = state,
+        title = viewModel.title,
+        message = viewModel.message,
         notificationsAllowed = notificationsAllowed,
-        onAllowNotifications = {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-            } else {
-                openNotificationSettings(context)
-            }
-        },
-        onTitleChange = viewModel::onTitleChange,
-        onMessageChange = viewModel::onMessageChange,
+        onAllowNotifications = { notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS) },
         onChoiceChange = viewModel::onChoiceChange,
         onPickTime = {
             val current = state.form.choice as? WhenChoice.At
@@ -100,10 +88,12 @@ fun RemindersRoute(
                 DateFormat.is24HourFormat(context),
             ).show()
         },
-        onRepeatDailyChange = viewModel::onRepeatDailyChange,
+        onRepeatChange = viewModel::onRepeatChange,
+        onDayToggle = viewModel::onDayToggle,
+        onEveryChange = viewModel::onEveryChange,
         onContactChange = viewModel::onContactChange,
         onSubmit = {
-            if (!notificationsAllowed && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (!notificationsAllowed) {
                 submitAfterPermission = true
                 notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
             } else {
@@ -116,7 +106,6 @@ fun RemindersRoute(
 }
 
 private fun shouldShowRationale(context: Context): Boolean {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
     val activity = context.findActivity() ?: return false
     return activity.shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)
 }
@@ -131,11 +120,7 @@ private fun Context.findActivity(): Activity? {
 }
 
 private fun openNotificationSettings(context: Context) {
-    val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-    } else {
-        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
-    }
+    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
     context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
 }

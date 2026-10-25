@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Close
@@ -34,8 +35,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -47,18 +46,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import com.akib.mycompanion.presentation.common.OutlinedStateTextField
+import java.time.DayOfWeek
 
-/** Stateless Reminders screen: compose a notification on top, upcoming ones below. */
+/**
+ * Reminders screen: compose a notification on top, upcoming ones below. The typed [title] and [message]
+ * are Compose text state (owned by the ViewModel); everything else comes in through [state].
+ */
 @Composable
 fun RemindersScreen(
     state: RemindersUiState,
+    title: TextFieldState,
+    message: TextFieldState,
     notificationsAllowed: Boolean,
     onAllowNotifications: () -> Unit,
-    onTitleChange: (String) -> Unit,
-    onMessageChange: (String) -> Unit,
     onChoiceChange: (WhenChoice) -> Unit,
     onPickTime: () -> Unit,
-    onRepeatDailyChange: (Boolean) -> Unit,
+    onRepeatChange: (RepeatChoice) -> Unit,
+    onDayToggle: (DayOfWeek) -> Unit,
+    onEveryChange: (Int) -> Unit,
     onContactChange: (Long?) -> Unit,
     onSubmit: () -> Unit,
     onCancelReminder: (Long) -> Unit,
@@ -75,11 +81,13 @@ fun RemindersScreen(
         item {
             ComposerCard(
                 state = state,
-                onTitleChange = onTitleChange,
-                onMessageChange = onMessageChange,
+                title = title,
+                message = message,
                 onChoiceChange = onChoiceChange,
                 onPickTime = onPickTime,
-                onRepeatDailyChange = onRepeatDailyChange,
+                onRepeatChange = onRepeatChange,
+                onDayToggle = onDayToggle,
+                onEveryChange = onEveryChange,
                 onContactChange = onContactChange,
                 onSubmit = onSubmit,
             )
@@ -130,29 +138,29 @@ private fun NotificationsOffBanner(onAllow: () -> Unit) {
 @Composable
 private fun ComposerCard(
     state: RemindersUiState,
-    onTitleChange: (String) -> Unit,
-    onMessageChange: (String) -> Unit,
+    title: TextFieldState,
+    message: TextFieldState,
     onChoiceChange: (WhenChoice) -> Unit,
     onPickTime: () -> Unit,
-    onRepeatDailyChange: (Boolean) -> Unit,
+    onRepeatChange: (RepeatChoice) -> Unit,
+    onDayToggle: (DayOfWeek) -> Unit,
+    onEveryChange: (Int) -> Unit,
     onContactChange: (Long?) -> Unit,
     onSubmit: () -> Unit,
 ) {
     val form = state.form
     ElevatedCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(
-                value = form.title,
-                onValueChange = onTitleChange,
-                label = { Text("Title") },
-                singleLine = true,
+            OutlinedStateTextField(
+                state = title,
+                label = "Title",
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedTextField(
-                value = form.message,
-                onValueChange = onMessageChange,
-                label = { Text("Message") },
+            OutlinedStateTextField(
+                state = message,
+                label = "Message",
+                singleLine = false,
                 minLines = 2,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 modifier = Modifier.fillMaxWidth(),
@@ -178,30 +186,80 @@ private fun ComposerCard(
                 )
             }
 
-            if (form.canRepeat) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Refresh, contentDescription = null)
-                    Text(
-                        "Repeat every day",
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 12.dp),
-                    )
-                    Switch(checked = form.repeatDaily, onCheckedChange = onRepeatDailyChange)
-                }
-            }
+            RepeatPicker(state, onRepeatChange, onDayToggle, onEveryChange)
 
             if (state.contacts.isNotEmpty()) {
                 CallButtonPicker(state, onContactChange)
             }
 
-            Button(onClick = onSubmit, enabled = form.canSubmit, modifier = Modifier.fillMaxWidth()) {
+            // Reading the text here recomposes only when it changes; nothing is sent back anywhere.
+            val canSubmit = form.canSubmit(title.text, message.text)
+            Button(onClick = onSubmit, enabled = canSubmit, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Filled.Notifications, contentDescription = null)
                 Spacer(Modifier.size(8.dp))
                 Text(if (form.choice == WhenChoice.Now) "Send now" else "Set reminder")
             }
         }
     }
+}
+
+/** Never / every day / on chosen days / every month / every few hours, plus the details for the choice. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RepeatPicker(
+    state: RemindersUiState,
+    onRepeatChange: (RepeatChoice) -> Unit,
+    onDayToggle: (DayOfWeek) -> Unit,
+    onEveryChange: (Int) -> Unit,
+) {
+    val form = state.form
+    Text("Repeat", style = MaterialTheme.typography.labelLarge)
+    ChipRow {
+        RepeatChoice.entries.forEach { choice ->
+            FilterChip(
+                selected = form.repeat == choice,
+                onClick = { onRepeatChange(choice) },
+                label = { Text(choice.label) },
+                leadingIcon = if (choice == RepeatChoice.NEVER) {
+                    null
+                } else {
+                    { Icon(Icons.Filled.Refresh, contentDescription = null, Modifier.size(18.dp)) }
+                },
+            )
+        }
+    }
+    when (form.repeat) {
+        RepeatChoice.DAYS -> ChipRow {
+            state.dayChips.forEach { chip ->
+                FilterChip(selected = chip.selected, onClick = { onDayToggle(chip.day) }, label = { Text(chip.label) })
+            }
+        }
+        RepeatChoice.EVERY -> ChipRow {
+            state.everyChips.forEach { chip ->
+                FilterChip(
+                    selected = chip.selected,
+                    onClick = { onEveryChange(chip.minutes) },
+                    label = { Text(chip.label) }
+                )
+            }
+        }
+        else -> Unit
+    }
+    val summary = when {
+        form.repeat == RepeatChoice.DAYS && form.days.isEmpty() -> "Pick at least one day"
+        else -> state.repeatSummary
+    }
+    if (summary != null && form.repeat != RepeatChoice.NEVER) {
+        Text(summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+    }
+}
+
+@Composable
+private fun ChipRow(content: @Composable () -> Unit) {
+    Row(
+        Modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) { content() }
 }
 
 /** Optionally attach a "Call <person>" button to the notification. */
@@ -240,7 +298,7 @@ private fun CallButtonPicker(state: RemindersUiState, onContactChange: (Long?) -
 private fun UpcomingRow(reminder: UpcomingReminder, onCancel: () -> Unit) {
     val details = buildList {
         add(reminder.whenText)
-        if (reminder.daily) add("Daily")
+        reminder.repeatText?.let(::add)
         reminder.contactName?.let { add("Call $it") }
     }.joinToString(" · ")
     ElevatedCard(Modifier.fillMaxWidth()) {

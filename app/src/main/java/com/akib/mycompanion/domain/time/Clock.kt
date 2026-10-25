@@ -1,10 +1,4 @@
 package com.akib.mycompanion.domain.time
 
-import java.time.ZoneId
-
-/** Abstracts "now" so time-based rules can be tested with a fixed clock. */
-interface Clock {
-    fun nowMillis(): Long
-
-    val zone: ZoneId
-}
+/** Abstracts "now" so time-based rules can be tested with a fixed clock. Shared with the feature modules. */
+typealias Clock = com.akib.mycompanion.core.time.Clock

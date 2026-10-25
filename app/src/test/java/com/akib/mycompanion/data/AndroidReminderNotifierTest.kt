@@ -6,6 +6,8 @@ import android.app.Notification
 import android.app.NotificationManager
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.akib.mycompanion.MainActivity
+import com.akib.mycompanion.Tab
 import com.akib.mycompanion.data.notification.AndroidReminderNotifier
 import com.akib.mycompanion.domain.model.Contact
 import com.akib.mycompanion.domain.model.Reminder
@@ -42,6 +44,15 @@ class AndroidReminderNotifierTest {
         assertThat(notification.actions.map { it.title.toString() }).containsExactly("Snooze 10 min", "Done").inOrder()
         assertThat(manager.getNotificationChannel(AndroidReminderNotifier.CHANNEL_ID).importance)
             .isEqualTo(NotificationManager.IMPORTANCE_HIGH)
+    }
+
+    @Test
+    fun `tapping the notification opens the Reminders tab`() {
+        notifier.show(reminder, contact = null)
+
+        val tap = shadowOf(shadowOf(manager).getNotification(12)!!.contentIntent).savedIntent
+        assertThat(tap.component!!.className).isEqualTo(MainActivity::class.java.name)
+        assertThat(tap.getStringExtra(MainActivity.EXTRA_TAB)).isEqualTo(Tab.REMINDERS.name)
     }
 
     @Test

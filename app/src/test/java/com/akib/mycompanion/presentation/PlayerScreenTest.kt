@@ -1,7 +1,12 @@
 package com.akib.mycompanion.presentation
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.util.TypedValue
+import android.view.ContextThemeWrapper
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -9,15 +14,19 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasScrollToNodeAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTextInput
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.akib.mycompanion.R
 import com.akib.mycompanion.domain.model.PlaybackState
 import com.akib.mycompanion.domain.model.Playlist
 import com.akib.mycompanion.domain.model.PlaylistItem
@@ -56,7 +65,7 @@ class PlayerScreenTest {
     }
 
     private val actions = object : PlayerActions {
-        override fun onLinkChange(text: String) = record("link:$text")
+        override fun onLinkEdited() = record("edited")
 
         override fun onPaste() = record("paste")
 
@@ -112,11 +121,16 @@ class PlayerScreenTest {
 
     /** Lazy lists only compose what's on screen; scroll the list until the node exists. */
     private fun scrollTo(matcher: SemanticsMatcher) {
-        compose.onNode(hasScrollAction()).performScrollToNode(matcher)
+        // The list, not the link field (a one-line text field scrolls sideways too).
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(matcher)
     }
 
+    private val linkText = TextFieldState()
+
     private fun show(state: PlayerUiState = PlayerUiState(), link: VideoActionsUiState = VideoActionsUiState()) =
-        compose.setContent { CompanionTheme { PlayerScreen(state = state, link = link, actions = actions) } }
+        compose.setContent {
+            CompanionTheme { PlayerScreen(state = state, link = link, linkText = linkText, actions = actions) }
+        }
 
     @Test
     fun `empty player invites sharing or pasting a link`() {
@@ -131,11 +145,23 @@ class PlayerScreenTest {
 
     @Test
     fun `a typed link can be opened`() {
-        show(link = VideoActionsUiState(link = "https://youtu.be/x"))
+        linkText.setTextAndPlaceCursorAtEnd("https://youtu.be/x")
+        show()
 
         compose.onNodeWithText("Open link").assertIsEnabled().performClick()
 
         assertThat(calls).containsExactly("submit")
+    }
+
+    @Test
+    fun `typing a link goes into the text state and clears an old error`() {
+        show(link = VideoActionsUiState(status = LinkStatus.Error("That's not a YouTube video link")))
+
+        compose.onNodeWithText("YouTube link").performTextInput("https://youtu.be/dQw4w9WgXcQ")
+
+        assertThat(linkText.text.toString()).isEqualTo("https://youtu.be/dQw4w9WgXcQ")
+        assertThat(calls).contains("edited")
+        compose.onNodeWithText("Open link").assertIsEnabled()
     }
 
     @Test
@@ -261,6 +287,30 @@ class PlayerScreenTest {
         compose.onNodeWithText("Play now").performClick()
 
         assertThat(calls).containsExactly("retry", "playNow").inOrder()
+    }
+
+    @Test
+    fun `a new playlist can be created from the keyboard`() {
+        show(link = VideoActionsUiState(status = LinkStatus.Ready(a)))
+
+        compose.onNodeWithText("Add to playlist").performClick()
+        compose.onNodeWithText("New playlist name").performTextInput("Gym")
+        compose.onNodeWithText("New playlist name").performImeAction()
+
+        assertThat(calls).containsExactly("createAndAdd:Gym")
+    }
+
+    @Test
+    fun `see-through activities draw transparent system bars`() {
+        val theme = ContextThemeWrapper(
+            ApplicationProvider.getApplicationContext<Context>(),
+            R.style.Theme_MyCompanion_Invisible,
+        ).theme
+        fun attr(id: Int) = TypedValue().also { theme.resolveAttribute(id, it, true) }.data
+
+        assertThat(attr(android.R.attr.windowDrawsSystemBarBackgrounds)).isNotEqualTo(0)
+        assertThat(attr(android.R.attr.statusBarColor)).isEqualTo(android.graphics.Color.TRANSPARENT)
+        assertThat(attr(android.R.attr.navigationBarColor)).isEqualTo(android.graphics.Color.TRANSPARENT)
     }
 
     @Test

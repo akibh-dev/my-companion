@@ -6,6 +6,9 @@ import android.content.Intent
 import androidx.core.app.NotificationCompat
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.akib.mycompanion.di.ApplicationScope
+import com.akib.mycompanion.di.CoroutinesModule
+import com.akib.mycompanion.di.IoDispatcher
 import com.akib.mycompanion.domain.usecase.CallContactUseCase
 import com.akib.mycompanion.domain.usecase.CallResult
 import com.akib.mycompanion.presentation.call.CallActivity
@@ -15,9 +18,13 @@ import dagger.hilt.android.testing.BindValue
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
+import dagger.hilt.android.testing.UninstallModules
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -29,6 +36,7 @@ import org.robolectric.shadows.ShadowToast
 
 /** The invisible activity behind home-screen shortcuts and the notification "Call" button. */
 @HiltAndroidTest
+@UninstallModules(CoroutinesModule::class)
 @Config(application = HiltTestApplication::class)
 @RunWith(AndroidJUnit4::class)
 class CallActivityTest {
@@ -39,6 +47,17 @@ class CallActivityTest {
     @BindValue
     @JvmField
     val callContact: CallContactUseCase = mockk()
+
+    /** The real IO dispatcher would finish the call on another thread, after the test has looked. */
+    @BindValue
+    @JvmField
+    @IoDispatcher
+    val io: CoroutineDispatcher = Dispatchers.Main.immediate
+
+    @BindValue
+    @JvmField
+    @ApplicationScope
+    val appScope: CoroutineScope = CoroutineScope(Dispatchers.Main.immediate)
 
     private val app: Application get() = ApplicationProvider.getApplicationContext()
 
@@ -83,6 +102,27 @@ class CallActivityTest {
 
         coVerify(exactly = 0) { callContact(any<Long>()) }
         assertThat(activity.isFinishing).isTrue()
+    }
+
+    @Test
+    fun `another app can't make it call someone`() {
+        // What device test finding #4 did: `am start -n …/CallActivity --el contact_id 2`.
+        val forged = Intent(app, CallActivity::class.java).putExtra(CallActivity.EXTRA_CONTACT_ID, 5L)
+
+        val activity = launch(forged)
+
+        coVerify(exactly = 0) { callContact(any<Long>()) }
+        assertThat(activity.isFinishing).isTrue()
+        assertThat(ShadowToast.getTextOfLatestToast()).isEqualTo(CallActivity.OUTDATED_SHORTCUT)
+    }
+
+    @Test
+    fun `a guessed token is refused too`() {
+        val guessed = CallActivity.intent(app, 5L).putExtra(CallActivity.EXTRA_TOKEN, "not-the-token")
+
+        launch(guessed)
+
+        coVerify(exactly = 0) { callContact(any<Long>()) }
     }
 
     private fun launch(intent: Intent): CallActivity {

@@ -31,6 +31,14 @@ class FormattingTest {
     }
 
     @Test
+    fun `phones set to 24-hour time get 24-hour times`() {
+        val formatter = ReminderTimeFormatter(FakeClock(now = millisAt(2026, 10, 23, 10, 0)), Locale.US) { true }
+
+        assertThat(formatter.format(millisAt(2026, 10, 23, 17, 30))).isEqualTo("Today, 17:30")
+        assertThat(formatter.clockTime(8, 5)).isEqualTo("08:05")
+    }
+
+    @Test
     fun `initials for the avatar`() {
         assertThat(initials("Akib Hasan")).isEqualTo("AH")
         assertThat(initials("  akib  ")).isEqualTo("A")

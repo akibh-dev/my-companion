@@ -26,7 +26,7 @@ def read(path):
 def test_results():
     total = failed = skipped = 0
     failures = []
-    for path in glob.glob("app/build/test-results/**/*.xml", recursive=True):
+    for path in glob.glob("*/build/test-results/**/*.xml", recursive=True):
         try:
             root = ET.parse(path).getroot()
         except ET.ParseError:
@@ -50,7 +50,7 @@ def test_results():
 
 def lint_errors():
     out = []
-    for path in glob.glob("app/build/reports/lint-results-*.xml"):
+    for path in glob.glob("*/build/reports/lint-results-*.xml"):
         try:
             root = ET.parse(path).getroot()
         except ET.ParseError:
@@ -70,7 +70,7 @@ def main():
 
     compile_errors = [l for l in log.splitlines() if re.match(r"^e: ", l)][:60]
     ktlint_lines = log.splitlines()
-    for path in glob.glob("app/build/reports/ktlint/**/*.txt", recursive=True):
+    for path in glob.glob("*/build/reports/ktlint/**/*.txt", recursive=True):
         ktlint_lines += read(path).splitlines()
     ktlint = sorted({l.strip() for l in ktlint_lines if re.search(r"\.kts?:\d+:\d+", l) and not l.startswith(("e: ", "w: "))})[:80]
     lint = lint_errors()

@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -26,7 +28,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -35,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.akib.mycompanion.MainActivity
+import com.akib.mycompanion.presentation.common.ObserveAsEvents
 import com.akib.mycompanion.presentation.player.LinkStatus
 import com.akib.mycompanion.presentation.player.VideoActionsCard
 import com.akib.mycompanion.presentation.player.VideoActionsEvent
@@ -53,7 +55,12 @@ class ShareActivity : ComponentActivity() {
     private val viewModel: VideoActionsViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
+        // Status bar sits on the dimmed app behind: light icons. Navigation bar sits on the sheet: follow the theme.
+        val transparent = android.graphics.Color.TRANSPARENT
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(transparent),
+            navigationBarStyle = SystemBarStyle.auto(transparent, transparent),
+        )
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) {
             val shared = sharedText(intent)
@@ -67,15 +74,13 @@ class ShareActivity : ComponentActivity() {
         setContent {
             CompanionTheme {
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
-                LaunchedEffect(viewModel) {
-                    viewModel.events.collect { event ->
-                        when (event) {
-                            is VideoActionsEvent.Message ->
-                                Toast.makeText(applicationContext, event.text, Toast.LENGTH_SHORT).show()
-                            is VideoActionsEvent.Done -> {
-                                if (event.openPlayer) startActivity(MainActivity.openPlayerIntent(this@ShareActivity))
-                                finish()
-                            }
+                ObserveAsEvents(viewModel.events) { event ->
+                    when (event) {
+                        is VideoActionsEvent.Message ->
+                            Toast.makeText(applicationContext, event.text, Toast.LENGTH_SHORT).show()
+                        is VideoActionsEvent.Done -> {
+                            if (event.openPlayer) startActivity(MainActivity.openPlayerIntent(this@ShareActivity))
+                            finish()
                         }
                     }
                 }
@@ -137,7 +142,9 @@ fun ShareSheet(
             Column(
                 Modifier
                     .padding(20.dp)
-                    .navigationBarsPadding(),
+                    .navigationBarsPadding()
+                    // Edge-to-edge windows aren't resized for the keyboard: lift the sheet above it.
+                    .imePadding(),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text("My Companion player", style = MaterialTheme.typography.titleMedium)

@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -32,7 +34,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -47,6 +48,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.akib.mycompanion.R
@@ -54,10 +57,12 @@ import com.akib.mycompanion.domain.model.PlaybackState
 import com.akib.mycompanion.domain.model.Playlist
 import com.akib.mycompanion.domain.model.PlaylistItem
 import com.akib.mycompanion.domain.model.RepeatMode
+import com.akib.mycompanion.presentation.common.OutlinedStateTextField
 
 /** Everything the Player screen can ask for; the route forwards these to the ViewModels. */
 interface PlayerActions {
-    fun onLinkChange(text: String)
+    /** The user typed in the link box (the text itself is already in the link TextFieldState). */
+    fun onLinkEdited()
 
     fun onPaste()
 
@@ -110,11 +115,12 @@ interface PlayerActions {
     fun onDeletePlaylist(playlist: Playlist)
 }
 
-/** Stateless Player tab: link box, now playing, then Up next / Playlists. */
+/** Player tab: link box ([linkText] is its Compose text state), now playing, then Up next / Playlists. */
 @Composable
 fun PlayerScreen(
     state: PlayerUiState,
     link: VideoActionsUiState,
+    linkText: TextFieldState,
     actions: PlayerActions,
     modifier: Modifier = Modifier,
 ) {
@@ -123,7 +129,7 @@ fun PlayerScreen(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item { LinkBox(link, actions) }
+        item { LinkBox(link, linkText, actions) }
 
         state.playback.current?.let {
             item { NowPlaying(state.playback, actions) }
@@ -153,7 +159,7 @@ fun PlayerScreen(
 }
 
 @Composable
-private fun LinkBox(link: VideoActionsUiState, actions: PlayerActions) {
+private fun LinkBox(link: VideoActionsUiState, linkText: TextFieldState, actions: PlayerActions) {
     ElevatedCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             when (val status = link.status) {
@@ -169,29 +175,26 @@ private fun LinkBox(link: VideoActionsUiState, actions: PlayerActions) {
                     onDismiss = actions::onDismissLink,
                 )
                 else -> {
-                    OutlinedTextField(
-                        value = link.link,
-                        onValueChange = actions::onLinkChange,
-                        label = { Text("YouTube link") },
-                        placeholder = { Text("https://youtu.be/…") },
-                        singleLine = true,
+                    OutlinedStateTextField(
+                        state = linkText,
+                        label = "YouTube link",
+                        placeholder = "https://youtu.be/…",
                         isError = status is LinkStatus.Error,
-                        supportingText = {
-                            Text(
-                                (status as? LinkStatus.Error)?.message
-                                    ?: "Or share a video from the YouTube app to My Companion",
-                            )
-                        },
+                        supportingText = (status as? LinkStatus.Error)?.message
+                            ?: "Or share a video from the YouTube app to My Companion",
                         trailingIcon = {
                             IconButton(onClick = actions::onPaste) {
                                 Icon(painterResource(R.drawable.ic_content_paste), contentDescription = "Paste link")
                             }
                         },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
+                        onImeAction = actions::onSubmitLink,
+                        onUserEdit = actions::onLinkEdited,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Button(
                         onClick = actions::onSubmitLink,
-                        enabled = link.link.isNotBlank() && status != LinkStatus.Loading,
+                        enabled = linkText.text.isNotBlank() && status != LinkStatus.Loading,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         if (status == LinkStatus.Loading) {

@@ -1,24 +1,26 @@
 package com.akib.mycompanion.presentation.player
 
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.akib.mycompanion.domain.model.Playlist
 import com.akib.mycompanion.domain.model.PlaylistItem
-import kotlinx.coroutines.launch
+import com.akib.mycompanion.presentation.common.ObserveAsEvents
 
 /** Which name/confirm dialog is open. */
 private sealed interface PlayerDialog {
@@ -39,30 +41,26 @@ fun PlayerRoute(
     linkViewModel: VideoActionsViewModel = hiltViewModel(),
 ) {
     val state by playerViewModel.uiState.collectAsStateWithLifecycle()
+    // The typed link isn't in this state (it's linkViewModel.link, a TextFieldState).
     val link by linkViewModel.uiState.collectAsStateWithLifecycle()
     val clipboard = LocalClipboardManager.current
-    val scope = rememberCoroutineScope()
     var dialog by remember { mutableStateOf<PlayerDialog?>(null) }
 
-    LaunchedEffect(playerViewModel) {
-        playerViewModel.events.collect { event ->
-            when (event) {
-                is PlayerEvent.Message -> scope.launch { snackbarHostState.showSnackbar(event.text) }
-            }
+    ObserveAsEvents(playerViewModel.events) { event ->
+        when (event) {
+            is PlayerEvent.Message -> snackbarHostState.showSnackbar(event.text)
         }
     }
-    LaunchedEffect(linkViewModel) {
-        linkViewModel.events.collect { event ->
-            when (event) {
-                is VideoActionsEvent.Message -> scope.launch { snackbarHostState.showSnackbar(event.text) }
-                is VideoActionsEvent.Done -> Unit // already on the player
-            }
+    ObserveAsEvents(linkViewModel.events) { event ->
+        when (event) {
+            is VideoActionsEvent.Message -> snackbarHostState.showSnackbar(event.text)
+            is VideoActionsEvent.Done -> Unit // already on the player
         }
     }
 
     val actions = remember(playerViewModel, linkViewModel) {
         object : PlayerActions {
-            override fun onLinkChange(text: String) = linkViewModel.onLinkChange(text)
+            override fun onLinkEdited() = linkViewModel.onLinkEdited()
 
             override fun onPaste() {
                 val text = clipboard.getText()?.text.orEmpty()
@@ -128,7 +126,7 @@ fun PlayerRoute(
         }
     }
 
-    PlayerScreen(state = state, link = link, actions = actions, modifier = modifier)
+    PlayerScreen(state = state, link = link, linkText = linkViewModel.link, actions = actions, modifier = modifier)
 
     when (val open = dialog) {
         null -> Unit
@@ -177,20 +175,30 @@ private fun NameDialog(
     onDismiss: () -> Unit,
 ) {
     var name by remember { mutableStateOf(initial) }
+    val submit = {
+        if (name.isNotBlank()) {
+            onConfirm(name)
+            onDismiss()
+        }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") }, singleLine = true)
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Name") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    imeAction = ImeAction.Done,
+                ),
+                keyboardActions = KeyboardActions(onDone = { submit() }),
+            )
         },
         confirmButton = {
-            TextButton(
-                onClick = {
-                    onConfirm(name)
-                    onDismiss()
-                },
-                enabled = name.isNotBlank(),
-            ) { Text(confirm) }
+            TextButton(onClick = submit, enabled = name.isNotBlank()) { Text(confirm) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )

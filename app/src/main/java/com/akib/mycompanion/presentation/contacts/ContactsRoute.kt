@@ -14,7 +14,6 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,6 +25,7 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.akib.mycompanion.domain.model.Contact
+import com.akib.mycompanion.presentation.common.ObserveAsEvents
 import kotlinx.coroutines.launch
 
 /** Connects [ContactsScreen] to its ViewModel and to Android (permissions, contact picker, snackbars). */
@@ -35,25 +35,22 @@ fun ContactsRoute(
     modifier: Modifier = Modifier,
     viewModel: ContactsViewModel = hiltViewModel(),
 ) {
+    // Typed text isn't in this state (it's the ViewModel's TextFieldStates), so the usual collection is fine.
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(viewModel) {
-        viewModel.events.collect { event ->
-            scope.launch {
-                when (event) {
-                    is ContactsEvent.Message ->
-                        snackbarHostState.showSnackbar(event.text, duration = SnackbarDuration.Long)
-                    is ContactsEvent.Removed -> {
-                        val result = snackbarHostState.showSnackbar(
-                            message = "Removed ${event.contact.name}",
-                            actionLabel = "Undo",
-                            duration = SnackbarDuration.Long,
-                        )
-                        if (result == SnackbarResult.ActionPerformed) viewModel.onUndoDelete(event.contact)
-                    }
-                }
+    ObserveAsEvents(viewModel.events) { event ->
+        when (event) {
+            is ContactsEvent.Message ->
+                snackbarHostState.showSnackbar(event.text, duration = SnackbarDuration.Long)
+            is ContactsEvent.Removed -> {
+                val result = snackbarHostState.showSnackbar(
+                    message = "Removed ${event.contact.name}",
+                    actionLabel = "Undo",
+                    duration = SnackbarDuration.Long,
+                )
+                if (result == SnackbarResult.ActionPerformed) viewModel.onUndoDelete(event.contact)
             }
         }
     }
@@ -88,8 +85,10 @@ fun ContactsRoute(
     state.editor?.let { editor ->
         ContactEditorDialog(
             editor = editor,
-            onNameChange = viewModel::onNameChange,
-            onPhoneChange = viewModel::onPhoneChange,
+            name = viewModel.name,
+            phone = viewModel.phone,
+            onNameEdited = viewModel::onNameEdited,
+            onPhoneEdited = viewModel::onPhoneEdited,
             onPickFromPhonebook = {
                 try {
                     pickPhone.launch(Unit)
