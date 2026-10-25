@@ -163,6 +163,8 @@ dependencies {
     kaptTest(libs.hilt.compiler)
 
     // On-device tests (./gradlew connectedDebugAndroidTest)
+    // Compose otherwise brings Espresso 3.5, which calls a removed InputManager API on Android 17.
+    androidTestImplementation(libs.androidx.test.espresso.core)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.truth)
