@@ -42,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.akib.mycompanion.domain.model.Contact
@@ -81,7 +82,8 @@ fun ContactsScreen(
         if (!state.loading && state.contacts.isNotEmpty()) {
             ExtendedFloatingActionButton(
                 onClick = onAddClick,
-                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                // The FAB hides its text from TalkBack (clearAndSetSemantics), so the icon carries the name.
+                icon = { Icon(Icons.Filled.Add, contentDescription = "Add person") },
                 text = { Text("Add person") },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
@@ -110,6 +112,7 @@ private fun EmptyContacts(onAddClick: () -> Unit, modifier: Modifier = Modifier)
             "Add the people you call most. Then one tap starts a WhatsApp call.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(24.dp))
         Button(onClick = onAddClick) {

@@ -3,6 +3,7 @@ package com.akib.mycompanion.presentation
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -62,6 +63,15 @@ class ContactsScreenTest {
         compose.onNodeWithContentDescription("Call Mum on WhatsApp").performClick()
 
         assertThat(events).containsExactly("call:Mum")
+    }
+
+    @Test
+    fun `the add button has a name TalkBack can read`() {
+        show(ContactsUiState(contacts = listOf(mum), loading = false))
+
+        compose.onNodeWithContentDescription("Add person").assertHasClickAction().performClick()
+
+        assertThat(events).containsExactly("add")
     }
 
     @Test
