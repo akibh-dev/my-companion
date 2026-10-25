@@ -66,6 +66,16 @@ class PlaybackService : MediaSessionService() {
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session
 
+    /**
+     * Media3 answers START_STICKY, so after the process is killed Android brings the service back at
+     * once, with an empty queue (the queue lives in memory), holding a player for nothing.
+     * super still handles media-button intents.
+     */
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        super.onStartCommand(intent, flags, startId)
+        return START_NOT_STICKY
+    }
+
     /** Swiping the app away keeps music playing; if nothing is playing, shut down. */
     override fun onTaskRemoved(rootIntent: Intent?) {
         val player = session?.player
