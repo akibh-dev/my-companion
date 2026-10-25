@@ -2,12 +2,16 @@
 
 Android app for reviving features on my own terms. NO CAP.
 
-Personal Android app (Kotlin) to bring back features often locked behind paid subscriptions:
-- Custom notifications
-- YouTube background playback
-- Notification listener
-- Quick settings tiles
-- And more...
+Personal Android app (Kotlin) for the Nothing CMF Phone 1 (Android 16), on-device only:
+- **People** – one-tap WhatsApp calls and home-screen call icons
+- **Reminders** – custom notifications, repeating daily, on chosen days, monthly or every few hours
+- **Player** – YouTube background audio with queue and playlists
+- **Context rules** – sound mode, Do Not Disturb, volume, brightness (and Wi-Fi/Bluetooth prompts) by time, place, charging, Bluetooth or Wi-Fi; offline map for places
+- **Auto-reply & missed-call SMS** – replies through WhatsApp, Messenger, Signal, Telegram and Messages notifications
+- **Voice mode** – reads incoming messages aloud, privately
+- **Vault** – encrypted links, notes, images and files with search, share target and backup
+- **Quick capture** and **keep screen on outdoors** (Phase 4), widgets and data export (Phase 5)
+- AI features run behind interfaces with dummy models until the local models are ready
 
 Built as a **learning vehicle** for Android development.
 

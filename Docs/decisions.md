@@ -15,6 +15,8 @@ IDs D1–D7 come from the implementation plan; later entries are numbered on.
 | D8 | SDK levels | Plan §3 | compile/target/min SDK 36; AGP 8.13, Kotlin 2.2. Unit tests run on JDK 21 (Robolectric SDK 36) | 2026-10-25 |
 | D9 | Modules | Plan §2 | `core`, `ai-api`, `ai-models`, `adapters-messaging`, `feature-*`; the older People / Reminders / Player code stays in `app` for now | 2026-10-25 |
 | D10 | Model seam | Plan §2 | Features see only the four interfaces. `AiRouter` sends a call to the model when switched on in settings and it answers, otherwise to the fallback. Models load and release only through `ModelLoader` | 2026-10-25 |
+| D12 | Vault file encryption | Phase 3 | Own chunked AES-GCM (64 KB chunks, each bound to its index and a "last" flag) with the vault's data key instead of adding Tink; the data key is wrapped by a Keystore key that needs fingerprint/PIN (30 s window) | 2026-10-25 |
+| D13 | Parallel build-out | You | Phases 4–5 are built by three parallel workstreams from `Docs/implementation-guide.md`, integrated and tested centrally | 2026-10-25 |
 | D11 | Background work | Plan §3, S9 | One foreground service (`HostService`, type `specialUse`) hosts every always-on part; it runs only while a feature that needs it is on. Started at boot and from settings changes | 2026-10-25 |
 
 ## Spikes (need the real phone)

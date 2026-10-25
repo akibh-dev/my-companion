@@ -60,7 +60,8 @@ data class Screen(
 
 /** Which screen each feature's card opens; features add theirs as they're built. */
 fun featureRoute(feature: Feature): String? = when (feature) {
-    Feature.CONTEXT_RULES, Feature.KEEP_SCREEN_ON -> "rules"
+    Feature.CONTEXT_RULES -> "rules"
+    Feature.KEEP_SCREEN_ON -> "screen-on"
     Feature.AUTO_REPLY, Feature.MISSED_CALL_SMS -> "autoreply"
     Feature.VOICE_MODE -> "voice"
     Feature.CAPTURE -> "capture"
