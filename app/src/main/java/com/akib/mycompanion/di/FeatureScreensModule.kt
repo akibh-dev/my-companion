@@ -1,11 +1,15 @@
 package com.akib.mycompanion.di
 
 import com.akib.mycompanion.Screen
+import com.akib.mycompanion.autoreply.ui.AutoReplyRoute
+import com.akib.mycompanion.autoreply.ui.MessagingSelfTestRoute
+import com.akib.mycompanion.autoreply.ui.ReplyLogRoute
 import com.akib.mycompanion.context.ui.PlaceEditorRoute
 import com.akib.mycompanion.context.ui.PlacesRoute
 import com.akib.mycompanion.context.ui.RuleEditorRoute
 import com.akib.mycompanion.context.ui.RuleHistoryRoute
 import com.akib.mycompanion.context.ui.RulesRoute
+import com.akib.mycompanion.voice.ui.VoiceRoute
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -41,6 +45,24 @@ object FeatureScreensModule {
 
     @Provides @IntoSet
     fun ruleHistory() = Screen("rule-history", "Rule history") { s -> RuleHistoryRoute(s.modifier) }
+
+    // ---- Messaging (Phase 2) ----
+
+    @Provides @IntoSet
+    fun autoReply() = Screen("autoreply", "Auto-reply") { s ->
+        AutoReplyRoute(onOpenLog = {
+            s.navigate("reply-log")
+        }, onOpenSelfTest = { s.navigate("chat-selftest") }, modifier = s.modifier)
+    }
+
+    @Provides @IntoSet
+    fun replyLog() = Screen("reply-log", "Reply log") { s -> ReplyLogRoute(s.modifier) }
+
+    @Provides @IntoSet
+    fun chatSelfTest() = Screen("chat-selftest", "Chat app self-test") { s -> MessagingSelfTestRoute(s.modifier) }
+
+    @Provides @IntoSet
+    fun voice() = Screen("voice", "Voice mode") { s -> VoiceRoute(s.modifier) }
 
     /** Route argument for "create a new one" (not a number, so the editor starts empty). */
     private const val NEW = "new"

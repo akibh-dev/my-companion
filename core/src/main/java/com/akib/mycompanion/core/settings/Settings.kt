@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.akib.mycompanion.core.util.enumsOf
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -68,8 +69,8 @@ class DataStoreSettingsStore @Inject constructor(
     override val settings: Flow<Settings> = store.data.map { prefs ->
         Settings(
             paused = prefs[PAUSED] ?: false,
-            enabled = prefs[ENABLED].orEmpty().namesOf(Feature.entries),
-            modelEngines = prefs[MODELS].orEmpty().namesOf(AiEngine.entries),
+            enabled = enumsOf<Feature>(prefs[ENABLED]).orEmpty(),
+            modelEngines = enumsOf<AiEngine>(prefs[MODELS]).orEmpty(),
         )
     }
 
@@ -90,10 +91,6 @@ class DataStoreSettingsStore @Inject constructor(
             prefs[MODELS] = if (useModel) current + engine.name else current - engine.name
         }
     }
-
-    /** Stored names back to enum values; names of removed entries are skipped. */
-    private fun <E : Enum<E>> Set<String>.namesOf(entries: List<E>): Set<E> =
-        mapNotNull { name -> entries.firstOrNull { it.name == name } }.toSet()
 
     private companion object {
         val PAUSED = booleanPreferencesKey("paused")

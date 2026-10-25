@@ -10,6 +10,7 @@ import com.akib.mycompanion.context.domain.Rule
 import com.akib.mycompanion.context.domain.RuleAction
 import com.akib.mycompanion.context.domain.SoundMode
 import com.akib.mycompanion.context.domain.Trigger
+import com.akib.mycompanion.core.context.ContextStatus
 import com.akib.mycompanion.core.log.AppLog
 import com.akib.mycompanion.core.rules.TakenOver
 import com.akib.mycompanion.core.time.Clock
@@ -47,12 +48,14 @@ class RulesEngineTest {
         override fun nowMillis() = 0L
         override val zone: ZoneId = ZoneId.of("Asia/Dhaka")
     }
+    private val status = ContextStatus()
     private val engine = RulesEngine(
         device,
         storage,
         { _, name, changes -> history += name to changes },
         AppLog(Files.createTempDirectory("log").toFile(), mirrorToLogcat = false),
         clock,
+        status,
     )
 
     private val charging = ContextSnapshot(LocalDateTime.of(2026, 10, 25, 10, 0), charging = true)
@@ -69,6 +72,7 @@ class RulesEngineTest {
         engine.run(listOf(nightstand), charging)
         assertThat(device.values).containsAtLeast("ringer", "SILENT", "dnd", "ALARMS")
         assertThat(engine.active.value).containsExactly(1L)
+        assertThat(status.activeRules.value).containsExactly("Nightstand")
 
         engine.run(listOf(nightstand), unplugged)
         assertThat(device.values).containsAtLeast("ringer", "NORMAL", "dnd", "OFF")

@@ -5,6 +5,7 @@ import com.akib.mycompanion.context.data.TakenOverStore
 import com.akib.mycompanion.context.domain.ContextSnapshot
 import com.akib.mycompanion.context.domain.Rule
 import com.akib.mycompanion.context.domain.RuleEvaluator
+import com.akib.mycompanion.core.context.ContextStatus
 import com.akib.mycompanion.core.host.HostedComponent
 import com.akib.mycompanion.core.log.AppLog
 import com.akib.mycompanion.core.rules.Reconciler
@@ -48,6 +49,7 @@ class RulesEngine @Inject constructor(
     private val runs: RunRecorder,
     private val log: AppLog,
     private val clock: Clock,
+    private val status: ContextStatus,
 ) {
     private val lock = Mutex()
     private val mutableActive = MutableStateFlow<Set<Long>>(emptySet())
@@ -58,12 +60,14 @@ class RulesEngine @Inject constructor(
     suspend fun run(rules: List<Rule>, snapshot: ContextSnapshot) = lock.withLock {
         val applying = rules.filter { RuleEvaluator.applies(it, snapshot) }
         mutableActive.value = applying.map { it.id }.toSet()
+        status.setActiveRules(applying.map { it.name }.toSet())
         apply(applying, rules)
     }
 
     /** Puts back everything the rules changed (feature switched off, or everything paused). */
     suspend fun restoreAll() = lock.withLock {
         mutableActive.value = emptySet()
+        status.setActiveRules(emptySet())
         apply(emptyList(), emptyList())
     }
 

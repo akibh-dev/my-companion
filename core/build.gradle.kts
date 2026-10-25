@@ -14,7 +14,7 @@ kapt {
 }
 
 dependencies {
-    implementation(libs.datastore.preferences)
+    api(libs.datastore.preferences)
     implementation(libs.work.runtime)
     implementation(libs.androidx.core.ktx)
     testImplementation(libs.work.testing)

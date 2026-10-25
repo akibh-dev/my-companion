@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Missed-call SMS (FR-1.1): notice a missed call, find the number, text back. -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.READ_CALL_LOG" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <!-- "Saved contacts only" audience (FR-1.4). -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+
+    <application>
+        <!-- PHONE_STATE is one of the broadcasts apps may still receive in the manifest. -->
+        <receiver
+            android:name=".system.MissedCallReceiver"
+            android:exported="true"
+            android:permission="android.permission.READ_PHONE_STATE">
+            <intent-filter>
+                <action android:name="android.intent.action.PHONE_STATE" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>
