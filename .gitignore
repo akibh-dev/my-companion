@@ -93,3 +93,4 @@ $RECYCLE.BIN/
 out/
 # Claude Code agent worktrees (temporary copies of the repo)
 .claude/worktrees/
+.idea/misc.xml
