@@ -1,5 +1,6 @@
 package com.akib.mycompanion.presentation
 
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import app.cash.turbine.test
 import com.akib.mycompanion.domain.model.Contact
 import com.akib.mycompanion.domain.port.PickedPhone
@@ -59,8 +60,8 @@ class ContactsViewModelTest {
             viewModel.onAddClick()
             assertThat(expectMostRecentItem().editor!!.isNew).isTrue()
 
-            viewModel.onNameChange("Akib")
-            viewModel.onPhoneChange("01811-123456")
+            viewModel.name.setTextAndPlaceCursorAtEnd("Akib")
+            viewModel.phone.setTextAndPlaceCursorAtEnd("01811-123456")
             viewModel.onSaveEditor()
 
             val state = expectMostRecentItem()
@@ -75,24 +76,36 @@ class ContactsViewModelTest {
     fun `an invalid number keeps the dialog open with an error`() = runTest {
         viewModel.uiState.test {
             viewModel.onAddClick()
-            viewModel.onNameChange("Akib")
-            viewModel.onPhoneChange("12")
+            viewModel.name.setTextAndPlaceCursorAtEnd("Akib")
+            viewModel.phone.setTextAndPlaceCursorAtEnd("12")
             viewModel.onSaveEditor()
 
             val editor = expectMostRecentItem().editor!!
             assertThat(editor.phoneError).contains("valid number")
 
-            viewModel.onPhoneChange("01811123456")
+            viewModel.phone.setTextAndPlaceCursorAtEnd("01811123456")
+            viewModel.onPhoneEdited()
             assertThat(expectMostRecentItem().editor!!.phoneError).isNull()
         }
+    }
+
+    @Test
+    fun `opening the dialog starts empty for a new person and filled for an edit`() = runTest {
+        viewModel.onEditClick(mum)
+        assertThat(viewModel.name.text.toString()).isEqualTo("Mum")
+        assertThat(viewModel.phone.text.toString()).isEqualTo("+8801711123456")
+
+        viewModel.onAddClick()
+        assertThat(viewModel.name.text.toString()).isEmpty()
+        assertThat(viewModel.phone.text.toString()).isEmpty()
     }
 
     @Test
     fun `a duplicate number names who already has it`() = runTest {
         viewModel.uiState.test {
             viewModel.onAddClick()
-            viewModel.onNameChange("Someone")
-            viewModel.onPhoneChange("01711123456")
+            viewModel.name.setTextAndPlaceCursorAtEnd("Someone")
+            viewModel.phone.setTextAndPlaceCursorAtEnd("01711123456")
             viewModel.onSaveEditor()
 
             assertThat(expectMostRecentItem().editor!!.phoneError).isEqualTo("Already saved as Mum")
@@ -105,7 +118,7 @@ class ContactsViewModelTest {
             viewModel.onEditClick(mum)
             assertThat(expectMostRecentItem().editor!!.isNew).isFalse()
 
-            viewModel.onNameChange("Mom")
+            viewModel.name.setTextAndPlaceCursorAtEnd("Mom")
             viewModel.onSaveEditor()
 
             assertThat(expectMostRecentItem().contacts).containsExactly(mum.copy(name = "Mom"))
@@ -121,13 +134,13 @@ class ContactsViewModelTest {
             viewModel.onAddClick()
             viewModel.onPhonebookPicked("content://contacts/1")
 
-            val editor = expectMostRecentItem().editor!!
-            assertThat(editor.name).isEqualTo("Dad")
-            assertThat(editor.phone).isEqualTo("+880 1911 123456")
+            assertThat(expectMostRecentItem().editor).isNotNull()
+            assertThat(viewModel.name.text.toString()).isEqualTo("Dad")
+            assertThat(viewModel.phone.text.toString()).isEqualTo("+880 1911 123456")
 
-            viewModel.onNameChange("Abba")
+            viewModel.name.setTextAndPlaceCursorAtEnd("Abba")
             viewModel.onPhonebookPicked("content://contacts/1")
-            assertThat(expectMostRecentItem().editor!!.name).isEqualTo("Abba")
+            assertThat(viewModel.name.text.toString()).isEqualTo("Abba")
         }
     }
 

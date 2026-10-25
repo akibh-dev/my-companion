@@ -60,6 +60,25 @@ class ScheduleReminderUseCase @Inject constructor(
         return ScheduleResult.Scheduled(reminder)
     }
 
+    /**
+     * A one-off reminder at an exact moment, e.g. picked with date and time pickers by another feature
+     * ("Remind me…" on a vault item, FR-2.16). A moment that has already passed is [ScheduleResult.InvalidTime].
+     */
+    suspend fun at(title: String, message: String, atMillis: Long): ScheduleResult {
+        if (title.isBlank() && message.isBlank()) return ScheduleResult.EmptyContent
+        if (atMillis <= calculator.inMinutes(0)) return ScheduleResult.InvalidTime
+
+        val reminder = reminders.save(
+            Reminder(
+                title = title.trim().ifEmpty { DEFAULT_TITLE },
+                message = message.trim(),
+                triggerAtMillis = atMillis,
+            ),
+        )
+        scheduler.schedule(reminder)
+        return ScheduleResult.Scheduled(reminder)
+    }
+
     private fun ReminderTime.isValid(): Boolean = when (this) {
         is ReminderTime.InMinutes -> minutes in 0..MAX_MINUTES
         is ReminderTime.AtTime -> hour in 0..23 && minute in 0..59

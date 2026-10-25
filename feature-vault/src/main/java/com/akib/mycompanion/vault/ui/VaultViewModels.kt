@@ -6,6 +6,7 @@ import android.provider.OpenableColumns
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.akib.mycompanion.core.sinks.ReminderSink
 import com.akib.mycompanion.vault.crypto.KeyWrapper
 import com.akib.mycompanion.vault.data.ItemType
 import com.akib.mycompanion.vault.data.LinkPreviewer
@@ -157,8 +158,14 @@ class VaultViewModel @Inject constructor(
 class VaultItemViewModel @Inject constructor(
     savedState: SavedStateHandle,
     private val vault: Vault,
+    private val reminders: ReminderSink,
     val autoLock: VaultAutoLock,
 ) : ViewModel() {
+    private val mutableReminderStatus = MutableStateFlow<String?>(null)
+
+    /** What happened to the last "Remind me…" (set, or why not). */
+    val reminderStatus: StateFlow<String?> = mutableReminderStatus.asStateFlow()
+
     private val id: Long = savedState.get<String>("id")?.toLongOrNull() ?: -1
     val item: StateFlow<VaultItem?> =
         vault.items.map { list -> list.firstOrNull { it.id == id } }.stateIn(
@@ -184,6 +191,21 @@ class VaultItemViewModel @Inject constructor(
 
     fun deleteForever(item: VaultItem) {
         viewModelScope.launch { vault.deleteForever(item) }
+    }
+
+    /**
+     * "Remind me…" (FR-2.16). Only the title goes into the notification: vault content stays in the vault,
+     * since notifications show on the lock screen.
+     */
+    fun remind(item: VaultItem, atMillis: Long, whenText: String) {
+        viewModelScope.launch {
+            val set = reminders.remind(item.title.ifBlank { "Vault item" }, "From your vault", atMillis)
+            mutableReminderStatus.value = if (set) {
+                "Reminder set for $whenText"
+            } else {
+                "Couldn't set the reminder: allow notifications and alarms for My Companion, and pick a future time"
+            }
+        }
     }
 
     suspend fun content(item: VaultItem): ByteArray = vault.content(item)

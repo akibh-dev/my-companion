@@ -1,5 +1,6 @@
 package com.akib.mycompanion.presentation
 
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -100,13 +101,17 @@ class ContactsScreenTest {
     @Test
     fun `editor form takes typing, picks from the phone book and shows errors`() {
         var editor by mutableStateOf(ContactEditor())
+        val name = TextFieldState()
+        val phone = TextFieldState()
         compose.setContent {
             CompanionTheme {
                 ContactEditorForm(
                     editor = editor,
-                    onNameChange = { editor = editor.copy(name = it) },
-                    onPhoneChange = { editor = editor.copy(phone = it) },
+                    name = name,
+                    phone = phone,
                     onPickFromPhonebook = { events += "pick" },
+                    onNameEdited = { events += "nameEdited" },
+                    onPhoneEdited = { editor = editor.copy(phoneError = null) },
                 )
             }
         }
@@ -118,17 +123,19 @@ class ContactsScreenTest {
 
         editor = editor.copy(phoneError = "Already saved as Mum")
         compose.onNodeWithText("Already saved as Mum").assertIsDisplayed()
+        compose.onNodeWithText("WhatsApp number").performTextInput("7")
+        compose.onNodeWithText("Already saved as Mum").assertDoesNotExist()
 
-        assertThat(editor.name).isEqualTo("Akib")
-        assertThat(editor.phone).isEqualTo("01811123456")
-        assertThat(events).containsExactly("pick")
+        assertThat(name.text.toString()).isEqualTo("Akib")
+        assertThat(phone.text.toString()).isEqualTo("018111234567")
+        assertThat(events).containsAtLeast("nameEdited", "pick")
     }
 
     @Test
     fun `editor can only save with both fields and is titled by mode`() {
-        assertThat(ContactEditor().canSave).isFalse()
-        assertThat(ContactEditor(name = "Akib").canSave).isFalse()
-        assertThat(ContactEditor(name = "Akib", phone = "0181").canSave).isTrue()
+        assertThat(ContactEditor().canSave(name = "", phone = "")).isFalse()
+        assertThat(ContactEditor().canSave(name = "Akib", phone = " ")).isFalse()
+        assertThat(ContactEditor().canSave(name = "Akib", phone = "0181")).isTrue()
         assertThat(ContactEditor().title).isEqualTo("Add person")
         assertThat(ContactEditor(id = 1).title).isEqualTo("Edit person")
     }

@@ -1,5 +1,6 @@
 package com.akib.mycompanion.presentation
 
+import android.content.Context
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasScrollAction
@@ -10,11 +11,13 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.akib.mycompanion.MainActivity
 import com.akib.mycompanion.di.PlaybackModule
 import com.akib.mycompanion.domain.port.Playback
 import com.akib.mycompanion.fakes.FakePlayback
+import com.akib.mycompanion.presentation.onboarding.FirstRun
 import dagger.hilt.android.testing.BindValue
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
@@ -22,6 +25,8 @@ import dagger.hilt.android.testing.HiltTestApplication
 import dagger.hilt.android.testing.UninstallModules
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TestWatcher
+import org.junit.runner.Description
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
@@ -36,7 +41,15 @@ class MainActivityTest {
     @get:Rule(order = 0)
     val hiltRule = HiltAndroidRule(this)
 
+    /** The first-run guide was seen already, so the activity opens straight on Home. */
     @get:Rule(order = 1)
+    val guideSeen = object : TestWatcher() {
+        override fun starting(description: Description) {
+            FirstRun.markDone(ApplicationProvider.getApplicationContext<Context>())
+        }
+    }
+
+    @get:Rule(order = 2)
     val compose = createAndroidComposeRule<MainActivity>()
 
     /** Don't start the real media service in a UI test. */

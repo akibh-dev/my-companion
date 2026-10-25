@@ -5,6 +5,8 @@ import android.content.Intent
 import android.net.Uri
 import android.util.TypedValue
 import android.view.ContextThemeWrapper
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -63,7 +65,7 @@ class PlayerScreenTest {
     }
 
     private val actions = object : PlayerActions {
-        override fun onLinkChange(text: String) = record("link:$text")
+        override fun onLinkEdited() = record("edited")
 
         override fun onPaste() = record("paste")
 
@@ -122,8 +124,12 @@ class PlayerScreenTest {
         compose.onNode(hasScrollAction()).performScrollToNode(matcher)
     }
 
+    private val linkText = TextFieldState()
+
     private fun show(state: PlayerUiState = PlayerUiState(), link: VideoActionsUiState = VideoActionsUiState()) =
-        compose.setContent { CompanionTheme { PlayerScreen(state = state, link = link, actions = actions) } }
+        compose.setContent {
+            CompanionTheme { PlayerScreen(state = state, link = link, linkText = linkText, actions = actions) }
+        }
 
     @Test
     fun `empty player invites sharing or pasting a link`() {
@@ -138,11 +144,23 @@ class PlayerScreenTest {
 
     @Test
     fun `a typed link can be opened`() {
-        show(link = VideoActionsUiState(link = "https://youtu.be/x"))
+        linkText.setTextAndPlaceCursorAtEnd("https://youtu.be/x")
+        show()
 
         compose.onNodeWithText("Open link").assertIsEnabled().performClick()
 
         assertThat(calls).containsExactly("submit")
+    }
+
+    @Test
+    fun `typing a link goes into the text state and clears an old error`() {
+        show(link = VideoActionsUiState(status = LinkStatus.Error("That's not a YouTube video link")))
+
+        compose.onNodeWithText("YouTube link").performTextInput("https://youtu.be/dQw4w9WgXcQ")
+
+        assertThat(linkText.text.toString()).isEqualTo("https://youtu.be/dQw4w9WgXcQ")
+        assertThat(calls).contains("edited")
+        compose.onNodeWithText("Open link").assertIsEnabled()
     }
 
     @Test

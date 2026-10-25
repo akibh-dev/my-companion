@@ -26,7 +26,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.akib.mycompanion.domain.model.Contact
 import com.akib.mycompanion.presentation.common.ObserveAsEvents
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /** Connects [ContactsScreen] to its ViewModel and to Android (permissions, contact picker, snackbars). */
@@ -36,9 +35,8 @@ fun ContactsRoute(
     modifier: Modifier = Modifier,
     viewModel: ContactsViewModel = hiltViewModel(),
 ) {
-    // Main.immediate: typed text must come back to the TextField in the same frame. With the default
-    // (next frame) the field briefly gets an older value back and fast typing drops or reorders letters.
-    val state by viewModel.uiState.collectAsStateWithLifecycle(context = Dispatchers.Main.immediate)
+    // Typed text isn't in this state (it's the ViewModel's TextFieldStates), so the usual collection is fine.
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -87,8 +85,10 @@ fun ContactsRoute(
     state.editor?.let { editor ->
         ContactEditorDialog(
             editor = editor,
-            onNameChange = viewModel::onNameChange,
-            onPhoneChange = viewModel::onPhoneChange,
+            name = viewModel.name,
+            phone = viewModel.phone,
+            onNameEdited = viewModel::onNameEdited,
+            onPhoneEdited = viewModel::onPhoneEdited,
             onPickFromPhonebook = {
                 try {
                     pickPhone.launch(Unit)

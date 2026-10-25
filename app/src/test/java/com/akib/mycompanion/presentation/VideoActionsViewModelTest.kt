@@ -1,5 +1,6 @@
 package com.akib.mycompanion.presentation
 
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import app.cash.turbine.test
 import com.akib.mycompanion.domain.usecase.AddToPlaylistUseCase
 import com.akib.mycompanion.domain.usecase.CreatePlaylistUseCase
@@ -58,7 +59,8 @@ class VideoActionsViewModelTest {
             viewModel.onSubmit(link)
             assertThat((expectMostRecentItem().status as LinkStatus.Error).message).contains("No internet")
 
-            viewModel.onLinkChange("https://youtu.be/")
+            viewModel.link.setTextAndPlaceCursorAtEnd("https://youtu.be/")
+            viewModel.onLinkEdited()
             assertThat(expectMostRecentItem().status).isEqualTo(LinkStatus.Idle)
         }
     }
@@ -133,6 +135,25 @@ class VideoActionsViewModelTest {
             assertThat(expectMostRecentItem().newPlaylistError).isNull()
         }
         assertThat(playlists.allItems).isEmpty()
+    }
+
+    @Test
+    fun `a shared link fills the link box, and the box is cleared once handled`() = runTest {
+        viewModel.onSubmit(link)
+        assertThat(viewModel.link.text.toString()).isEqualTo(link)
+
+        viewModel.onAddToQueue()
+        assertThat(viewModel.link.text.toString()).isEmpty()
+    }
+
+    @Test
+    fun `submitting without text looks up what was typed`() = runTest {
+        viewModel.link.setTextAndPlaceCursorAtEnd(link)
+
+        viewModel.uiState.test {
+            viewModel.onSubmit()
+            assertThat(expectMostRecentItem().status).isEqualTo(LinkStatus.Ready(song))
+        }
     }
 
     @Test

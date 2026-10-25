@@ -1,5 +1,6 @@
 package com.akib.mycompanion.presentation
 
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import app.cash.turbine.test
 import com.akib.mycompanion.domain.model.Contact
 import com.akib.mycompanion.domain.time.ReminderTimeCalculator
@@ -60,7 +61,7 @@ class RemindersViewModelTest {
                 .inOrder()
             assertThat(state.presets.single { it.selected }.choice).isEqualTo(WhenChoice.Now)
             assertThat(state.pickedTimeLabel).isEqualTo("Pick time")
-            assertThat(state.form.canSubmit).isFalse()
+            assertThat(state.form.canSubmit(viewModel.title.text, viewModel.message.text)).isFalse()
             assertThat(state.contacts).containsExactly(mum)
         }
     }
@@ -79,7 +80,7 @@ class RemindersViewModelTest {
     @Test
     fun `on days starts with the day it would first fire and needs at least one day`() = runTest {
         viewModel.uiState.test {
-            viewModel.onTitleChange("Gym")
+            viewModel.title.setTextAndPlaceCursorAtEnd("Gym")
             viewModel.onChoiceChange(WhenChoice.At(8, 0)) // tomorrow, Saturday
             viewModel.onRepeatChange(RepeatChoice.DAYS)
 
@@ -97,7 +98,7 @@ class RemindersViewModelTest {
             viewModel.onDayToggle(DayOfWeek.SATURDAY)
             state = expectMostRecentItem()
             assertThat(state.form.days).isEmpty()
-            assertThat(state.form.canSubmit).isFalse()
+            assertThat(state.form.canSubmit(viewModel.title.text, viewModel.message.text)).isFalse()
         }
     }
 
@@ -114,7 +115,7 @@ class RemindersViewModelTest {
     @Test
     fun `send now every two hours posts now and keeps going`() = runTest {
         viewModel.events.test {
-            viewModel.onTitleChange("Drink water")
+            viewModel.title.setTextAndPlaceCursorAtEnd("Drink water")
             viewModel.onRepeatChange(RepeatChoice.EVERY)
             viewModel.onEveryChange(120)
             viewModel.onSubmit()
@@ -130,7 +131,7 @@ class RemindersViewModelTest {
     @Test
     fun `setting a reminder confirms the time, resets the form and lists it`() = runTest {
         viewModel.events.test {
-            viewModel.onTitleChange("Stretch")
+            viewModel.title.setTextAndPlaceCursorAtEnd("Stretch")
             viewModel.onChoiceChange(WhenChoice.InMinutes(15))
             viewModel.onContactChange(mum.id)
             viewModel.onSubmit()
@@ -139,7 +140,7 @@ class RemindersViewModelTest {
         }
         viewModel.uiState.test {
             val state = expectMostRecentItem()
-            assertThat(state.form.title).isEmpty()
+            assertThat(viewModel.title.text.toString()).isEmpty()
             val item = state.upcoming.single()
             assertThat(item.title).isEqualTo("Stretch")
             assertThat(item.whenText).isEqualTo("Today, 10:15 AM")
@@ -151,7 +152,7 @@ class RemindersViewModelTest {
     @Test
     fun `a daily reminder says so`() = runTest {
         viewModel.events.test {
-            viewModel.onTitleChange("Medicine")
+            viewModel.title.setTextAndPlaceCursorAtEnd("Medicine")
             viewModel.onChoiceChange(WhenChoice.At(8, 0))
             viewModel.onRepeatChange(RepeatChoice.DAILY)
             viewModel.onSubmit()
@@ -167,7 +168,7 @@ class RemindersViewModelTest {
     @Test
     fun `send now posts the notification straight away`() = runTest {
         viewModel.events.test {
-            viewModel.onMessageChange("Hello from the app")
+            viewModel.message.setTextAndPlaceCursorAtEnd("Hello from the app")
             viewModel.onSubmit()
 
             assertThat(awaitItem()).isEqualTo(RemindersEvent.Message("Notification sent"))
@@ -183,20 +184,27 @@ class RemindersViewModelTest {
         notifier.enabled = false
 
         viewModel.events.test {
-            viewModel.onTitleChange("Hi")
+            viewModel.title.setTextAndPlaceCursorAtEnd("Hi")
             viewModel.onSubmit()
             assertThat(awaitItem())
                 .isEqualTo(RemindersEvent.Message("Notifications are turned off for My Companion"))
         }
-        viewModel.uiState.test {
-            assertThat(expectMostRecentItem().form.title).isEqualTo("Hi")
-        }
+        assertThat(viewModel.title.text.toString()).isEqualTo("Hi")
+    }
+
+    @Test
+    fun `the form can be sent once it has a title or a message`() {
+        assertThat(viewModel.uiState.value.form.canSubmit(viewModel.title.text, viewModel.message.text)).isFalse()
+
+        viewModel.message.setTextAndPlaceCursorAtEnd("Water the plants")
+
+        assertThat(viewModel.uiState.value.form.canSubmit(viewModel.title.text, viewModel.message.text)).isTrue()
     }
 
     @Test
     fun `cancelling removes it from the list`() = runTest {
         viewModel.events.test {
-            viewModel.onTitleChange("Stretch")
+            viewModel.title.setTextAndPlaceCursorAtEnd("Stretch")
             viewModel.onChoiceChange(WhenChoice.InMinutes(30))
             viewModel.onSubmit()
             assertThat(awaitItem()).isEqualTo(RemindersEvent.Message("Reminder set for Today, 10:30 AM"))
