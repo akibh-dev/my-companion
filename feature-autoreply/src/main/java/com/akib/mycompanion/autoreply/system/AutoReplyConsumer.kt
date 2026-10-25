@@ -48,7 +48,8 @@ class AutoReplyConsumer @Inject constructor(
             templates = repository.templates.first(),
             situation = situation,
             isContact = runCatching { contacts.isContact(message.sender) }.getOrNull(),
-            lastReplyAt = repository.lastReply(message.app.name, message.conversation),
+            // Same app name as record() writes, or the cool-down never finds the last reply (FR-1.5).
+            lastReplyAt = repository.lastReply(message.app.title, message.conversation),
             until = { DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it)) },
         )
         when (decision) {
