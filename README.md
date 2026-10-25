@@ -24,6 +24,8 @@ Built as a **learning vehicle** for Android development.
 | [Docs/03-whatsapp-call-and-reminders.md](Docs/03-whatsapp-call-and-reminders.md) | How calls and reminders work |
 | [Docs/04-testing.md](Docs/04-testing.md) | Test layers, tools and patterns |
 | [Docs/05-youtube-player.md](Docs/05-youtube-player.md) | YouTube background player, queue, playlists |
+| [Docs/06-device-test-report.md](Docs/06-device-test-report.md) | Emulator test results, bugs found, next steps (in progress) |
+| [tools/device-test/](tools/device-test/) | Command-line helpers for testing on an emulator (fake WhatsApp, UI driver) |
 | [Docs/architecture/](Docs/architecture/) | Architecture Decision Records (ADRs) |
 | [Docs/references/](Docs/references/) | Quick reference sheets (coroutines, lifecycle, Gradle) |
 | [Docs/resources/](Docs/resources/) | Curated external learning resources |
@@ -101,6 +103,7 @@ app/
 - [x] **Reminders**: custom notifications now / later / at a time, daily repeat, Snooze / Done / Call buttons, survive reboot
 - [x] **Player**: share a YouTube video → play in the background (notification + lock-screen controls), queue, permanent playlists ([details](Docs/05-youtube-player.md))
 - [x] Tests: domain, ViewModel, Robolectric (Room, alarms, notifications, receivers) and Compose UI ([Docs/04-testing.md](Docs/04-testing.md))
+- [x] Tested end to end on an Android 17 emulator — 8 fixes pending ([Docs/06-device-test-report.md](Docs/06-device-test-report.md))
 - [x] CI: ktlint, unit tests, Android lint, debug APK on every push
 
 How it works: [Docs/03-whatsapp-call-and-reminders.md](Docs/03-whatsapp-call-and-reminders.md)
