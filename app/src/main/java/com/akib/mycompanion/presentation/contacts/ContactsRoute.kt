@@ -14,7 +14,6 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,6 +25,7 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.akib.mycompanion.domain.model.Contact
+import com.akib.mycompanion.presentation.common.ObserveAsEvents
 import kotlinx.coroutines.launch
 
 /** Connects [ContactsScreen] to its ViewModel and to Android (permissions, contact picker, snackbars). */
@@ -39,21 +39,17 @@ fun ContactsRoute(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(viewModel) {
-        viewModel.events.collect { event ->
-            scope.launch {
-                when (event) {
-                    is ContactsEvent.Message ->
-                        snackbarHostState.showSnackbar(event.text, duration = SnackbarDuration.Long)
-                    is ContactsEvent.Removed -> {
-                        val result = snackbarHostState.showSnackbar(
-                            message = "Removed ${event.contact.name}",
-                            actionLabel = "Undo",
-                            duration = SnackbarDuration.Long,
-                        )
-                        if (result == SnackbarResult.ActionPerformed) viewModel.onUndoDelete(event.contact)
-                    }
-                }
+    ObserveAsEvents(viewModel.events) { event ->
+        when (event) {
+            is ContactsEvent.Message ->
+                snackbarHostState.showSnackbar(event.text, duration = SnackbarDuration.Long)
+            is ContactsEvent.Removed -> {
+                val result = snackbarHostState.showSnackbar(
+                    message = "Removed ${event.contact.name}",
+                    actionLabel = "Undo",
+                    duration = SnackbarDuration.Long,
+                )
+                if (result == SnackbarResult.ActionPerformed) viewModel.onUndoDelete(event.contact)
             }
         }
     }

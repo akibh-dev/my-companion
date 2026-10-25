@@ -15,11 +15,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -29,8 +27,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.akib.mycompanion.data.notification.AndroidReminderNotifier
+import com.akib.mycompanion.presentation.common.ObserveAsEvents
 import java.util.Calendar
-import kotlinx.coroutines.launch
 
 /** Connects [RemindersScreen] to its ViewModel and to Android (notification permission, time picker). */
 @Composable
@@ -41,13 +39,10 @@ fun RemindersRoute(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
 
-    LaunchedEffect(viewModel) {
-        viewModel.events.collect { event ->
-            when (event) {
-                is RemindersEvent.Message -> scope.launch { snackbarHostState.showSnackbar(event.text) }
-            }
+    ObserveAsEvents(viewModel.events) { event ->
+        when (event) {
+            is RemindersEvent.Message -> snackbarHostState.showSnackbar(event.text)
         }
     }
 

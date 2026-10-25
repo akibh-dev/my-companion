@@ -6,11 +6,9 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -18,7 +16,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.akib.mycompanion.domain.model.Playlist
 import com.akib.mycompanion.domain.model.PlaylistItem
-import kotlinx.coroutines.launch
+import com.akib.mycompanion.presentation.common.ObserveAsEvents
 
 /** Which name/confirm dialog is open. */
 private sealed interface PlayerDialog {
@@ -41,22 +39,17 @@ fun PlayerRoute(
     val state by playerViewModel.uiState.collectAsStateWithLifecycle()
     val link by linkViewModel.uiState.collectAsStateWithLifecycle()
     val clipboard = LocalClipboardManager.current
-    val scope = rememberCoroutineScope()
     var dialog by remember { mutableStateOf<PlayerDialog?>(null) }
 
-    LaunchedEffect(playerViewModel) {
-        playerViewModel.events.collect { event ->
-            when (event) {
-                is PlayerEvent.Message -> scope.launch { snackbarHostState.showSnackbar(event.text) }
-            }
+    ObserveAsEvents(playerViewModel.events) { event ->
+        when (event) {
+            is PlayerEvent.Message -> snackbarHostState.showSnackbar(event.text)
         }
     }
-    LaunchedEffect(linkViewModel) {
-        linkViewModel.events.collect { event ->
-            when (event) {
-                is VideoActionsEvent.Message -> scope.launch { snackbarHostState.showSnackbar(event.text) }
-                is VideoActionsEvent.Done -> Unit // already on the player
-            }
+    ObserveAsEvents(linkViewModel.events) { event ->
+        when (event) {
+            is VideoActionsEvent.Message -> snackbarHostState.showSnackbar(event.text)
+            is VideoActionsEvent.Done -> Unit // already on the player
         }
     }
 
