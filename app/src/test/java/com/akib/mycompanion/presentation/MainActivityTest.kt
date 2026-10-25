@@ -3,6 +3,8 @@ package com.akib.mycompanion.presentation
 import android.content.Context
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -68,6 +70,17 @@ class MainActivityTest {
         compose.onNodeWithText("Reminders").performClick()
         compose.onNodeWithText("Send now").assertIsDisplayed()
         compose.onNodeWithText("Nothing scheduled").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `the pause switch is labelled and pauses everything`() {
+        compose.waitUntilAtLeastOneExists(hasText("Running"), timeoutMillis = 10_000)
+        compose.onNodeWithText("Pause").assertIsDisplayed()
+
+        compose.onNodeWithContentDescription("Pause all automatic actions").assertIsOff().performClick()
+        compose.waitUntilAtLeastOneExists(hasText("Paused"), timeoutMillis = 10_000)
+        compose.onNodeWithContentDescription("Pause all automatic actions").assertIsOn().performClick()
+        compose.waitUntilAtLeastOneExists(hasText("Running"), timeoutMillis = 10_000)
     }
 
     @Test

@@ -1,9 +1,13 @@
 package com.akib.mycompanion.capture.ui
 
 import android.Manifest
+import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -87,7 +91,7 @@ internal fun CapturePanel(
         }
     }
 
-    val takePicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
+    val takePicture = rememberLauncherForActivityResult(TakePictureWithGrant()) { taken ->
         viewModel.onPhotoTaken(taken)
     }
     val askMicrophone = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -271,3 +275,15 @@ private fun readClipboard(context: Context): String? {
 
 private const val BIG_BUTTON_HEIGHT = 96
 private const val TICK_MILLIS = 500L
+
+/**
+ * The camera app writes the photo into our file through [MediaStore.EXTRA_OUTPUT]. Android used to
+ * grant it access to that URI implicitly; Android 17 warns that this ends with Android 18, so the
+ * grant is set explicitly here (ClipData plus read/write flags).
+ */
+internal class TakePictureWithGrant : ActivityResultContracts.TakePicture() {
+    override fun createIntent(context: Context, input: Uri): Intent = super.createIntent(context, input).apply {
+        clipData = ClipData.newRawUri("photo", input)
+        addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+}

@@ -24,6 +24,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -144,7 +146,15 @@ private fun PauseCard(paused: Boolean, onPauseChange: (Boolean) -> Unit) {
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
-            Switch(checked = paused, onCheckedChange = onPauseChange)
+            // "On" means paused, so the switch says so: a bare switch beside "Running" read as "off".
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Pause", style = MaterialTheme.typography.labelMedium)
+                Switch(
+                    checked = paused,
+                    onCheckedChange = onPauseChange,
+                    modifier = Modifier.semantics { contentDescription = "Pause all automatic actions" },
+                )
+            }
         }
     }
 }

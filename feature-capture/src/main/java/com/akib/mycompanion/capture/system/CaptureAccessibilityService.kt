@@ -3,12 +3,15 @@ package com.akib.mycompanion.capture.system
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityService.ScreenshotResult
 import android.accessibilityservice.AccessibilityService.TakeScreenshotCallback
+import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.Context
 import android.graphics.Bitmap
 import android.os.Handler
 import android.os.Looper
 import android.view.Display
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityManager
 import android.widget.Toast
 import com.akib.mycompanion.capture.data.CaptureFiles
 import com.akib.mycompanion.capture.data.CaptureRepository
@@ -176,5 +179,14 @@ class CaptureAccessibilityService : AccessibilityService() {
         const val TAG = "CaptureTrigger"
         const val SCREENSHOT_DELAY_MILLIS = 600L
         const val PNG_QUALITY = 100
+    }
+}
+
+/** True when the quick capture accessibility service is switched on in system settings. */
+fun captureServiceEnabled(context: Context): Boolean {
+    val manager = context.getSystemService(AccessibilityManager::class.java) ?: return false
+    return manager.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK).any { info ->
+        val service = info.resolveInfo.serviceInfo
+        service.packageName == context.packageName && service.name == CaptureAccessibilityService::class.java.name
     }
 }

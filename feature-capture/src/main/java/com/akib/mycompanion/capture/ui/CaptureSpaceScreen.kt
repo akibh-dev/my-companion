@@ -4,6 +4,8 @@ import android.app.Activity
 import android.app.KeyguardManager
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,6 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.akib.mycompanion.capture.domain.Capture
 import com.akib.mycompanion.capture.domain.CaptureSearch
 import com.akib.mycompanion.capture.domain.CaptureType
+import com.akib.mycompanion.capture.system.captureServiceEnabled
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -62,6 +66,9 @@ fun CaptureSpaceRoute(
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    // Switched on in system settings: look again whenever you come back.
+    var serviceOn by remember { mutableStateOf(captureServiceEnabled(context)) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { serviceOn = captureServiceEnabled(context) }
     // Owned by Compose, not round-tripped through the ViewModel, so typing never lags or jumps.
     var query by rememberSaveable { mutableStateOf("") }
     val zone = remember { ZoneId.systemDefault() }
@@ -76,14 +83,17 @@ fun CaptureSpaceRoute(
                 Column(Modifier.weight(1f)) {
                     Text("Hold both volume keys", style = MaterialTheme.typography.titleSmall)
                     Text(
-                        when {
-                            !state.triggerOn -> "Off. You can still use the tile or the button below."
-                            state.paused -> "On, but everything is paused right now."
-                            else -> "Hold both for a second to open the capture panel."
-                        },
+                        triggerStatus(state.triggerOn, state.paused, serviceOn),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    if (state.triggerOn && !serviceOn) {
+                        TextButton(onClick = {
+                            context.startActivity(
+                                Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                            )
+                        }) { Text("Turn on the accessibility service") }
+                    }
                 }
                 Switch(checked = state.triggerOn, onCheckedChange = viewModel::setTrigger)
             }
@@ -227,4 +237,12 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.findActivity()
     else -> null
+}
+
+/** What the volume-key switch says, given whether the system service it relies on is on (FR-4.1). */
+internal fun triggerStatus(triggerOn: Boolean, paused: Boolean, serviceOn: Boolean): String = when {
+    !triggerOn -> "Off. You can still use the tile or the button below."
+    !serviceOn -> "On, but the quick capture accessibility service is off, so the keys aren't watched."
+    paused -> "On, but everything is paused right now."
+    else -> "Hold both for a second to open the capture panel."
 }

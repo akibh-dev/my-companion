@@ -1,5 +1,7 @@
 package com.akib.mycompanion.vault.ui
 
+import android.app.admin.DevicePolicyManager
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -44,6 +46,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.akib.mycompanion.vault.data.ItemType
 import com.akib.mycompanion.vault.data.SortOrder
@@ -62,12 +66,16 @@ fun VaultRoute(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    // The screen lock is set in system settings: look again when you come back.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
     when (val vault = state.vault) {
         VaultState.NoScreenLock -> Centered(
             modifier,
             "Set a screen lock first",
-            "The vault key is protected by your fingerprint or PIN, so the phone needs a screen lock."
-        )
+            "The vault key is protected by your fingerprint or PIN, so the phone needs a screen lock.",
+        ) {
+            Button(onClick = { context.startActivity(screenLockSettings()) }) { Text("Set a screen lock") }
+        }
         VaultState.NotSetUp, is VaultState.Locked -> {
             val firstTime = vault == VaultState.NotSetUp
             Column(
@@ -294,12 +302,25 @@ internal fun Chips(content: @Composable () -> Unit) {
 }
 
 @Composable
-internal fun Centered(modifier: Modifier, title: String, text: String) {
-    Column(modifier.fillMaxSize().padding(32.dp), verticalArrangement = Arrangement.Center) {
+internal fun Centered(
+    modifier: Modifier,
+    title: String,
+    text: String,
+    action: (@Composable () -> Unit)? = null,
+) {
+    Column(
+        modifier.fillMaxSize().padding(32.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
+    ) {
         Text(title, style = MaterialTheme.typography.titleLarge)
         Text(text, style = MaterialTheme.typography.bodyMedium)
+        action?.invoke()
     }
 }
+
+/** Android's "choose a screen lock" screen (PIN, pattern, password). */
+internal fun screenLockSettings(): Intent =
+    Intent(DevicePolicyManager.ACTION_SET_NEW_PASSWORD).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
 internal fun formatDate(millis: Long): String = DateFormat.getDateTimeInstance(
     DateFormat.MEDIUM,

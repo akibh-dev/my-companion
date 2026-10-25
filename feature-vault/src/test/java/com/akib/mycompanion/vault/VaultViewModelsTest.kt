@@ -1,7 +1,9 @@
 package com.akib.mycompanion.vault
 
 import android.app.Activity
+import android.app.admin.DevicePolicyManager
 import android.content.ContextWrapper
+import android.content.Intent
 import androidx.lifecycle.SavedStateHandle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.akib.mycompanion.core.sinks.ReminderSink
@@ -13,6 +15,7 @@ import com.akib.mycompanion.vault.ui.VaultAutoLock
 import com.akib.mycompanion.vault.ui.VaultItemViewModel
 import com.akib.mycompanion.vault.ui.VaultViewModel
 import com.akib.mycompanion.vault.ui.findActivity
+import com.akib.mycompanion.vault.ui.screenLockSettings
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -111,6 +114,28 @@ class VaultViewModelsTest {
     }
 
     // ---- Vault list ----
+
+    @Test
+    fun `a screen lock set in system settings is noticed on coming back`() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        test.wrapper.screenLock = false
+        val viewModel = VaultViewModel(test.context, vault, LinkPreviewer(OkHttpClient()), VaultAutoLock(vault))
+        backgroundScope.launch { viewModel.state.collect {} }
+        assertThat(viewModel.state.first { it.vault == VaultState.NoScreenLock }.vault)
+            .isEqualTo(VaultState.NoScreenLock)
+
+        test.wrapper.screenLock = true // set in system settings meanwhile
+        viewModel.refresh() // the screen resumes
+
+        assertThat(viewModel.state.first { it.vault != VaultState.NoScreenLock }.vault).isEqualTo(VaultState.NotSetUp)
+    }
+
+    @Test
+    fun `the screen-lock button opens Android's lock chooser`() {
+        val intent = screenLockSettings()
+        assertThat(intent.action).isEqualTo(DevicePolicyManager.ACTION_SET_NEW_PASSWORD)
+        assertThat(intent.flags and Intent.FLAG_ACTIVITY_NEW_TASK).isNotEqualTo(0)
+    }
 
     @Test
     fun `a note without a title is named after its first line`() = runTest {

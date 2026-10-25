@@ -1,20 +1,18 @@
 package com.akib.mycompanion.capture.di
 
 import android.Manifest
-import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.MediaStore
 import android.provider.Settings
-import android.view.accessibility.AccessibilityManager
 import androidx.core.content.ContextCompat
 import com.akib.mycompanion.capture.data.CaptureCipher
 import com.akib.mycompanion.capture.data.CaptureDao
 import com.akib.mycompanion.capture.data.CaptureDatabase
 import com.akib.mycompanion.capture.data.CaptureFiles
-import com.akib.mycompanion.capture.system.CaptureAccessibilityService
+import com.akib.mycompanion.capture.system.captureServiceEnabled
 import com.akib.mycompanion.core.crypto.FieldCipher
 import com.akib.mycompanion.core.permissions.Requirement
 import com.akib.mycompanion.core.settings.Feature
@@ -91,13 +89,7 @@ object CaptureModule {
         steps = listOf("Install or enable a camera app"),
     )
 
-    private fun accessibilityOn(context: Context): Boolean {
-        val manager = context.getSystemService(AccessibilityManager::class.java) ?: return false
-        return manager.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK).any { info ->
-            val service = info.resolveInfo.serviceInfo
-            service.packageName == context.packageName && service.name == CaptureAccessibilityService::class.java.name
-        }
-    }
+    private fun accessibilityOn(context: Context): Boolean = captureServiceEnabled(context)
 
     private fun granted(context: Context, permission: String) =
         ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED

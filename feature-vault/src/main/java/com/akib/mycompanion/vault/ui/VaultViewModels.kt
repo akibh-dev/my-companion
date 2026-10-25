@@ -64,6 +64,11 @@ class VaultViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), VaultListState())
 
     init {
+        refresh()
+    }
+
+    /** Re-reads the vault's state, e.g. after you set a screen lock in system settings and came back. */
+    fun refresh() {
         viewModelScope.launch { vault.refreshState() }
     }
 
