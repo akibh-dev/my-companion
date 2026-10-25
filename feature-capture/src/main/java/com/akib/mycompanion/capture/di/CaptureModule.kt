@@ -91,19 +91,6 @@ object CaptureModule {
         steps = listOf("Install or enable a camera app"),
     )
 
-    @Provides @IntoSet
-    fun notifications() = Requirement(
-        id = "capture_notifications",
-        title = "Notifications",
-        why = "Shows a notification with a Stop button while a voice note is recording.",
-        feature = Feature.CAPTURE,
-        isGranted = { granted(it, Manifest.permission.POST_NOTIFICATIONS) },
-        settingsIntent = {
-            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, it.packageName)
-        },
-        runtimePermissions = listOf(Manifest.permission.POST_NOTIFICATIONS),
-    )
-
     private fun accessibilityOn(context: Context): Boolean {
         val manager = context.getSystemService(AccessibilityManager::class.java) ?: return false
         return manager.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK).any { info ->

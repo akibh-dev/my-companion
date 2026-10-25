@@ -39,6 +39,7 @@ abstract class ShellModule {
             settingsIntent = {
                 Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, it.packageName)
             },
+            runtimePermissions = listOf(Manifest.permission.POST_NOTIFICATIONS),
         )
 
         @Provides
