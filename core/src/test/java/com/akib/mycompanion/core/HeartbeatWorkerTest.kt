@@ -3,7 +3,6 @@ package com.akib.mycompanion.core
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.testing.WorkManagerTestInitHelper
 import com.akib.mycompanion.core.health.HeartbeatWorker
@@ -28,9 +27,10 @@ class HeartbeatWorkerTest {
         HeartbeatWorker.schedule(context)
         HeartbeatWorker.schedule(context)
 
+        // The test WorkManager runs it at once (and it fails here, outside Hilt), so only the schedule is checked.
         val work = WorkManager.getInstance(context).getWorkInfosForUniqueWork("heartbeat").get()
         assertThat(work).hasSize(1)
-        assertThat(work.single().state).isEqualTo(WorkInfo.State.ENQUEUED)
         assertThat(work.single().tags).contains(HeartbeatWorker::class.java.name)
+        assertThat(work.single().periodicityInfo?.repeatIntervalMillis).isEqualTo(15 * 60 * 1000L)
     }
 }

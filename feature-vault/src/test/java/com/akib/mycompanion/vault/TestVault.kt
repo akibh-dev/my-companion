@@ -27,14 +27,15 @@ class TestVault {
     val blobs = BlobStore(File(dir, "blobs"))
     val log = AppLog(File(dir, "logs"), mirrorToLogcat = false)
 
-    val clock = object : Clock {
+    class TestClock : Clock {
         var now = 1_000_000L
         override fun nowMillis() = now
         override val zone: ZoneId = ZoneId.of("Asia/Dhaka")
     }
 
-    val wrapper = object : KeyWrapper {
-        val kek = VaultCrypto.of(ByteArray(32) { 7 })
+    /** "Unlocked" only while [justUnlocked]; no screen lock while [screenLock] is false. */
+    class TestKeyWrapper : KeyWrapper {
+        private val kek = VaultCrypto.of(ByteArray(32) { 7 })
         var justUnlocked = true
         var screenLock = true
         override fun canProtect() = screenLock
@@ -43,11 +44,15 @@ class TestVault {
         private fun needsUnlock() = KeyWrapper.NeedsUnlock()
     }
 
-    val inbox = object : InboxCipher {
-        val key = VaultCrypto.of(ByteArray(32) { 3 })
+    class TestInbox : InboxCipher {
+        private val key = VaultCrypto.of(ByteArray(32) { 3 })
         override fun encrypt(plain: ByteArray) = key.encrypt(plain)
         override fun decrypt(sealed: ByteArray) = key.decrypt(sealed)
     }
+
+    val clock = TestClock()
+    val wrapper = TestKeyWrapper()
+    val inbox = TestInbox()
 
     val vault = Vault(db.dao(), wrapper, inbox, WrappedKeyFile(context), blobs, clock, log)
 
