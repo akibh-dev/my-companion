@@ -57,6 +57,27 @@ class ReminderUseCasesTest {
     }
 
     @Test
+    fun `a reminder at an exact moment is saved and armed for that moment`() = runTest {
+        val at = millisAt(2026, 11, 2, 9, 30)
+
+        val result = schedule.at(" Passport renewal ", "From your vault", at)
+
+        val reminder = (result as ScheduleResult.Scheduled).reminder
+        assertThat(reminder.title).isEqualTo("Passport renewal")
+        assertThat(reminder.message).isEqualTo("From your vault")
+        assertThat(reminder.repeat).isEqualTo(Repeat.Never)
+        assertThat(scheduler.scheduled).containsExactly(reminder.id, at)
+    }
+
+    @Test
+    fun `an exact moment in the past or without content is rejected`() = runTest {
+        assertThat(schedule.at("Late", "", millisAt(2026, 10, 23, 9, 59))).isEqualTo(ScheduleResult.InvalidTime)
+        assertThat(schedule.at(" ", "", millisAt(2026, 10, 24, 9, 0))).isEqualTo(ScheduleResult.EmptyContent)
+        assertThat(reminders.all).isEmpty()
+        assertThat(scheduler.scheduled).isEmpty()
+    }
+
+    @Test
     fun `a blank title falls back to the default when there is a message`() = runTest {
         val result = schedule("", "Call the bank", ReminderTime.AtTime(17, 0))
 

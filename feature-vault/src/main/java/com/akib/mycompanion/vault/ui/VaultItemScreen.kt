@@ -1,11 +1,15 @@
 package com.akib.mycompanion.vault.ui
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
+import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.os.ParcelFileDescriptor
+import android.text.format.DateFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -40,6 +44,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.akib.mycompanion.vault.data.ItemType
 import com.akib.mycompanion.vault.data.VaultItem
 import java.io.File
+import java.util.Calendar
+import java.util.Date
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -50,6 +56,7 @@ import kotlinx.coroutines.withContext
 fun VaultItemRoute(onDone: () -> Unit, modifier: Modifier = Modifier, viewModel: VaultItemViewModel = hiltViewModel()) {
     val item by viewModel.item.collectAsStateWithLifecycle()
     val unlocked by viewModel.unlocked.collectAsStateWithLifecycle()
+    val reminderStatus by viewModel.reminderStatus.collectAsStateWithLifecycle()
     if (!unlocked) {
         LaunchedEffect(Unit) { onDone() }
         return
@@ -114,6 +121,12 @@ fun VaultItemRoute(onDone: () -> Unit, modifier: Modifier = Modifier, viewModel:
             OutlinedTextField(folder, {
                 folder = it
             }, label = { Text("Folder") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        }
+        item {
+            OutlinedButton(onClick = {
+                pickDateTime(context) { at -> viewModel.remind(current, at, formatDateTime(context, at)) }
+            }) { Text("Remind me…") }
+            reminderStatus?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -224,6 +237,39 @@ private fun PdfPages(item: VaultItem, viewModel: VaultItemViewModel) {
 }
 
 private const val MAX_PAGES = 30
+
+/** The platform date picker, then the time picker; [onPicked] gets the chosen moment in epoch millis. */
+private fun pickDateTime(context: Context, onPicked: (Long) -> Unit) {
+    val now = Calendar.getInstance()
+    DatePickerDialog(
+        context,
+        { _, year, month, day ->
+            TimePickerDialog(
+                context,
+                { _, hour, minute ->
+                    val picked = Calendar.getInstance().apply {
+                        clear()
+                        set(year, month, day, hour, minute)
+                    }
+                    onPicked(picked.timeInMillis)
+                },
+                now.get(Calendar.HOUR_OF_DAY),
+                now.get(Calendar.MINUTE),
+                DateFormat.is24HourFormat(context),
+            ).show()
+        },
+        now.get(Calendar.YEAR),
+        now.get(Calendar.MONTH),
+        now.get(Calendar.DAY_OF_MONTH),
+    ).apply { datePicker.minDate = now.timeInMillis - 1_000 }.show()
+}
+
+/** "3 Nov 2026, 9:30" in the phone's own date and 12/24-hour format. */
+private fun formatDateTime(context: Context, millis: Long): String {
+    val date = DateFormat.getMediumDateFormat(context).format(Date(millis))
+    val time = DateFormat.getTimeFormat(context).format(Date(millis))
+    return "$date, $time"
+}
 
 /** Trash (FR-2.14) and encrypted backup and restore with a passphrase (FR-2.15). */
 @Composable
