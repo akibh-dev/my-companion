@@ -67,4 +67,40 @@ class ReconcilerTest {
 
         assertThat(run()).containsExactly(Change("ringer", "normal", null))
     }
+
+    @Test
+    fun `with the same order, the older rule (lower id) wins`() {
+        val a = Wanted(ruleId = 5, order = 0, values = mapOf("ringer" to "vibrate"))
+        val b = Wanted(ruleId = 3, order = 0, values = mapOf("ringer" to "silent"))
+
+        assertThat(run(a, b)).containsExactly(Change("ringer", "silent", 3))
+    }
+
+    @Test
+    fun `a rule wanting what's already set changes nothing and has nothing to put back`() {
+        val wifi = Wanted(ruleId = 9, order = 0, values = mapOf("wifi" to "on"))
+
+        assertThat(run(wifi)).isEmpty()
+        assertThat(takenOver.before).containsExactly("wifi", "on")
+        assertThat(run()).isEmpty()
+        assertThat(takenOver).isEqualTo(TakenOver())
+    }
+
+    @Test
+    fun `the value from before the first rule is the one restored, through several rules`() {
+        run(office)
+        run(mosque)
+        assertThat(takenOver.before).containsExactly("ringer", "normal", "dnd", "off")
+
+        run()
+        assertThat(device).containsExactly("ringer", "normal", "dnd", "off", "wifi", "on")
+    }
+
+    @Test
+    fun `nothing active and nothing taken over is a no-op`() {
+        val result = Reconciler.reconcile(emptyList(), TakenOver()) { error("shouldn't read $it") }
+
+        assertThat(result.changes).isEmpty()
+        assertThat(result.takenOver).isEqualTo(TakenOver())
+    }
 }
