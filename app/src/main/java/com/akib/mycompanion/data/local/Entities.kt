@@ -36,7 +36,7 @@ data class ReminderEntity(
         title = title,
         message = message,
         triggerAtMillis = triggerAtMillis,
-        repeat = runCatching { Repeat.valueOf(repeat) }.getOrDefault(Repeat.NONE),
+        repeat = Repeat.decode(repeat),
         contactId = contactId,
         delivered = delivered,
     )
@@ -47,7 +47,7 @@ data class ReminderEntity(
             title = reminder.title,
             message = reminder.message,
             triggerAtMillis = reminder.triggerAtMillis,
-            repeat = reminder.repeat.name,
+            repeat = reminder.repeat.encode(),
             contactId = reminder.contactId,
             delivered = reminder.delivered,
         )

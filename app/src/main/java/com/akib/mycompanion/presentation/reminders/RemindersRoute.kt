@@ -98,7 +98,9 @@ fun RemindersRoute(
                 DateFormat.is24HourFormat(context),
             ).show()
         },
-        onRepeatDailyChange = viewModel::onRepeatDailyChange,
+        onRepeatChange = viewModel::onRepeatChange,
+        onDayToggle = viewModel::onDayToggle,
+        onEveryChange = viewModel::onEveryChange,
         onContactChange = viewModel::onContactChange,
         onSubmit = {
             if (!notificationsAllowed && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

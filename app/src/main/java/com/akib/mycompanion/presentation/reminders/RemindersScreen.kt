@@ -35,7 +35,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -47,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import java.time.DayOfWeek
 
 /** Stateless Reminders screen: compose a notification on top, upcoming ones below. */
 @Composable
@@ -58,7 +58,9 @@ fun RemindersScreen(
     onMessageChange: (String) -> Unit,
     onChoiceChange: (WhenChoice) -> Unit,
     onPickTime: () -> Unit,
-    onRepeatDailyChange: (Boolean) -> Unit,
+    onRepeatChange: (RepeatChoice) -> Unit,
+    onDayToggle: (DayOfWeek) -> Unit,
+    onEveryChange: (Int) -> Unit,
     onContactChange: (Long?) -> Unit,
     onSubmit: () -> Unit,
     onCancelReminder: (Long) -> Unit,
@@ -79,7 +81,9 @@ fun RemindersScreen(
                 onMessageChange = onMessageChange,
                 onChoiceChange = onChoiceChange,
                 onPickTime = onPickTime,
-                onRepeatDailyChange = onRepeatDailyChange,
+                onRepeatChange = onRepeatChange,
+                onDayToggle = onDayToggle,
+                onEveryChange = onEveryChange,
                 onContactChange = onContactChange,
                 onSubmit = onSubmit,
             )
@@ -134,7 +138,9 @@ private fun ComposerCard(
     onMessageChange: (String) -> Unit,
     onChoiceChange: (WhenChoice) -> Unit,
     onPickTime: () -> Unit,
-    onRepeatDailyChange: (Boolean) -> Unit,
+    onRepeatChange: (RepeatChoice) -> Unit,
+    onDayToggle: (DayOfWeek) -> Unit,
+    onEveryChange: (Int) -> Unit,
     onContactChange: (Long?) -> Unit,
     onSubmit: () -> Unit,
 ) {
@@ -178,18 +184,7 @@ private fun ComposerCard(
                 )
             }
 
-            if (form.canRepeat) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Refresh, contentDescription = null)
-                    Text(
-                        "Repeat every day",
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 12.dp),
-                    )
-                    Switch(checked = form.repeatDaily, onCheckedChange = onRepeatDailyChange)
-                }
-            }
+            RepeatPicker(state, onRepeatChange, onDayToggle, onEveryChange)
 
             if (state.contacts.isNotEmpty()) {
                 CallButtonPicker(state, onContactChange)
@@ -202,6 +197,65 @@ private fun ComposerCard(
             }
         }
     }
+}
+
+/** Never / every day / on chosen days / every month / every few hours, plus the details for the choice. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RepeatPicker(
+    state: RemindersUiState,
+    onRepeatChange: (RepeatChoice) -> Unit,
+    onDayToggle: (DayOfWeek) -> Unit,
+    onEveryChange: (Int) -> Unit,
+) {
+    val form = state.form
+    Text("Repeat", style = MaterialTheme.typography.labelLarge)
+    ChipRow {
+        RepeatChoice.entries.forEach { choice ->
+            FilterChip(
+                selected = form.repeat == choice,
+                onClick = { onRepeatChange(choice) },
+                label = { Text(choice.label) },
+                leadingIcon = if (choice == RepeatChoice.NEVER) {
+                    null
+                } else {
+                    { Icon(Icons.Filled.Refresh, contentDescription = null, Modifier.size(18.dp)) }
+                },
+            )
+        }
+    }
+    when (form.repeat) {
+        RepeatChoice.DAYS -> ChipRow {
+            state.dayChips.forEach { chip ->
+                FilterChip(selected = chip.selected, onClick = { onDayToggle(chip.day) }, label = { Text(chip.label) })
+            }
+        }
+        RepeatChoice.EVERY -> ChipRow {
+            state.everyChips.forEach { chip ->
+                FilterChip(
+                    selected = chip.selected,
+                    onClick = { onEveryChange(chip.minutes) },
+                    label = { Text(chip.label) }
+                )
+            }
+        }
+        else -> Unit
+    }
+    val summary = when {
+        form.repeat == RepeatChoice.DAYS && form.days.isEmpty() -> "Pick at least one day"
+        else -> state.repeatSummary
+    }
+    if (summary != null && form.repeat != RepeatChoice.NEVER) {
+        Text(summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+    }
+}
+
+@Composable
+private fun ChipRow(content: @Composable () -> Unit) {
+    Row(
+        Modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) { content() }
 }
 
 /** Optionally attach a "Call <person>" button to the notification. */
@@ -240,7 +294,7 @@ private fun CallButtonPicker(state: RemindersUiState, onContactChange: (Long?) -
 private fun UpcomingRow(reminder: UpcomingReminder, onCancel: () -> Unit) {
     val details = buildList {
         add(reminder.whenText)
-        if (reminder.daily) add("Daily")
+        reminder.repeatText?.let(::add)
         reminder.contactName?.let { add("Call $it") }
     }.joinToString(" · ")
     ElevatedCard(Modifier.fillMaxWidth()) {

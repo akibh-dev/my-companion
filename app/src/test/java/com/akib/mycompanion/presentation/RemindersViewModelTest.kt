@@ -16,8 +16,10 @@ import com.akib.mycompanion.fakes.millisAt
 import com.akib.mycompanion.presentation.reminders.ReminderTimeFormatter
 import com.akib.mycompanion.presentation.reminders.RemindersEvent
 import com.akib.mycompanion.presentation.reminders.RemindersViewModel
+import com.akib.mycompanion.presentation.reminders.RepeatChoice
 import com.akib.mycompanion.presentation.reminders.WhenChoice
 import com.google.common.truth.Truth.assertThat
+import java.time.DayOfWeek
 import java.util.Locale
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
@@ -45,6 +47,7 @@ class RemindersViewModelTest {
             scheduleReminder = ScheduleReminderUseCase(reminders, scheduler, calculator, fire),
             cancelReminder = CancelReminderUseCase(reminders, scheduler, notifier),
             formatter = ReminderTimeFormatter(clock, Locale.US),
+            calculator = calculator,
         )
     }
 
@@ -63,28 +66,64 @@ class RemindersViewModelTest {
     }
 
     @Test
-    fun `picking a clock time shows it and allows repeating`() = runTest {
+    fun `picking a clock time shows it`() = runTest {
         viewModel.uiState.test {
             viewModel.onChoiceChange(WhenChoice.At(8, 5))
-            viewModel.onRepeatDailyChange(true)
 
             val state = expectMostRecentItem()
             assertThat(state.pickedTimeLabel).isEqualTo("8:05 AM")
-            assertThat(state.form.canRepeat).isTrue()
-            assertThat(state.form.repeatDaily).isTrue()
             assertThat(state.presets.none { it.selected }).isTrue()
-
-            viewModel.onChoiceChange(WhenChoice.InMinutes(5))
-            assertThat(expectMostRecentItem().form.repeatDaily).isFalse()
         }
     }
 
     @Test
-    fun `repeat cannot be switched on for a relative time`() = runTest {
+    fun `on days starts with the day it would first fire and needs at least one day`() = runTest {
         viewModel.uiState.test {
-            viewModel.onChoiceChange(WhenChoice.InMinutes(15))
-            viewModel.onRepeatDailyChange(true)
-            assertThat(expectMostRecentItem().form.repeatDaily).isFalse()
+            viewModel.onTitleChange("Gym")
+            viewModel.onChoiceChange(WhenChoice.At(8, 0)) // tomorrow, Saturday
+            viewModel.onRepeatChange(RepeatChoice.DAYS)
+
+            var state = expectMostRecentItem()
+            assertThat(state.form.days).containsExactly(DayOfWeek.SATURDAY)
+            assertThat(
+                state.dayChips.map { it.label }
+            ).containsExactly("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat").inOrder()
+            assertThat(state.repeatSummary).isEqualTo("Every Sat")
+
+            viewModel.onDayToggle(DayOfWeek.SUNDAY)
+            assertThat(expectMostRecentItem().repeatSummary).isEqualTo("Every Sun, Sat")
+
+            viewModel.onDayToggle(DayOfWeek.SUNDAY)
+            viewModel.onDayToggle(DayOfWeek.SATURDAY)
+            state = expectMostRecentItem()
+            assertThat(state.form.days).isEmpty()
+            assertThat(state.form.canSubmit).isFalse()
+        }
+    }
+
+    @Test
+    fun `every month uses the day it first fires`() = runTest {
+        viewModel.uiState.test {
+            viewModel.onChoiceChange(WhenChoice.At(8, 0)) // tomorrow, the 24th
+            viewModel.onRepeatChange(RepeatChoice.MONTHLY)
+
+            assertThat(expectMostRecentItem().repeatSummary).isEqualTo("Every month on the 24th")
+        }
+    }
+
+    @Test
+    fun `send now every two hours posts now and keeps going`() = runTest {
+        viewModel.events.test {
+            viewModel.onTitleChange("Drink water")
+            viewModel.onRepeatChange(RepeatChoice.EVERY)
+            viewModel.onEveryChange(120)
+            viewModel.onSubmit()
+
+            assertThat(awaitItem()).isEqualTo(RemindersEvent.Message("Notification sent, then every 2 h"))
+        }
+        assertThat(scheduler.scheduled.values.single()).isEqualTo(millisAt(2026, 10, 23, 12, 0))
+        viewModel.uiState.test {
+            assertThat(expectMostRecentItem().upcoming.single().repeatText).isEqualTo("Every 2 h")
         }
     }
 
@@ -105,7 +144,7 @@ class RemindersViewModelTest {
             assertThat(item.title).isEqualTo("Stretch")
             assertThat(item.whenText).isEqualTo("Today, 10:15 AM")
             assertThat(item.contactName).isEqualTo("Mum")
-            assertThat(item.daily).isFalse()
+            assertThat(item.repeatText).isNull()
         }
     }
 
@@ -114,14 +153,14 @@ class RemindersViewModelTest {
         viewModel.events.test {
             viewModel.onTitleChange("Medicine")
             viewModel.onChoiceChange(WhenChoice.At(8, 0))
-            viewModel.onRepeatDailyChange(true)
+            viewModel.onRepeatChange(RepeatChoice.DAILY)
             viewModel.onSubmit()
 
             assertThat(awaitItem())
                 .isEqualTo(RemindersEvent.Message("Reminder set for Tomorrow, 8:00 AM, then every day"))
         }
         viewModel.uiState.test {
-            assertThat(expectMostRecentItem().upcoming.single().daily).isTrue()
+            assertThat(expectMostRecentItem().upcoming.single().repeatText).isEqualTo("Every day")
         }
     }
 

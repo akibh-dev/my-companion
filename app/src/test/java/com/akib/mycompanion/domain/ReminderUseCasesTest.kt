@@ -20,6 +20,7 @@ import com.akib.mycompanion.fakes.FakeNotifier
 import com.akib.mycompanion.fakes.FakeReminderRepository
 import com.akib.mycompanion.fakes.millisAt
 import com.google.common.truth.Truth.assertThat
+import java.time.DayOfWeek
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
@@ -111,7 +112,7 @@ class ReminderUseCasesTest {
     @Test
     fun `a daily reminder is shown and re-armed for tomorrow`() = runTest {
         val eightToday = millisAt(2026, 10, 23, 8, 0)
-        val saved = reminders.save(reminder(trigger = eightToday, repeat = Repeat.DAILY))
+        val saved = reminders.save(reminder(trigger = eightToday, repeat = Repeat.Daily))
 
         fire(saved.id)
 
@@ -153,11 +154,11 @@ class ReminderUseCasesTest {
 
     @Test
     fun `snoozing a daily reminder leaves the daily schedule alone`() = runTest {
-        val daily = reminders.save(reminder(trigger = millisAt(2026, 10, 24, 8, 0), repeat = Repeat.DAILY))
+        val daily = reminders.save(reminder(trigger = millisAt(2026, 10, 24, 8, 0), repeat = Repeat.Daily))
 
         val snoozed = snooze(daily.id)!!
 
-        assertThat(snoozed.repeat).isEqualTo(Repeat.NONE)
+        assertThat(snoozed.repeat).isEqualTo(Repeat.Never)
         assertThat(reminders.all).containsExactly(daily, snoozed)
     }
 
@@ -173,7 +174,7 @@ class ReminderUseCasesTest {
 
     @Test
     fun `done keeps a daily reminder for tomorrow`() = runTest {
-        val daily = reminders.save(reminder(repeat = Repeat.DAILY))
+        val daily = reminders.save(reminder(repeat = Repeat.Daily))
 
         dismiss(daily.id)
 
@@ -191,6 +192,46 @@ class ReminderUseCasesTest {
         assertThat(scheduler.scheduled).isEmpty()
         assertThat(scheduler.cancelled).containsExactly(saved.id)
         assertThat(notifier.cancelled).containsExactly(saved.notificationId)
+    }
+
+    // ---- Recurrence ----
+
+    @Test
+    fun `scheduling on chosen days starts on the first matching day`() = runTest {
+        val result = schedule("Gym", "", ReminderTime.AtTime(7, 0), Repeat.Weekly(setOf(DayOfWeek.SUNDAY)))
+
+        val reminder = (result as ScheduleResult.Scheduled).reminder
+        assertThat(reminder.triggerAtMillis).isEqualTo(millisAt(2026, 10, 25, 7, 0))
+    }
+
+    @Test
+    fun `an impossible repeat is refused`() = runTest {
+        assertThat(schedule("Gym", "", ReminderTime.AtTime(7, 0), Repeat.Weekly(emptySet())))
+            .isEqualTo(ScheduleResult.InvalidTime)
+        assertThat(schedule("Water", "", ReminderTime.InMinutes(0), Repeat.Every(1)))
+            .isEqualTo(ScheduleResult.InvalidTime)
+    }
+
+    @Test
+    fun `a weekly reminder fires and waits for its next day`() = runTest {
+        val friday = millisAt(2026, 10, 23, 9, 0)
+        val saved = reminders.save(
+            reminder(trigger = friday, repeat = Repeat.Weekly(setOf(DayOfWeek.FRIDAY, DayOfWeek.SUNDAY)))
+        )
+
+        fire(saved.id)
+
+        assertThat(scheduler.scheduled).containsExactly(saved.id, millisAt(2026, 10, 25, 9, 0))
+        assertThat(reminders.get(saved.id)!!.delivered).isFalse()
+    }
+
+    @Test
+    fun `send now every two hours posts now and arms the next one`() = runTest {
+        val result = schedule("Water", "", ReminderTime.InMinutes(0), Repeat.Every(120))
+
+        val reminder = (result as ScheduleResult.Shown).reminder
+        assertThat(notifier.shown.map { it.first.id }).containsExactly(reminder.id)
+        assertThat(scheduler.scheduled).containsExactly(reminder.id, millisAt(2026, 10, 23, 12, 0))
     }
 
     // ---- After reboot ----
@@ -230,7 +271,7 @@ class ReminderUseCasesTest {
     private fun reminder(
         title: String = "Call Mum",
         trigger: Long = millisAt(2026, 10, 23, 12, 0),
-        repeat: Repeat = Repeat.NONE,
+        repeat: Repeat = Repeat.Never,
         contactId: Long? = null,
         delivered: Boolean = false,
     ) = Reminder(

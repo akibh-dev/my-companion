@@ -11,6 +11,7 @@ import com.akib.mycompanion.domain.model.Contact
 import com.akib.mycompanion.domain.model.Reminder
 import com.akib.mycompanion.domain.model.Repeat
 import com.google.common.truth.Truth.assertThat
+import java.time.DayOfWeek
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -88,7 +89,7 @@ class RoomRepositoriesTest {
                 title = "Medicine",
                 message = "After breakfast",
                 triggerAtMillis = 1_000,
-                repeat = Repeat.DAILY,
+                repeat = Repeat.Weekly(setOf(DayOfWeek.SUNDAY, DayOfWeek.THURSDAY)),
                 contactId = 3,
             ),
         )

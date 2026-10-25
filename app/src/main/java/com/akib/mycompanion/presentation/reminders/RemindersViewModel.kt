@@ -7,10 +7,12 @@ import com.akib.mycompanion.domain.model.ReminderTime
 import com.akib.mycompanion.domain.model.Repeat
 import com.akib.mycompanion.domain.repository.ContactRepository
 import com.akib.mycompanion.domain.repository.ReminderRepository
+import com.akib.mycompanion.domain.time.ReminderTimeCalculator
 import com.akib.mycompanion.domain.usecase.CancelReminderUseCase
 import com.akib.mycompanion.domain.usecase.ScheduleReminderUseCase
 import com.akib.mycompanion.domain.usecase.ScheduleResult
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.DayOfWeek
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -42,17 +44,28 @@ sealed interface WhenChoice {
     }
 }
 
+/** The "Repeat" chips. Days and interval are picked under the chip. */
+enum class RepeatChoice(val label: String) {
+    NEVER("Never"),
+    DAILY("Every day"),
+    DAYS("On days"),
+    MONTHLY("Every month"),
+    EVERY("Every few hours"),
+}
+
 data class ReminderForm(
     val title: String = "",
     val message: String = "",
     val choice: WhenChoice = WhenChoice.Now,
-    val repeatDaily: Boolean = false,
+    val repeat: RepeatChoice = RepeatChoice.NEVER,
+    /** For [RepeatChoice.DAYS]. */
+    val days: Set<DayOfWeek> = emptySet(),
+    /** For [RepeatChoice.EVERY]. */
+    val everyMinutes: Int = 60,
     val contactId: Long? = null,
 ) {
-    val canSubmit: Boolean get() = title.isNotBlank() || message.isNotBlank()
-
-    /** Repeating only makes sense for a clock time. */
-    val canRepeat: Boolean get() = choice is WhenChoice.At
+    val canSubmit: Boolean
+        get() = (title.isNotBlank() || message.isNotBlank()) && (repeat != RepeatChoice.DAYS || days.isNotEmpty())
 }
 
 data class UpcomingReminder(
@@ -60,18 +73,29 @@ data class UpcomingReminder(
     val title: String,
     val message: String,
     val whenText: String,
-    val daily: Boolean,
+    /** "Every day", "Every Sun, Thu"…; null for a one-off. */
+    val repeatText: String?,
     val contactName: String?,
 )
 
 /** One "When" chip, ready to draw. */
 data class ChoiceChip(val choice: WhenChoice, val label: String, val selected: Boolean)
 
+/** A weekday toggle under "On days". */
+data class DayChip(val day: DayOfWeek, val label: String, val selected: Boolean)
+
+/** An interval under "Every few hours". */
+data class EveryChip(val minutes: Int, val label: String, val selected: Boolean)
+
 data class RemindersUiState(
     val form: ReminderForm = ReminderForm(),
     val presets: List<ChoiceChip> = emptyList(),
     /** Label of the "Pick time" chip: the picked time once there is one. */
     val pickedTimeLabel: String = "Pick time",
+    val dayChips: List<DayChip> = emptyList(),
+    val everyChips: List<EveryChip> = emptyList(),
+    /** What the chosen repeat means in words ("Every month on the 24th"); null for a one-off. */
+    val repeatSummary: String? = null,
     val upcoming: List<UpcomingReminder> = emptyList(),
     val contacts: List<Contact> = emptyList(),
 )
@@ -87,6 +111,7 @@ class RemindersViewModel @Inject constructor(
     private val scheduleReminder: ScheduleReminderUseCase,
     private val cancelReminder: CancelReminderUseCase,
     private val formatter: ReminderTimeFormatter,
+    private val calculator: ReminderTimeCalculator,
 ) : ViewModel() {
 
     private val form = MutableStateFlow(ReminderForm())
@@ -101,6 +126,15 @@ class RemindersViewModel @Inject constructor(
                 form = form,
                 presets = WhenChoice.presets.map { ChoiceChip(it, choiceLabel(it), selected = it == form.choice) },
                 pickedTimeLabel = picked?.let(::choiceLabel) ?: "Pick time",
+                dayChips = formatter.week.map { DayChip(it, formatter.dayShort(it), selected = it in form.days) },
+                everyChips = EVERY_OPTIONS.map {
+                    EveryChip(
+                        it,
+                        formatter.duration(it),
+                        selected = it == form.everyMinutes
+                    )
+                },
+                repeatSummary = form.toRepeat()?.let(formatter::repeat),
                 contacts = people,
                 upcoming = upcoming.map { reminder ->
                     UpcomingReminder(
@@ -108,7 +142,7 @@ class RemindersViewModel @Inject constructor(
                         title = reminder.title,
                         message = reminder.message,
                         whenText = formatter.format(reminder.triggerAtMillis),
-                        daily = reminder.repeat == Repeat.DAILY,
+                        repeatText = formatter.repeat(reminder.repeat),
                         contactName = reminder.contactId?.let(names::get),
                     )
                 },
@@ -119,13 +153,41 @@ class RemindersViewModel @Inject constructor(
 
     fun onMessageChange(message: String) = form.update { it.copy(message = message) }
 
-    fun onChoiceChange(choice: WhenChoice) = form.update {
-        it.copy(choice = choice, repeatDaily = it.repeatDaily && choice is WhenChoice.At)
+    fun onChoiceChange(choice: WhenChoice) = form.update { it.copy(choice = choice) }
+
+    fun onRepeatChange(repeat: RepeatChoice) = form.update { current ->
+        // "On days" starts with the day it would first fire, so it's never empty by surprise.
+        val days = if (repeat == RepeatChoice.DAYS && current.days.isEmpty()) {
+            setOf(
+                firstDate(current).dayOfWeek
+            )
+        } else {
+            current.days
+        }
+        current.copy(repeat = repeat, days = days)
     }
 
-    fun onRepeatDailyChange(repeat: Boolean) = form.update { it.copy(repeatDaily = repeat && it.canRepeat) }
+    fun onDayToggle(day: DayOfWeek) = form.update {
+        it.copy(
+            days = if (day in it.days) it.days - day else it.days + day
+        )
+    }
+
+    fun onEveryChange(minutes: Int) = form.update { it.copy(everyMinutes = minutes) }
 
     fun onContactChange(contactId: Long?) = form.update { it.copy(contactId = contactId) }
+
+    /** The domain repeat for the form; null when the form can't make one yet (no days ticked). */
+    private fun ReminderForm.toRepeat(): Repeat? = when (repeat) {
+        RepeatChoice.NEVER -> Repeat.Never
+        RepeatChoice.DAILY -> Repeat.Daily
+        RepeatChoice.DAYS -> days.takeIf { it.isNotEmpty() }?.let(Repeat::Weekly)
+        RepeatChoice.MONTHLY -> Repeat.Monthly(firstDate(this).dayOfMonth)
+        RepeatChoice.EVERY -> Repeat.Every(everyMinutes)
+    }
+
+    /** The day a reminder made from this form would first fire (today for "Now"). */
+    private fun firstDate(form: ReminderForm) = calculator.date(calculator.firstTrigger(form.choice.toReminderTime()))
 
     private fun choiceLabel(choice: WhenChoice): String = when (choice) {
         WhenChoice.Now -> "Now"
@@ -135,23 +197,24 @@ class RemindersViewModel @Inject constructor(
 
     fun onSubmit() {
         val current = form.value
+        val repeat = current.toRepeat() ?: return
         viewModelScope.launch {
             val result = scheduleReminder(
                 title = current.title,
                 message = current.message,
                 time = current.choice.toReminderTime(),
-                repeat = if (current.repeatDaily) Repeat.DAILY else Repeat.NONE,
+                repeat = repeat,
                 contactId = current.contactId,
             )
             val message = when (result) {
                 is ScheduleResult.Scheduled -> {
                     form.value = ReminderForm()
-                    val daily = if (result.reminder.repeat == Repeat.DAILY) ", then every day" else ""
-                    "Reminder set for ${formatter.format(result.reminder.triggerAtMillis)}$daily"
+                    val time = formatter.format(result.reminder.triggerAtMillis)
+                    "Reminder set for $time" + then(result.reminder.repeat)
                 }
                 is ScheduleResult.Shown -> {
                     form.value = ReminderForm()
-                    "Notification sent"
+                    "Notification sent" + then(result.reminder.repeat)
                 }
                 ScheduleResult.NotificationsBlocked -> "Notifications are turned off for My Companion"
                 ScheduleResult.EmptyContent -> "Add a title or a message"
@@ -160,6 +223,10 @@ class RemindersViewModel @Inject constructor(
             eventChannel.send(RemindersEvent.Message(message))
         }
     }
+
+    /** ", then every day" / ", then every Sun, Thu"; empty for a one-off. */
+    private fun then(repeat: Repeat): String =
+        formatter.repeat(repeat)?.let { ", then " + it.replaceFirstChar(Char::lowercaseChar) }.orEmpty()
 
     fun onCancel(reminderId: Long) {
         viewModelScope.launch {
@@ -170,5 +237,6 @@ class RemindersViewModel @Inject constructor(
 
     private companion object {
         const val STOP_TIMEOUT_MILLIS = 5_000L
+        val EVERY_OPTIONS = listOf(30, 60, 120, 180, 240, 360, 480, 720)
     }
 }
