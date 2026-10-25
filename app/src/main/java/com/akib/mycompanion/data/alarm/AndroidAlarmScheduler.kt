@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
-import android.os.Build
 import androidx.core.content.ContextCompat
 import com.akib.mycompanion.domain.model.Reminder
 import com.akib.mycompanion.domain.port.AlarmScheduler
@@ -45,8 +44,7 @@ class AndroidAlarmScheduler @Inject constructor(
         alarmManager?.cancel(pendingIntent(reminderId))
     }
 
-    private fun canScheduleExact(manager: AlarmManager): Boolean =
-        Build.VERSION.SDK_INT < Build.VERSION_CODES.S || manager.canScheduleExactAlarms()
+    private fun canScheduleExact(manager: AlarmManager): Boolean = manager.canScheduleExactAlarms()
 
     private fun pendingIntent(reminderId: Long): PendingIntent = PendingIntent.getBroadcast(
         context,

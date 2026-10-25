@@ -2,6 +2,7 @@ package com.akib.mycompanion.presentation.call
 
 import android.content.Context
 import android.util.Base64
+import androidx.core.content.edit
 import java.security.MessageDigest
 import java.security.SecureRandom
 
@@ -9,8 +10,8 @@ import java.security.SecureRandom
  * A random secret, made once per install and kept in private app storage. Our own shortcuts and
  * notification buttons put it in the [CallActivity] intent; an intent without it didn't come from us.
  *
- * CallActivity has to be exported (on Android 7.x the launcher itself starts pinned shortcuts), so
- * without this any app could start it with a guessed contact id and make the phone call that person.
+ * CallActivity is exported (launchers start pinned shortcuts), so without this any app could start
+ * it with a guessed contact id and make the phone call that person.
  * Other apps can't read the secret: it's in our private storage, and only the launcher sees shortcut intents.
  */
 object CallToken {
@@ -22,7 +23,7 @@ object CallToken {
         val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         prefs.getString(KEY, null) ?: create().also { token ->
             // commit, not apply: icons carrying the token must never outlive a token that wasn't saved.
-            prefs.edit().putString(KEY, token).commit()
+            prefs.edit(commit = true) { putString(KEY, token) }
         }
     }
 

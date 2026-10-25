@@ -40,7 +40,9 @@ sealed interface WhenChoice {
     }
 
     companion object {
-        val presets: List<WhenChoice> = listOf(Now, InMinutes(5), InMinutes(15), InMinutes(30), InMinutes(60))
+        // A getter, not a stored list: with Kotlin 2.2's JVM default methods, creating `Now` first
+        // initialises this interface, and a stored list would capture `Now` while it's still null.
+        val presets: List<WhenChoice> get() = listOf(Now, InMinutes(5), InMinutes(15), InMinutes(30), InMinutes(60))
     }
 }
 

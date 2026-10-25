@@ -1,14 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Home-screen shortcut icon: white handset on a green circle. -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="48dp"
-    android:height="48dp"
-    android:viewportWidth="48"
-    android:viewportHeight="48">
-    <path
-        android:fillColor="#1B8A5A"
-        android:pathData="M24,24m-24,0a24,24 0,1 1,48 0a24,24 0,1 1,-48 0" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M31.6,27.4l-3.1,-0.4c-0.7,-0.1 -1.5,0.2 -2,0.7l-2.2,2.2c-3.4,-1.7 -6.2,-4.5 -7.9,-7.9l2.2,-2.2c0.5,-0.5 0.8,-1.3 0.7,-2l-0.4,-3.1c-0.1,-1.2 -1.2,-2.1 -2.4,-2.1h-2.1c-1.4,0 -2.5,1.1 -2.4,2.5c0.6,10.3 8.9,18.6 19.2,19.2c1.4,0.1 2.5,-1 2.5,-2.4v-2.1C33.7,28.6 32.8,27.5 31.6,27.4z" />
-</vector>
+<!-- Adaptive, so launchers shape it like other icons instead of putting it in a white circle. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/launcher_background" />
+    <foreground android:drawable="@drawable/ic_shortcut_call_foreground" />
+    <monochrome android:drawable="@drawable/ic_shortcut_call_foreground" />
+</adaptive-icon>

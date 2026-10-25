@@ -6,6 +6,11 @@ pluginManagement {
     }
 }
 
+plugins {
+    // Lets Gradle download a JDK for a toolchain it can't find (unit tests run on JDK 21, see app/build.gradle.kts).
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+}
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {

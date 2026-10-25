@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.kapt)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ktlint)
@@ -8,12 +9,13 @@ plugins {
 
 android {
     namespace = "com.akib.mycompanion"
-    compileSdk = 34
+    // One phone (CMF Phone 1, Android 16), so no code for older versions. Docs/decisions.md
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.akib.mycompanion"
-        minSdk = 24
-        targetSdk = 34
+        minSdk = 36
+        targetSdk = 36
         versionCode = 2
         versionName = "0.2.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -28,22 +30,12 @@ android {
     }
 
     compileOptions {
-        // java.time on Android 7.x
-        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         compose = true
-    }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = libs.versions.composeCompiler.get()
     }
 
     testOptions {
@@ -52,6 +44,12 @@ android {
             isIncludeAndroidResources = true
             isReturnDefaultValues = true
             all { test ->
+                // Robolectric runs Android 16 (SDK 36), which needs JDK 21; Gradle downloads one if missing.
+                test.javaLauncher.set(
+                    extensions.getByType<JavaToolchainService>().launcherFor {
+                        languageVersion.set(JavaLanguageVersion.of(21))
+                    },
+                )
                 // Robolectric keeps a copy of the Android framework per sandbox.
                 test.maxHeapSize = "3g"
                 test.testLogging {
@@ -80,7 +78,18 @@ android {
 androidComponents {
     // Compose UI tests need ui-test-manifest, which only the debug build has, so `./gradlew test`
     // runs the debug unit tests only (same as CI's testDebugUnitTest).
-    beforeVariants(selector().withBuildType("release")) { it.enableUnitTest = false }
+    beforeVariants(selector().withBuildType("release")) { variant ->
+        (variant as com.android.build.api.variant.HasHostTestsBuilder)
+            .hostTests.getValue(com.android.build.api.variant.HostTestBuilder.UNIT_TEST_TYPE).enable = false
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        // `@ApplicationContext private val context` annotates the parameter and the property (Kotlin's future default).
+        freeCompilerArgs.add("-Xannotation-default-target=param-property")
+    }
 }
 
 kapt {
@@ -93,7 +102,6 @@ ktlint {
 }
 
 dependencies {
-    coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
