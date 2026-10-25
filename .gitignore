@@ -91,3 +91,5 @@ $RECYCLE.BIN/
 *.ipr
 *.iws
 out/
+# Claude Code agent worktrees (temporary copies of the repo)
+.claude/worktrees/
