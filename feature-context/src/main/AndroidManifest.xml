@@ -16,6 +16,11 @@
         android:name="android.permission.WRITE_SETTINGS"
         xmlns:tools="http://schemas.android.com/tools"
         tools:ignore="ProtectedPermissions" />
+    <!-- Keep screen on outdoors (FR-3.5): an invisible overlay window with FLAG_KEEP_SCREEN_ON. -->
+    <uses-permission
+        android:name="android.permission.SYSTEM_ALERT_WINDOW"
+        xmlns:tools="http://schemas.android.com/tools"
+        tools:ignore="ProtectedPermissions" />
 
     <application>
         <receiver
