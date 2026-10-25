@@ -10,7 +10,16 @@ class VaultSinkImpl @Inject constructor(private val vault: Vault, private val pr
 
     override suspend fun saveLink(url: String, title: String) {
         val preview = previewer.fetch(url)
-        vault.add(VaultItem(type = ItemType.LINK, title = title.ifBlank { preview?.title ?: url }, url = url, preview = preview))
+        vault.add(
+            VaultItem(
+                type = ItemType.LINK,
+                title = title.ifBlank {
+                    preview?.title ?: url
+                },
+                url = url,
+                preview = preview
+            )
+        )
     }
 
     override suspend fun saveFile(title: String, mime: String, fileName: String, content: InputStream) {

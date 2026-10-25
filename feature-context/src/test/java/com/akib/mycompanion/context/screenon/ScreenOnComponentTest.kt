@@ -7,8 +7,8 @@ import com.akib.mycompanion.core.settings.Feature
 import com.akib.mycompanion.core.settings.Settings
 import com.google.common.truth.Truth.assertThat
 import java.nio.file.Files
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
