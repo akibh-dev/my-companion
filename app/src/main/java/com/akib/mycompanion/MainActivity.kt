@@ -7,6 +7,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -118,7 +120,12 @@ fun CompanionRoot(requestedTab: Tab? = null, requestCount: Int = 0) {
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
-        val modifier = Modifier.padding(padding)
+        // Edge-to-edge: the window isn't resized for the keyboard, so shrink the tab content above it
+        // (and let a focused field scroll into view). consumeWindowInsets stops it counting the bottom bar twice.
+        val modifier = Modifier
+            .padding(padding)
+            .consumeWindowInsets(padding)
+            .imePadding()
         when (tab) {
             Tab.PEOPLE -> ContactsRoute(snackbarHostState, modifier)
             Tab.REMINDERS -> RemindersRoute(snackbarHostState, modifier)

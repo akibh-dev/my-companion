@@ -1,7 +1,10 @@
 package com.akib.mycompanion.presentation
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.util.TypedValue
+import android.view.ContextThemeWrapper
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -15,9 +18,13 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTextInput
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.akib.mycompanion.R
 import com.akib.mycompanion.domain.model.PlaybackState
 import com.akib.mycompanion.domain.model.Playlist
 import com.akib.mycompanion.domain.model.PlaylistItem
@@ -261,6 +268,30 @@ class PlayerScreenTest {
         compose.onNodeWithText("Play now").performClick()
 
         assertThat(calls).containsExactly("retry", "playNow").inOrder()
+    }
+
+    @Test
+    fun `a new playlist can be created from the keyboard`() {
+        show(link = VideoActionsUiState(status = LinkStatus.Ready(a)))
+
+        compose.onNodeWithText("Add to playlist").performClick()
+        compose.onNodeWithText("New playlist name").performTextInput("Gym")
+        compose.onNodeWithText("New playlist name").performImeAction()
+
+        assertThat(calls).containsExactly("createAndAdd:Gym")
+    }
+
+    @Test
+    fun `see-through activities draw transparent system bars`() {
+        val theme = ContextThemeWrapper(
+            ApplicationProvider.getApplicationContext<Context>(),
+            R.style.Theme_MyCompanion_Invisible,
+        ).theme
+        fun attr(id: Int) = TypedValue().also { theme.resolveAttribute(id, it, true) }.data
+
+        assertThat(attr(android.R.attr.windowDrawsSystemBarBackgrounds)).isNotEqualTo(0)
+        assertThat(attr(android.R.attr.statusBarColor)).isEqualTo(android.graphics.Color.TRANSPARENT)
+        assertThat(attr(android.R.attr.navigationBarColor)).isEqualTo(android.graphics.Color.TRANSPARENT)
     }
 
     @Test
