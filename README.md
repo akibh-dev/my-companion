@@ -19,6 +19,7 @@ Built as a **learning vehicle** for Android development.
 | [plan/01-project-overview.md](plan/01-project-overview.md) | Project vision, features, timeline |
 | [plan/02-tech-stack.md](plan/02-tech-stack.md) | Technical decisions with rationale |
 | [plan/03-learning-roadmap.md](plan/03-learning-roadmap.md) | Phase-by-phase learning path |
+| [Docs/learning/README.md](Docs/learning/README.md) | **Start here** — how to start + step-by-step learning path |
 | [Docs/00-index.md](Docs/00-index.md) | Documentation index and templates |
 | [Docs/03-whatsapp-call-and-reminders.md](Docs/03-whatsapp-call-and-reminders.md) | How calls and reminders work |
 | [Docs/04-testing.md](Docs/04-testing.md) | Test layers, tools and patterns |

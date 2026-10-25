@@ -40,6 +40,10 @@ Personal Android app (Kotlin) to revive features often locked behind paid subscr
 - Feature branches from `main`
 - Conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`
 - PR required for main (even for personal project - builds habit)
+- **All commits must be in the owner's name only** (`akib35`, the repo's configured `git config user.name` / `user.email`):
+  - Never override the author/committer (no `--author`, no `GIT_AUTHOR_*` / `GIT_COMMITTER_*` env vars)
+  - No `Co-Authored-By:` trailers or any AI/tool attribution in commit messages
+  - No "Generated with ..." attribution lines in PR descriptions
 
 ### Learning Focus
 This project is also a learning vehicle. Document decisions in `Docs/`:

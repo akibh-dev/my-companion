@@ -16,8 +16,9 @@ Docs/
 │   ├── 001-mvvm-clean.md
 │   ├── 002-hilt-vs-koin.md
 │   └── 003-compose-vs-xml.md
-├── learning/                # Phase-by-phase learning notes
-│   └── (add as you progress)
+├── learning/                # Step-by-step learning path ← START HERE
+│   ├── README.md            # How to start + full 24-step path
+│   └── 01-compose-state.md  # Step 01 guide + your learning note
 ├── references/              # Quick reference sheets
 │   ├── coroutines-flow.md
 │   ├── compose-recomposition.md
@@ -39,11 +40,15 @@ Docs/
 - Compose app with two tabs, Hilt, Room, AlarmManager, notifications, home-screen shortcuts
 - 133 JVM tests (unit, Robolectric, Compose UI) run on every push
 
+**Start here**: [`learning/README.md`](learning/README.md) — setup checklist, the step loop, and the full path.
+
 **Files to read first**:
 1. `03-whatsapp-call-and-reminders.md` — What the features do and how
 2. `05-youtube-player.md` — The YouTube player
 3. `04-testing.md` — How the tests are organised
 4. `01-hello-world-explained.md` — Basics of every file
+5. `02-quick-reference.md` — Commands and version compatibility
+6. `learning/01-compose-state.md` — Your first step
 
 ## How to Use This Documentation
 
