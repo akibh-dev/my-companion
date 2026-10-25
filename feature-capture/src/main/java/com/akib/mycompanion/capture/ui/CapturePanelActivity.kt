@@ -65,7 +65,8 @@ class CapturePanelActivity : ComponentActivity() {
         const val ACTION_CAPTURE = "com.akib.mycompanion.action.CAPTURE"
 
         /** Asks the app to open a screen by route; the app may honour it (see the W1 integration notes). */
-        const val EXTRA_ROUTE = "com.akib.mycompanion.extra.ROUTE"
+        /** Same as MainActivity.EXTRA_ROUTE: opens that screen in the app. */
+        const val EXTRA_ROUTE = "route"
 
         const val CAPTURE_SPACE_ROUTE = "capture"
 

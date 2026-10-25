@@ -14,7 +14,7 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasScrollToNodeAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -121,7 +121,8 @@ class PlayerScreenTest {
 
     /** Lazy lists only compose what's on screen; scroll the list until the node exists. */
     private fun scrollTo(matcher: SemanticsMatcher) {
-        compose.onNode(hasScrollAction()).performScrollToNode(matcher)
+        // The list, not the link field (a one-line text field scrolls sideways too).
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(matcher)
     }
 
     private val linkText = TextFieldState()
