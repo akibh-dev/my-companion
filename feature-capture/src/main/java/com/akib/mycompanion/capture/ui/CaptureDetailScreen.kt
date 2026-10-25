@@ -1,7 +1,6 @@
 package com.akib.mycompanion.capture.ui
 
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.media.MediaPlayer
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -34,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.akib.mycompanion.ai.Summary
+import com.akib.mycompanion.capture.data.decodeCaptureImage
 import com.akib.mycompanion.capture.domain.Capture
 import com.akib.mycompanion.capture.domain.CaptureType
 import java.io.File
@@ -232,7 +232,7 @@ private fun VoicePlayer(file: File) {
 @Composable
 private fun CaptureImage(file: File, description: String) {
     val bitmap by produceState<Bitmap?>(null, file) {
-        value = withContext(Dispatchers.IO) { runCatching { decodeSampled(file) }.getOrNull() }
+        value = withContext(Dispatchers.IO) { runCatching { decodeCaptureImage(file) }.getOrNull() }
     }
     val image = bitmap
     if (image == null) {
@@ -246,13 +246,3 @@ private fun CaptureImage(file: File, description: String) {
         )
     }
 }
-
-private fun decodeSampled(file: File): Bitmap? {
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    BitmapFactory.decodeFile(file.path, bounds)
-    var sample = 1
-    while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= MAX_IMAGE_SIDE) sample *= 2
-    return BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
-}
-
-private const val MAX_IMAGE_SIDE = 2048
