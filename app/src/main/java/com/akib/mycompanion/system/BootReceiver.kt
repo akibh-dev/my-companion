@@ -22,7 +22,7 @@ class BootReceiver : BroadcastReceiver() {
     @Inject lateinit var refreshHomeShortcuts: RefreshHomeShortcuts
 
     @Inject
-    @field:ApplicationScope
+    @ApplicationScope
     lateinit var scope: CoroutineScope
 
     override fun onReceive(context: Context, intent: Intent) {

@@ -16,7 +16,7 @@ class ReminderReceiver : BroadcastReceiver() {
     @Inject lateinit var events: ReminderEvents
 
     @Inject
-    @field:ApplicationScope
+    @ApplicationScope
     lateinit var scope: CoroutineScope
 
     override fun onReceive(context: Context, intent: Intent) {
