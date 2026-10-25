@@ -7,6 +7,7 @@ import com.akib.mycompanion.core.log.AppLog
 import com.akib.mycompanion.core.settings.SettingsStore
 import com.akib.mycompanion.data.notification.AndroidReminderNotifier
 import com.akib.mycompanion.di.ApplicationScope
+import com.akib.mycompanion.widget.QuickActionsWidget
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -32,5 +33,7 @@ class CompanionApp : Application() {
         HeartbeatWorker.schedule(this)
         // Start the background service whenever a feature that needs it is switched on.
         scope.launch { settingsStore.settings.collect(serviceHost::sync) }
+        // Keep the home-screen widget's Pause / Voice buttons in step with the settings.
+        scope.launch { settingsStore.settings.collect { QuickActionsWidget.refresh(this@CompanionApp, it) } }
     }
 }

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home-screen widget: four quick actions in a row. RemoteViews only allows simple views. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="6dp">
+
+    <TextView
+        android:id="@+id/widget_pause"
+        style="@style/Widget.MyCompanion.Action"
+        android:drawableTop="@drawable/ic_pause_tile"
+        android:text="@string/widget_pause" />
+
+    <TextView
+        android:id="@+id/widget_voice"
+        style="@style/Widget.MyCompanion.Action"
+        android:drawableTop="@drawable/ic_widget_voice"
+        android:text="@string/widget_voice_off" />
+
+    <TextView
+        android:id="@+id/widget_capture"
+        style="@style/Widget.MyCompanion.Action"
+        android:drawableTop="@drawable/ic_widget_capture"
+        android:text="@string/widget_capture" />
+
+    <TextView
+        android:id="@+id/widget_vault"
+        style="@style/Widget.MyCompanion.Action"
+        android:drawableTop="@drawable/ic_widget_vault"
+        android:text="@string/widget_vault" />
+</LinearLayout>

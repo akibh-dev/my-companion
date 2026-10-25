@@ -1,3 +1,13 @@
 <resources>
     <string name="app_name">My Companion</string>
+
+    <!-- Quick actions widget -->
+    <string name="widget_label">My Companion quick actions</string>
+    <string name="widget_description">Pause everything, voice mode, quick capture and the vault</string>
+    <string name="widget_pause">Pause</string>
+    <string name="widget_resume">Resume</string>
+    <string name="widget_voice_on">Voice on</string>
+    <string name="widget_voice_off">Voice off</string>
+    <string name="widget_capture">Capture</string>
+    <string name="widget_vault">Vault</string>
 </resources>
