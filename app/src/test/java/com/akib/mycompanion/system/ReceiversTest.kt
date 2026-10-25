@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.akib.mycompanion.di.ReminderEventsModule
+import com.akib.mycompanion.presentation.shortcuts.RefreshHomeShortcuts
 import dagger.hilt.android.testing.BindValue
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
@@ -31,6 +32,10 @@ class ReceiversTest {
     @BindValue
     @JvmField
     val events: ReminderEvents = mockk(relaxed = true)
+
+    @BindValue
+    @JvmField
+    val refreshHomeShortcuts: RefreshHomeShortcuts = mockk(relaxed = true)
 
     private val context: Context get() = ApplicationProvider.getApplicationContext()
 
@@ -70,13 +75,15 @@ class ReceiversTest {
         BootReceiver().onReceive(context, Intent(Intent.ACTION_BOOT_COMPLETED))
 
         coVerify(timeout = TIMEOUT) { events.restoreAll() }
+        coVerify(exactly = 0) { refreshHomeShortcuts() }
     }
 
     @Test
-    fun `app update restores every reminder`() {
+    fun `app update restores every reminder and refreshes pinned icons`() {
         BootReceiver().onReceive(context, Intent(Intent.ACTION_MY_PACKAGE_REPLACED))
 
         coVerify(timeout = TIMEOUT) { events.restoreAll() }
+        coVerify(timeout = TIMEOUT) { refreshHomeShortcuts() }
     }
 
     @Test

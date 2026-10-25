@@ -174,6 +174,15 @@ class ContactsViewModelTest {
     }
 
     @Test
+    fun `removing greys out the home-screen icon and undo brings it back`() = runTest {
+        viewModel.onDelete(mum)
+        assertThat(shortcuts.disabled).containsExactly(mum.id)
+
+        viewModel.onUndoDelete(mum)
+        assertThat(shortcuts.enabled).containsExactly(mum)
+    }
+
+    @Test
     fun `pinning a shortcut asks the launcher`() = runTest {
         viewModel.events.test {
             viewModel.onPinShortcut(mum)

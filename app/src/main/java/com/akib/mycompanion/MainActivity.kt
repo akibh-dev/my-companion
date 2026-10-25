@@ -27,14 +27,20 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.lifecycle.lifecycleScope
 import com.akib.mycompanion.presentation.contacts.ContactsRoute
 import com.akib.mycompanion.presentation.player.PlayerRoute
 import com.akib.mycompanion.presentation.reminders.RemindersRoute
+import com.akib.mycompanion.presentation.shortcuts.RefreshHomeShortcuts
 import com.akib.mycompanion.ui.theme.CompanionTheme
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject lateinit var refreshHomeShortcuts: RefreshHomeShortcuts
 
     /** Tab asked for by an intent (e.g. "Play now" from the share sheet, tapping the media notification). */
     private var requestedTab by mutableStateOf<Tab?>(null)
@@ -45,7 +51,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        if (savedInstanceState == null) handle(intent)
+        if (savedInstanceState == null) {
+            handle(intent)
+            lifecycleScope.launch { refreshHomeShortcuts() }
+        }
         setContent {
             CompanionTheme {
                 CompanionRoot(requestedTab, requestCount)

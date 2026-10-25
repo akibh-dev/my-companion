@@ -145,12 +145,15 @@ class ContactsViewModel @Inject constructor(
     fun onDelete(contact: Contact) {
         viewModelScope.launch {
             repository.delete(contact.id)
+            shortcuts.disable(contact.id)
             eventChannel.send(ContactsEvent.Removed(contact))
         }
     }
 
     fun onUndoDelete(contact: Contact) {
-        viewModelScope.launch { repository.save(contact) }
+        viewModelScope.launch {
+            shortcuts.enable(repository.save(contact))
+        }
     }
 
     fun onPinShortcut(contact: Contact) {
