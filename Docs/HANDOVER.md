@@ -58,11 +58,13 @@ run on a real phone yet**, and the new Phase 4–5 code hasn't run on the emulat
 ## 4. Next steps, in order
 
 1. **Run the full check** (§2) once to confirm the laptop's setup (should be green).
-2. **Small items left over:**
-   - Capture photos ignore EXIF rotation (no ExifInterface dependency yet). Add
-     `androidx.exifinterface` and rotate when decoding, or accept it.
-   - `PlaceDetector` is only started by context rules; keep-screen-on falls back to last-known
-     location + Wi-Fi. Optional: reference-counted `start/stop` so both features can share it.
+2. **Done on the home laptop (2026-10-25, uncommitted on `feat/capture-photo-orientation`):**
+   every Track A item of the plan is now built — the last gap was the "app in use" rule trigger
+   (FR-3.7). Also: `PlaceDetector` shared by rules and keep-screen-on, NFR-6 speed checks on the
+   device, and UI fixes from an emulator walk-through. 710 JVM + 24 on-device tests green.
+   Details: `Docs/07-feature-test-report.md` (Session 2), decisions D15–D18.
+   Still to check on the phone: portrait and front-camera photos (EXIF), and the new
+   "app in use" rule with a real app (Usage access → Rules → App in use).
 3. **Open PRs** in the order of §1 and merge them.
 4. **Device testing on the real phone (CMF Phone 1)** — the plan's spikes S1–S10
    (`Docs/decisions.md` lists them): notification access + restricted settings (S8), reply
@@ -71,6 +73,7 @@ run on a real phone yet**, and the new Phase 4–5 code hasn't run on the emulat
    heartbeat log (S6, Home → Log), offline map file (S10, `Docs/offline-map.md`). Write each result
    in `Docs/decisions.md`.
    Also re-run the typing replay from device finding #5 (expect 0 of 5 corrupted now).
+   Run `SpeedChecksTest` on the phone and compare with the emulator numbers (decision D18).
 5. **Tune on the phone:** keep-screen-on angles/hand-shake thresholds (`screenon/PostureDetector.kt`),
    the 1-second volume combo, auto-reply wording.
 6. **Track B (models):** replace dummies in `ai-models/` one at a time (they implement the

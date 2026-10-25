@@ -28,6 +28,7 @@ Built as a **learning vehicle** for Android development.
 | [Docs/03-whatsapp-call-and-reminders.md](Docs/03-whatsapp-call-and-reminders.md) | How calls and reminders work |
 | [Docs/04-testing.md](Docs/04-testing.md) | Test layers, tools and patterns |
 | [Docs/05-youtube-player.md](Docs/05-youtube-player.md) | YouTube background player, queue, playlists |
+| [Docs/07-feature-test-report.md](Docs/07-feature-test-report.md) | Full module unit results, instrumented feature tests and emulator checks |
 | [Docs/06-device-test-report.md](Docs/06-device-test-report.md) | Emulator test results, bugs found, next steps (in progress) |
 | [tools/device-test/](tools/device-test/) | Command-line helpers for testing on an emulator (fake WhatsApp, UI driver) |
 | [Docs/architecture/](Docs/architecture/) | Architecture Decision Records (ADRs) |

@@ -51,8 +51,9 @@ def nodes():
         node = match.group(0)
 
         def attr(name):
-            found = re.search(name + r'="([^"]*)"', node)
-            return html.unescape(found.group(1)) if found else ""
+            # uiautomator switches to single quotes when the value itself contains double quotes.
+            found = re.search(r"\b" + name + r"""=(?:"([^"]*)"|'([^']*)')""", node)
+            return html.unescape(found.group(1) if found.group(1) is not None else found.group(2)) if found else ""
 
         bounds = re.findall(r"\d+", attr("bounds"))
         if len(bounds) != 4:
