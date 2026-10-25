@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only the captures folder in private storage is ever shared, and only with the camera app. -->
+<paths>
+    <files-path
+        name="captures"
+        path="captures/" />
+</paths>
