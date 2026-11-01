@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Home-screen widget: four quick actions in a row. RemoteViews only allows simple views. -->
+<!-- Home-screen widget: pause and voice actions in a row. RemoteViews only allows simple views. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@android:id/background"
     android:layout_width="match_parent"
@@ -20,16 +20,4 @@
         style="@style/Widget.MyCompanion.Action"
         android:drawableTop="@drawable/ic_widget_voice"
         android:text="@string/widget_voice_off" />
-
-    <TextView
-        android:id="@+id/widget_capture"
-        style="@style/Widget.MyCompanion.Action"
-        android:drawableTop="@drawable/ic_widget_capture"
-        android:text="@string/widget_capture" />
-
-    <TextView
-        android:id="@+id/widget_vault"
-        style="@style/Widget.MyCompanion.Action"
-        android:drawableTop="@drawable/ic_widget_vault"
-        android:text="@string/widget_vault" />
 </LinearLayout>

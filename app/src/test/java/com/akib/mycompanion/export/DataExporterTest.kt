@@ -61,7 +61,7 @@ private class FakeSettingsStore(initial: Settings = Settings()) : SettingsStore 
 @RunWith(AndroidJUnit4::class)
 class DataExporterTest {
 
-    private val settingsStore = FakeSettingsStore(Settings(enabled = setOf(Feature.CAPTURE)))
+    private val settingsStore = FakeSettingsStore(Settings(enabled = setOf(Feature.CONTEXT_RULES)))
     private val voiceChange = slot<(VoiceSettings) -> VoiceSettings>()
     private val voiceStore = mockk<VoiceSettingsStore> {
         every { settings } returns flowOf(VoiceSettings())
@@ -75,7 +75,7 @@ class DataExporterTest {
     private val backup = SettingsBackup(settingsStore, voiceStore, replyStore)
 
     @Test
-    fun `the zip holds one readable file per area and says the vault is left out`() = runTest {
+    fun `the zip holds one readable file per area and explains the export`() = runTest {
         val playlists = FakePlaylistRepository()
         val focus = playlists.create("Focus")
         playlists.addItem(focus.id, video("abc", "Lo-fi"))
@@ -115,12 +115,12 @@ class DataExporterTest {
             "auto-reply-templates.json",
             "settings.json",
         ).inOrder()
-        assertThat(entries.getValue("README.txt")).contains("Not included: the vault")
+        assertThat(entries.getValue("README.txt")).contains("The exported file is not encrypted.")
         assertThat(JSONObject(entries.getValue("people.json")).getInt("count")).isEqualTo(1)
         assertThat(JSONObject(entries.getValue("playlists.json")).toString()).contains("Lo-fi")
         assertThat(JSONObject(entries.getValue("places.json")).toString()).contains("Home")
         assertThat(ExportJson.parseSettings(entries.getValue("settings.json")).app.enabled)
-            .containsExactly(Feature.CAPTURE)
+            .containsExactly(Feature.CONTEXT_RULES)
     }
 
     @Test
@@ -146,7 +146,7 @@ class DataExporterTest {
     fun `the settings export is the current settings`() = runTest {
         val exported = ExportJson.parseSettings(backup.exportJson())
 
-        assertThat(exported).isEqualTo(SettingsBundle(app = Settings(enabled = setOf(Feature.CAPTURE))))
+        assertThat(exported).isEqualTo(SettingsBundle(app = Settings(enabled = setOf(Feature.CONTEXT_RULES))))
     }
 
     private fun unzip(bytes: ByteArray): Map<String, String> {

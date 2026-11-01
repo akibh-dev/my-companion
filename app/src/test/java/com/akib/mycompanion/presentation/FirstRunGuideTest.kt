@@ -71,9 +71,9 @@ class FirstRunGuideTest {
     fun `a route intent opens that screen in the main activity`() {
         val app: Application = ApplicationProvider.getApplicationContext()
 
-        val intent = MainActivity.openRouteIntent(app, "vault")
+        val intent = MainActivity.openRouteIntent(app, "export")
 
         assertThat(intent.component!!.className).isEqualTo(MainActivity::class.java.name)
-        assertThat(intent.getStringExtra(MainActivity.EXTRA_ROUTE)).isEqualTo("vault")
+        assertThat(intent.getStringExtra(MainActivity.EXTRA_ROUTE)).isEqualTo("export")
     }
 }

@@ -44,7 +44,7 @@ class ExportViewModel @Inject constructor(
             context.contentResolver.openOutputStream(uri)?.use { exporter.writeZip(it) }
         } ?: error("Couldn't open that file")
         log.i(TAG, "data exported ($count files)")
-        "Saved $count files. The vault isn't included: it has its own encrypted backup."
+        "Saved $count files."
     }
 
     fun onExportSettings(uri: Uri) = work("Saving settings…") {

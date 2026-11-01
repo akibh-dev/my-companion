@@ -64,7 +64,6 @@ fun featureRoute(feature: Feature): String? = when (feature) {
     Feature.KEEP_SCREEN_ON -> "screen-on"
     Feature.AUTO_REPLY, Feature.MISSED_CALL_SMS -> "autoreply"
     Feature.VOICE_MODE -> "voice"
-    Feature.CAPTURE -> "capture"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -35,6 +35,13 @@ Docs/
 
 ## Current Project State
 
+As of 2026-10-30, Secure Vault and Quick Capture have been removed. The app retains People,
+Reminders, Player, context rules, auto-reply, missed-call SMS, voice mode, keep-screen-on,
+widgets and export. See [decision D19](decisions.md#d19--remove-secure-vault-and-quick-capture-2026-10-30).
+The implementation targets Android 16 (SDK 36); AI model implementations remain placeholders.
+
+The counts and device findings below describe earlier versions.
+
 **Status**: ✅ People (one-tap WhatsApp calls), Reminders (custom notifications) and Player (YouTube background audio, queue, playlists), tested in CI
 
 **What you have**:

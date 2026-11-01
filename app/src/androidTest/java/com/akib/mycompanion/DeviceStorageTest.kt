@@ -4,20 +4,11 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.akib.mycompanion.capture.data.CaptureDatabase
-import com.akib.mycompanion.capture.data.CaptureFiles
-import com.akib.mycompanion.capture.data.CaptureRepository
-import com.akib.mycompanion.capture.domain.CaptureType
 import com.akib.mycompanion.core.crypto.FieldCipher
-import com.akib.mycompanion.core.log.AppLog
-import com.akib.mycompanion.core.time.SystemClock
 import com.akib.mycompanion.data.local.AppDatabase
 import com.akib.mycompanion.data.local.MIGRATION_1_2
 import com.akib.mycompanion.data.local.PlaylistEntity
-import com.akib.mycompanion.vault.crypto.VaultCrypto
 import com.google.common.truth.Truth.assertThat
-import java.io.ByteArrayOutputStream
-import java.io.File
 import java.security.KeyStore
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
@@ -45,48 +36,6 @@ class DeviceStorageTest {
             assertThrows(Exception::class.java) { cipher.decrypt(bytes) }
         } finally {
             KeyStore.getInstance("AndroidKeyStore").apply { load(null) }.deleteEntry(alias)
-        }
-    }
-
-    @Test
-    fun captureRepositoryUsesEncryptedRowsOnRealSqlite() = runBlocking {
-        val alias = "device-test-${UUID.randomUUID()}"
-        val dir = File(context.cacheDir, alias).apply { mkdirs() }
-        val db = Room.inMemoryDatabaseBuilder(context, CaptureDatabase::class.java).build()
-        try {
-            val repo = CaptureRepository(
-                db.dao(),
-                FieldCipher.keystore(alias),
-                CaptureFiles(File(dir, "captures")),
-                SystemClock(),
-                AppLog(File(dir, "logs"), mirrorToLogcat = false),
-            )
-            val plain = "Capture fixture — ব্যক্তিগত"
-            val id = repo.addText(CaptureType.TEXT, plain)
-            val row = requireNotNull(db.dao().get(id))
-            assertThat(row.textEnc).doesNotContain(plain)
-            val capture = requireNotNull(repo.get(id))
-            assertThat(capture.text).isEqualTo(plain)
-            repo.update(capture.copy(title = "Updated title"))
-            assertThat(repo.get(id)?.title).isEqualTo("Updated title")
-            repo.delete(capture)
-            assertThat(repo.get(id)).isNull()
-        } finally {
-            db.close()
-            dir.deleteRecursively()
-            KeyStore.getInstance("AndroidKeyStore").apply { load(null) }.deleteEntry(alias)
-        }
-    }
-
-    @Test
-    fun vaultStreamRoundTripsMultipleChunksAndRejectsTruncation() {
-        val crypto = VaultCrypto.of(VaultCrypto.newDataKey())
-        val plain = ByteArray(VaultCrypto.CHUNK_BYTES * 2 + 17) { (it % 251).toByte() }
-        val sealed = ByteArrayOutputStream().also { crypto.encryptStream(plain.inputStream(), it) }.toByteArray()
-        val opened = ByteArrayOutputStream().also { crypto.decryptStream(sealed.inputStream(), it) }.toByteArray()
-        assertThat(opened).isEqualTo(plain)
-        assertThrows(Exception::class.java) {
-            crypto.decryptStream(sealed.copyOf(sealed.size - 1).inputStream(), ByteArrayOutputStream())
         }
     }
 

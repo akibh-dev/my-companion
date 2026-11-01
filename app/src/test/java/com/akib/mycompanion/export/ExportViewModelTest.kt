@@ -49,7 +49,7 @@ class ExportViewModelTest {
     private val app = ApplicationProvider.getApplicationContext<Application>()
 
     private val settingsStore = object : SettingsStore {
-        override val settings = MutableStateFlow(Settings(enabled = setOf(Feature.CAPTURE)))
+        override val settings = MutableStateFlow(Settings(enabled = setOf(Feature.CONTEXT_RULES)))
         override suspend fun setPaused(paused: Boolean) {
             settings.value = settings.value.copy(paused = paused)
         }
@@ -107,14 +107,14 @@ class ExportViewModelTest {
     }
 
     @Test
-    fun `export my data writes the zip and says the vault isn't in it`() {
+    fun `export my data writes the zip and reports the file count`() {
         val (uri, stream) = output("data.zip")
 
         viewModel.onExportAll(uri)
 
         val state = viewModel.state.value
         assertThat(state.busy).isFalse()
-        assertThat(state.status).isEqualTo("Saved 8 files. The vault isn't included: it has its own encrypted backup.")
+        assertThat(state.status).isEqualTo("Saved 8 files.")
         val names = mutableListOf<String>()
         ZipInputStream(ByteArrayInputStream(stream.toByteArray())).use { zip ->
             generateSequence { zip.nextEntry }.forEach { names += it.name }
@@ -131,7 +131,7 @@ class ExportViewModelTest {
 
         assertThat(viewModel.state.value.status).isEqualTo("Settings saved")
         val bundle = backup.parse(stream.toString(Charsets.UTF_8.name()))
-        assertThat(bundle.app.enabled).containsExactly(Feature.CAPTURE)
+        assertThat(bundle.app.enabled).containsExactly(Feature.CONTEXT_RULES)
     }
 
     @Test
@@ -160,7 +160,7 @@ class ExportViewModelTest {
 
         assertThat(viewModel.state.value.pendingRestore).isEqualTo(bundle)
         assertThat(viewModel.state.value.status).isNull()
-        assertThat(settingsStore.settings.value.enabled).containsExactly(Feature.CAPTURE)
+        assertThat(settingsStore.settings.value.enabled).containsExactly(Feature.CONTEXT_RULES)
 
         viewModel.onConfirmRestore()
 

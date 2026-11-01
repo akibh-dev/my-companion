@@ -54,11 +54,6 @@ tools/device-test/ui.py tap "Call Mum Test on WhatsApp"
 - Elements behind the keyboard still appear in `ui.py dump` with their old coordinates — tapping them
   hits the keyboard instead. Close the keyboard first.
 - `adb shell monkey -p com.akib.mycompanion -s 42 --pct-syskeys 0 --throttle 40 -v 5000` is a cheap crash hunt.
-- **`ui.py dump` suspends accessibility services while it runs** (it connects a UiAutomation). Don't
-  dump while testing something that needs the quick capture service — find coordinates from a
-  `shot.sh` screenshot instead, or the service flaps and the panel layout changes under your tap.
-- Injected volume keys (`input keyevent`, `input keycombination`, `adb emu event send`) don't reach
-  the system on the Android 17 emulator image, so the volume-key combo can only be tested on a phone.
 - With nothing playing, volume keys change the ring stream: `adb shell cmd media_session volume --stream 2 --get`.
 - Ringer mode for rule checks: `adb shell dumpsys audio | grep 'mode (external)'`.
 - Useful system views: `adb shell dumpsys alarm | grep -A3 mycompanion`,

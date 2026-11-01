@@ -26,19 +26,19 @@ class DataStoreSettingsStoreTest {
         assertThat(store.settings.first()).isEqualTo(Settings())
 
         store.setPaused(true)
-        store.setEnabled(Feature.CAPTURE, true)
+        store.setEnabled(Feature.CONTEXT_RULES, true)
         store.setEnabled(Feature.VOICE_MODE, true)
         store.setEnabled(Feature.VOICE_MODE, true)
         store.setUseModel(AiEngine.SUMMARIZER, true)
         assertThat(store.settings.first()).isEqualTo(
             Settings(
                 paused = true,
-                enabled = setOf(Feature.CAPTURE, Feature.VOICE_MODE),
+                enabled = setOf(Feature.CONTEXT_RULES, Feature.VOICE_MODE),
                 modelEngines = setOf(AiEngine.SUMMARIZER),
             ),
         )
 
-        store.setEnabled(Feature.CAPTURE, false)
+        store.setEnabled(Feature.CONTEXT_RULES, false)
         store.setEnabled(Feature.AUTO_REPLY, false)
         store.setUseModel(AiEngine.SUMMARIZER, false)
         store.setPaused(false)

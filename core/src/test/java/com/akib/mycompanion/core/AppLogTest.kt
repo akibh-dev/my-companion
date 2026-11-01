@@ -43,7 +43,7 @@ class AppLogTest {
 
     @Test
     fun `a message with line breaks stays one line`() = runTest {
-        log.e("Vault", "first\nsecond\nthird", RuntimeException("boom"))
+        log.e("Rules", "first\nsecond\nthird", RuntimeException("boom"))
 
         val line = log.read().single()
         assertThat(line.level).isEqualTo(LogLevel.ERROR)

@@ -61,8 +61,8 @@ class ScheduleReminderUseCase @Inject constructor(
     }
 
     /**
-     * A one-off reminder at an exact moment, e.g. picked with date and time pickers by another feature
-     * ("Remind me…" on a vault item, FR-2.16). A moment that has already passed is [ScheduleResult.InvalidTime].
+     * A one-off reminder at an exact moment.
+     * A moment that has already passed is [ScheduleResult.InvalidTime].
      */
     suspend fun at(title: String, message: String, atMillis: Long): ScheduleResult {
         if (title.isBlank() && message.isBlank()) return ScheduleResult.EmptyContent

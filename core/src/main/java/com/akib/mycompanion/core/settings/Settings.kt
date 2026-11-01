@@ -23,7 +23,6 @@ enum class Feature(val title: String, val description: String) {
     AUTO_REPLY("Auto-reply", "Answer chat messages for you while you're busy"),
     MISSED_CALL_SMS("Missed-call SMS", "Text people back when you miss their call"),
     VOICE_MODE("Voice mode", "Read incoming messages aloud"),
-    CAPTURE("Quick capture", "Hold both volume keys to capture a note, voice memo or photo"),
     KEEP_SCREEN_ON("Keep screen on", "Keep the screen awake while you hold the phone up outdoors"),
 }
 

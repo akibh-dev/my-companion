@@ -36,10 +36,10 @@ class ExportScreenTest {
     }
 
     @Test
-    fun `export, save and restore are offered and the vault is explained`() {
+    fun `export, save and restore are offered and encryption is explained`() {
         show(ExportUiState())
 
-        compose.onNodeWithText("The vault isn't included", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("The exported file itself is not encrypted.", substring = true).assertIsDisplayed()
         compose.onNodeWithText("Export my data…").performClick()
         compose.onNodeWithText("Save settings…").performClick()
         compose.onNodeWithText("Restore settings…").performClick()
