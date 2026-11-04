@@ -60,21 +60,23 @@ class AppGraphTest {
     fun `every home link opens a registered screen`() {
         assertThat(links).isNotEmpty()
         links.forEach { link -> assertThat(routes).contains(link.route) }
-        assertThat(links.map { it.route }).containsAtLeast("vault", "capture")
+        assertThat(links.map { it.route }).contains("export")
     }
 
     @Test
     fun `screens have unique routes and a title`() {
+        assertThat(routes).containsNoneOf("vault", "vault-item/{id}", "vault-more", "capture", "capture/{id}")
         assertThat(routes).containsNoDuplicates()
         screens.forEach { assertThat(it.title).isNotEmpty() }
-        assertThat(routes).containsAtLeast("rules", "rule/{id}", "vault-item/{id}", "capture/{id}", "export")
+        assertThat(routes).containsAtLeast("rules", "rule/{id}", "export")
     }
 
     @Test
     fun `permissions have unique ids and can all be checked`() {
         assertThat(requirements.map { it.id }).containsNoDuplicates()
         assertThat(requirements.map { it.id })
-            .containsAtLeast("notification_access", "dnd_access", "draw_over_apps", "capture_accessibility")
+            .containsAtLeast("notification_access", "dnd_access", "draw_over_apps")
+        assertThat(requirements.map { it.id }).doesNotContain("capture_accessibility")
         requirements.forEach { requirement ->
             requirement.isGranted(app)
             assertThat(requirement.settingsIntent(app)).isNotNull()

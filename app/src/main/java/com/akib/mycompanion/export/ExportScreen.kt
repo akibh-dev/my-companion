@@ -73,8 +73,7 @@ fun ExportScreen(
                 Text("Export my data…")
             }
             Text(
-                "The vault isn't included: it has its own encrypted backup under Vault → Trash & backup. " +
-                    "The exported file itself is not encrypted.",
+                "The exported file itself is not encrypted.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

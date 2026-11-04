@@ -9,8 +9,7 @@ Personal Android app (Kotlin) for the Nothing CMF Phone 1 (Android 16), on-devic
 - **Context rules** – sound mode, Do Not Disturb, volume, brightness (and Wi-Fi/Bluetooth prompts) by time, place, charging, Bluetooth or Wi-Fi; offline map for places
 - **Auto-reply & missed-call SMS** – replies through WhatsApp, Messenger, Signal, Telegram and Messages notifications
 - **Voice mode** – reads incoming messages aloud, privately
-- **Vault** – encrypted links, notes, images and files with search, share target and backup
-- **Quick capture** and **keep screen on outdoors** (Phase 4), widgets and data export (Phase 5)
+- **Keep screen on outdoors**, quick actions widget and data export
 - AI features run behind interfaces with dummy models until the local models are ready
 
 Built as a **learning vehicle** for Android development.
@@ -63,7 +62,7 @@ Built as a **learning vehicle** for Android development.
 ### Prerequisites
 - Android Studio Koala (2024.1.1) or later
 - JDK 17
-- Android SDK 34
+- Android SDK 36 (Android 16); JDK 21 for Robolectric tests
 
 ### Build
 ```bash
@@ -113,7 +112,7 @@ app/
 
 How it works: [Docs/03-whatsapp-call-and-reminders.md](Docs/03-whatsapp-call-and-reminders.md)
 
-**Next**: notification listener, quick settings tile
+Secure Vault and volume-button Quick Capture have been removed. See [decision D19](Docs/decisions.md#d19--remove-secure-vault-and-quick-capture-2026-10-30). Earlier test reports describe previous versions.
 
 ### Install on your phone
 Download `my-companion-debug-apk` from the latest green **Android CI** run (Actions tab), or run `./gradlew installDebug` with the phone connected.

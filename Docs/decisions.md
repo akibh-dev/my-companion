@@ -57,3 +57,38 @@ Reference: [AndroidX ExifInterface](https://developer.android.com/reference/andr
 | S8 Sideload permissions | phone not run. **Emulator, Android 17, `adb install`:** the quick capture accessibility service and Usage access switched on without "Allow restricted settings" (2026-10-25). Check an APK installed from a file on the phone |
 | S9 Starting services from the background | not run |
 | S10 Offline map | not run (map screen is ready; needs the PMTiles file) |
+
+## D19 — Remove Secure Vault and Quick Capture (2026-10-30)
+
+The owner does not need the encrypted vault or volume-button note/photo/recording capture.
+Remove `feature-vault` and `feature-capture` entirely, including their manifests, services,
+activities, providers, screens and tests. Remove navigation links, the capture feature switch,
+widget actions, vault reminder bridge and unused biometric/fragment dependencies. Keep
+context-rule volume adjustments, voice-mode playback and the other utilities.
+
+Removing module dependencies also removes their merged camera, microphone and biometric
+permissions, accessibility key listener, capture Quick Settings tile and vault share target.
+MainActivity can use ComponentActivity again because biometric prompts no longer need a fragment host.
+
+Settings use enum names rather than ordinals. Existing preferences and JSON backups skip
+unknown names, so a stored `CAPTURE` switch is ignored while supported features still restore.
+No destructive data migration is added: existing private vault/capture files and keys are left
+on the installed device, but this build no longer opens them. Uninstalling the app deletes
+its private files; the previous version remains available in Git history.
+
+Branch audit: fetched both `origin` and `forjejo`; every branch tip is an ancestor of
+`origin/main` (`dd37f73`, PR #3). Fast-forwarded local main from `4aa8313` to `dd37f73`, then
+created `refactor/remove-vault-and-capture`. Older documentation and test reports above
+remain historical records of the versions they describe.
+
+Validation: `ktlintFormat ktlintCheck testDebugUnitTest lintDebug assembleDebug --continue
+--max-workers=3` passed. Across the eight remaining modules, 572 JVM/Robolectric/Compose
+tests passed with no failures, errors or skips. Regression checks confirm removed routes and
+the capture accessibility requirement are absent, and old settings backups ignore `CAPTURE`
+while restoring supported features. The merged manifest has no vault/capture components or
+camera, microphone and biometric permissions. `adb devices` found no connected device,
+so on-device behavior has not been rechecked.
+
+Final verification after dependency catalog cleanup also passed: `ktlintCheck testDebugUnitTest
+lintDebug assembleDebug :app:assembleDebugAndroidTest --continue --max-workers=3`. The device
+test APK compiles; execution still requires a connected phone or emulator.

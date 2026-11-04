@@ -40,7 +40,7 @@ val guidePages: List<GuidePage>
         GuidePage(
             "Your companion",
             "My Companion brings back things usually locked behind subscriptions: reminders with a call " +
-                "button, YouTube in the background, auto-replies, voice mode, quick capture, an encrypted vault " +
+                "button, YouTube in the background, auto-replies, voice mode " +
                 "and rules that change your phone's settings by place and time.",
         ),
         GuidePage(
@@ -55,7 +55,7 @@ val guidePages: List<GuidePage>
         ),
         GuidePage(
             "Nothing leaves the phone",
-            "Your people, reminders, rules, captures and vault stay on this phone. There are no accounts and " +
+            "Your people, reminders, playlists and rules stay on this phone. There are no accounts and " +
                 "no cloud. Home → Export & backup saves a copy of your data wherever you choose.",
         ),
     )

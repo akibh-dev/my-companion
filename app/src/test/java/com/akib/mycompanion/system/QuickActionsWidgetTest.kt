@@ -6,7 +6,6 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.akib.mycompanion.MainActivity
 import com.akib.mycompanion.R
 import com.akib.mycompanion.core.settings.Feature
 import com.akib.mycompanion.core.settings.Settings
@@ -34,20 +33,5 @@ class QuickActionsWidgetTest {
         val paused = render(Settings(paused = true, enabled = setOf(Feature.VOICE_MODE)))
         assertThat(paused.text(R.id.widget_pause)).isEqualTo("Resume")
         assertThat(paused.text(R.id.widget_voice)).isEqualTo("Voice on")
-    }
-
-    @Test
-    fun `capture uses the shared capture action and stays inside the app`() {
-        val intent = QuickActionsWidget.captureIntent(app)
-
-        assertThat(intent.action).isEqualTo("com.akib.mycompanion.action.CAPTURE")
-        assertThat(intent.`package`).isEqualTo(app.packageName)
-    }
-
-    @Test
-    fun `the vault button opens the vault screen`() {
-        val intent = MainActivity.openRouteIntent(app, QuickActionsWidget.VAULT_ROUTE)
-
-        assertThat(intent.getStringExtra(MainActivity.EXTRA_ROUTE)).isEqualTo("vault")
     }
 }

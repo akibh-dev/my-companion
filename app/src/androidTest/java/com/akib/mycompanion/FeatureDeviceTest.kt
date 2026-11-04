@@ -9,7 +9,6 @@ import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
-import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -148,48 +147,12 @@ class FeatureDeviceTest {
     }
 
     @Test
-    fun captureSpaceShowsCaptureAndSearchControls() {
-        openHome("Quick capture")
-        compose.onNodeWithText("New capture").assertIsDisplayed()
-        compose.onNodeWithText("Search").performTextInput("missing-device-fixture")
-        compose.onNodeWithText("Search").assertTextContains("missing-device-fixture")
-        compose.onNodeWithText("Voice").assertExists()
-    }
-
-    @Test
-    fun captureNoteCanBeSavedOpenedAndDeleted() {
-        val note = "Device note ${System.nanoTime()}"
-        openHome("Quick capture")
-        compose.onNodeWithText("New capture").performClick()
-        compose.onNodeWithText("Note").performClick()
-        compose.onNodeWithText("Note").performTextInput(note)
-        compose.onNodeWithText("Save").performClick()
-        awaitText("New capture")
-        scrollTo(note)
-        compose.onNodeWithText(note).performClick()
-        compose.onNodeWithText("Note").assertTextContains(note)
-        compose.onNodeWithText("Delete").performScrollTo().performClick()
-        compose.onAllNodesWithText("Delete").onLast().performClick()
-        awaitText("New capture")
-    }
-
-    @Test
     fun screenOnHasSensitivityChoices() {
         openHome("Keep screen on")
         compose.onNodeWithText("Keep screen on outdoors").assertExists()
         compose.onNodeWithText("Sensitivity").assertExists()
         compose.onNodeWithText("Strict").performScrollTo().performClick()
         compose.onNodeWithText("Normal").performScrollTo().performClick()
-    }
-
-    @Test
-    fun vaultRequiresDeviceAuthentication() {
-        openHome("Vault")
-        compose.waitUntil(10_000) {
-            listOf("Set a screen lock first", "Set up", "Unlock").any {
-                compose.onAllNodesWithText(it).fetchSemanticsNodes().isNotEmpty()
-            }
-        }
     }
 
     @Test

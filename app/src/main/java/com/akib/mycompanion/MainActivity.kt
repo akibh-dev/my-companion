@@ -3,6 +3,7 @@ package com.akib.mycompanion
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.DrawableRes
@@ -11,7 +12,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
 import com.akib.mycompanion.core.permissions.Requirement
@@ -26,9 +26,9 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.launch
 
-/** A FragmentActivity (still a ComponentActivity) so the vault can show the system unlock prompt. */
+/** Hosts the Compose screens and handles navigation intents. */
 @AndroidEntryPoint
-class MainActivity : FragmentActivity() {
+class MainActivity : ComponentActivity() {
 
     @Inject lateinit var refreshHomeShortcuts: RefreshHomeShortcuts
 
@@ -47,7 +47,7 @@ class MainActivity : FragmentActivity() {
     /** Bumped on every request so asking for the same tab twice still switches to it. */
     private var requestCount by mutableIntStateOf(0)
 
-    /** Screen asked for by an intent (e.g. "vault" from the home-screen widget); cleared once opened. */
+    /** Screen asked for by an intent (e.g. "export"); cleared once opened. */
     private var requestedRoute by mutableStateOf<String?>(null)
     private var routeRequestCount by mutableIntStateOf(0)
 
@@ -120,7 +120,7 @@ class MainActivity : FragmentActivity() {
     companion object {
         const val EXTRA_TAB = "tab"
 
-        /** A screen route to open over Home, e.g. "vault" (see AppNavigation's Screen routes). */
+        /** A screen route to open over Home, e.g. "export" (see AppNavigation's Screen routes). */
         const val EXTRA_ROUTE = "route"
 
         fun openPlayerIntent(context: Context): Intent = openTabIntent(context, Tab.PLAYER)

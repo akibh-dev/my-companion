@@ -122,12 +122,12 @@ class ExportJsonTest {
     fun `an old or partial backup keeps defaults and skips unknown names`() {
         val text = JSONObject()
             .put("format", ExportJson.SETTINGS_FORMAT)
-            .put("app", JSONObject().put("features", JSONArray(listOf("CAPTURE", "TELEPORT"))))
+            .put("app", JSONObject().put("features", JSONArray(listOf("CAPTURE", "CONTEXT_RULES", "TELEPORT"))))
             .toString()
 
         val bundle = ExportJson.parseSettings(text)
 
-        assertThat(bundle.app.enabled).containsExactly(Feature.CAPTURE)
+        assertThat(bundle.app.enabled).containsExactly(Feature.CONTEXT_RULES)
         assertThat(bundle.app.paused).isFalse()
         assertThat(bundle.voice).isEqualTo(VoiceSettings())
         assertThat(bundle.autoReply).isEqualTo(AutoReplySettings())

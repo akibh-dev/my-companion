@@ -41,7 +41,7 @@ class FieldCipher(private val key: () -> SecretKey) {
 
         /**
          * A cipher whose key lives in the Keystore under [alias], created on first use.
-         * [requireUnlock] keys only work for a short while after a biometric/PIN unlock (the vault).
+         * [requireUnlock] keys only work for a short while after a biometric/PIN unlock.
          */
         fun keystore(
             alias: String,

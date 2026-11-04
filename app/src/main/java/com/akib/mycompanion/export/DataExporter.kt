@@ -16,8 +16,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
 /**
- * "Export my data" (NFR-11): everything the app keeps, as readable JSON files in one ZIP. The vault is
- * left out on purpose: it has its own encrypted backup, and an export here would be unencrypted.
+ * "Export my data" (NFR-11): people, reminders, playlists, rules, places, templates and
+ * settings as readable JSON files in one ZIP.
  */
 class DataExporter @Inject constructor(
     private val contacts: ContactRepository,
@@ -63,9 +63,7 @@ class DataExporter @Inject constructor(
             Plain JSON files, one per area: people, reminders (upcoming), playlists, context rules,
             saved places, auto-reply templates and settings.
 
-            Not included: the vault. It has its own encrypted backup (Vault > Trash & backup), so
-            its contents never leave the phone unencrypted. The auto-reply log and captures aren't
-            included either.
+            The auto-reply log isn't included. The exported file is not encrypted.
 
             settings.json can be restored in the app: Home > Export & backup > Restore settings.
         """.trimIndent() + "\n"

@@ -112,7 +112,7 @@
             android:name=".system.ReminderReceiver"
             android:exported="false" />
 
-        <!-- Home-screen widget: pause/resume, voice mode, capture, vault. -->
+        <!-- Home-screen widget: pause/resume and voice mode. -->
         <receiver
             android:name=".widget.QuickActionsWidget"
             android:exported="false"

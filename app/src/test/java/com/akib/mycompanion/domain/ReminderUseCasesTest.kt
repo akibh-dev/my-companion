@@ -60,11 +60,11 @@ class ReminderUseCasesTest {
     fun `a reminder at an exact moment is saved and armed for that moment`() = runTest {
         val at = millisAt(2026, 11, 2, 9, 30)
 
-        val result = schedule.at(" Passport renewal ", "From your vault", at)
+        val result = schedule.at(" Passport renewal ", "Renew before travel", at)
 
         val reminder = (result as ScheduleResult.Scheduled).reminder
         assertThat(reminder.title).isEqualTo("Passport renewal")
-        assertThat(reminder.message).isEqualTo("From your vault")
+        assertThat(reminder.message).isEqualTo("Renew before travel")
         assertThat(reminder.repeat).isEqualTo(Repeat.Never)
         assertThat(scheduler.scheduled).containsExactly(reminder.id, at)
     }
