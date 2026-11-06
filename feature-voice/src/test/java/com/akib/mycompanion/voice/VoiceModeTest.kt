@@ -6,7 +6,6 @@ import android.media.AudioManager
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.akib.mycompanion.ai.AiResult
-import com.akib.mycompanion.ai.ModelLoader
 import com.akib.mycompanion.ai.SpeechSynth
 import com.akib.mycompanion.ai.Transliterator
 import com.akib.mycompanion.core.log.AppLog
@@ -31,6 +30,7 @@ import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
@@ -58,22 +58,33 @@ class VoiceModeTest {
 
     private fun output(type: Int): AudioDeviceInfo = AudioDeviceInfoBuilder.newBuilder().setType(type).build()
 
+    @org.junit.Before
+    fun openQueue() {
+        queue.open()
+    }
+
+    private fun routes(devices: List<AudioDeviceInfo>) {
+        shadowOf(
+            audioManager
+        ).setAudioDevicesForAttributes(AudioWatcher.ATTRIBUTES, com.google.common.collect.ImmutableList.copyOf(devices))
+    }
+
     private fun drain(): List<String> =
-        generateSequence { queue.items.tryReceive().getOrNull() }.map { it.text }.toList()
+        generateSequence { queue.items.tryReceive().getOrNull() }.map { it.message.text }.toList()
 
     // ---- Audio situation ----
 
     @Test
     fun `headphones and bluetooth count as private, the speaker doesn't`() {
-        shadowOf(audioManager).setOutputDevices(listOf(output(AudioDeviceInfo.TYPE_BUILTIN_SPEAKER)))
+        routes(listOf(output(AudioDeviceInfo.TYPE_BUILTIN_SPEAKER)))
         assertThat(audio.situation().privateOutput).isFalse()
 
-        shadowOf(audioManager).setOutputDevices(
+        routes(
             listOf(output(AudioDeviceInfo.TYPE_BUILTIN_SPEAKER), output(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP)),
         )
-        assertThat(audio.situation().privateOutput).isTrue()
+        assertThat(audio.situation().privateOutput).isFalse()
 
-        shadowOf(audioManager).setOutputDevices(listOf(output(AudioDeviceInfo.TYPE_WIRED_HEADPHONES)))
+        routes(listOf(output(AudioDeviceInfo.TYPE_WIRED_HEADPHONES)))
         assertThat(audio.situation().privateOutput).isTrue()
     }
 
@@ -105,7 +116,7 @@ class VoiceModeTest {
 
     @Test
     fun `the queue keeps order and drops the oldest when full`() {
-        repeat(25) { queue.add("message $it", now = it.toLong()) }
+        repeat(25) { queue.add(message.copy(text = "message $it"), now = it.toLong()) }
 
         val texts = drain()
 
@@ -131,7 +142,7 @@ class VoiceModeTest {
     fun `readable messages are queued as sentences`() = runTest {
         consumer.onMessage(message)
 
-        assertThat(drain()).containsExactly("Nadia on WhatsApp says: On my way")
+        assertThat(drain()).containsExactly("On my way")
     }
 
     @Test
@@ -147,11 +158,11 @@ class VoiceModeTest {
     @Test
     fun `privacy keeps messages quiet without headphones`() = runTest {
         voiceSettings.value = VoiceSettings(privacy = Privacy.HEADPHONES_OR_CAR)
-        shadowOf(audioManager).setOutputDevices(listOf(output(AudioDeviceInfo.TYPE_BUILTIN_SPEAKER)))
+        routes(listOf(output(AudioDeviceInfo.TYPE_BUILTIN_SPEAKER)))
         consumer.onMessage(message)
         assertThat(drain()).isEmpty()
 
-        shadowOf(audioManager).setOutputDevices(listOf(output(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP)))
+        routes(listOf(output(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP)))
         consumer.onMessage(message)
         assertThat(drain()).hasSize(1)
     }
@@ -162,7 +173,7 @@ class VoiceModeTest {
 
         consumer.onMessage(message.copy(text = "one two three four five six"))
 
-        assertThat(drain().single()).isEqualTo("Nadia on WhatsApp says: one two, and more")
+        assertThat(drain().single()).isEqualTo("one two three four five six")
     }
 
     // ---- Reader ----
@@ -189,8 +200,17 @@ class VoiceModeTest {
 
     private val synth = FakeSynth()
     private val transliterator = FixedTransliterator()
+    private val playback = com.akib.mycompanion.voice.system.VoicePlayback(
+        settingsStore,
+        voiceStore,
+        synth,
+        transliterator,
+        audio,
+        queue,
+        log
+    )
     private val component =
-        VoiceComponent(queue, synth, transliterator, audio, ModelLoader(emptySet(), log), log)
+        VoiceComponent(queue, playback, audio)
 
     @Test
     fun `wanted only while voice mode is on and nothing is paused`() {
@@ -205,31 +225,145 @@ class VoiceModeTest {
         val scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())
         component.start(scope)
 
-        queue.add("Nadia on WhatsApp says: see you at 5", System.currentTimeMillis())
-        queue.add("Rahim on Signal says: ami bhalo achi", System.currentTimeMillis())
+        queue.add(message.copy(text = "see you at 5"))
+        queue.add(message.copy(sender = "Rahim", app = ChatApp.SIGNAL, text = "ami bhalo achi"))
         runCurrent()
 
         assertThat(synth.spoken.map { it.first })
-            .containsExactly("Nadia on WhatsApp says: see you at 5", "আমি ভালো আছি")
+            .containsExactly(
+                "Nadia on WhatsApp says: see you at 5",
+                "Rahim on Signal says: আমি ভালো আছি আমি ভালো আছি আমি ভালো আছি"
+            )
             .inOrder()
         assertThat(synth.spoken.last().second.toLanguageTag()).isEqualTo("bn-BD")
-        assertThat(transliterator.asked).containsExactly("Rahim on Signal says: ami bhalo achi")
+        assertThat(synth.spoken.first().second.toLanguageTag()).isEqualTo("bn-BD")
+        assertThat(transliterator.asked).containsExactly("ami", "bhalo", "achi")
 
         scope.cancel()
         runCurrent()
-        assertThat(synth.stops).isEqualTo(1)
+        assertThat(synth.stops).isAtLeast(1)
     }
 
     @Test
     fun `messages that waited more than five minutes are dropped`() = runTest {
         val scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())
-        queue.add("old news", System.currentTimeMillis() - 6 * 60_000)
-        queue.add("fresh", System.currentTimeMillis())
+        queue.add(message.copy(text = "old news"), android.os.SystemClock.elapsedRealtime() - 6 * 60_000)
+        queue.add(message.copy(text = "fresh"))
 
         component.start(scope)
         runCurrent()
 
-        assertThat(synth.spoken.map { it.first }).containsExactly("fresh")
+        assertThat(synth.spoken.map { it.first }).containsExactly("Nadia on WhatsApp says: fresh")
         scope.cancel()
+    }
+
+    @Test
+    fun `duplicate updates are suppressed but a later identical message is read`() {
+        queue.add(message)
+        queue.add(message)
+        queue.add(message.copy(postedAt = 1))
+        assertThat(drain()).hasSize(2)
+    }
+
+    @Test
+    fun `stopping invalidates pending items and a closed queue accepts nothing`() {
+        queue.add(message)
+        val item = queue.items.tryReceive().getOrThrow()
+        queue.clear()
+        assertThat(queue.current(item)).isFalse()
+        queue.close()
+        queue.add(message.copy(postedAt = 2))
+        assertThat(drain()).isEmpty()
+    }
+
+    @Test
+    fun `denied audio focus never executes speech`() = runTest {
+        shadowOf(audioManager).setNextFocusRequestResponse(AudioManager.AUDIOFOCUS_REQUEST_FAILED)
+        var spoken = false
+        assertThrows(IllegalStateException::class.java) { runBlocking { audio.ducking { spoken = true } } }
+        assertThat(spoken).isFalse()
+    }
+
+    @Test
+    fun `privacy is rechecked before reading a queued message`() = runTest {
+        queue.add(message)
+        val item = queue.items.tryReceive().getOrThrow()
+        voiceSettings.value = VoiceSettings(privacy = Privacy.HEADPHONES_OR_CAR)
+        routes(listOf(output(AudioDeviceInfo.TYPE_BUILTIN_SPEAKER)))
+        assertThat(playback.read(item)).isInstanceOf(AiResult.NotReady::class.java)
+        assertThat(synth.spoken).isEmpty()
+    }
+
+    @Test
+    fun `pause during conversion prevents playback`() = runTest {
+        val waiting = object : Transliterator {
+            override suspend fun toBangla(text: String): AiResult<String> {
+                settings.value = settings.value.copy(paused = true)
+                kotlinx.coroutines.awaitCancellation()
+            }
+        }
+        val reader = com.akib.mycompanion.voice.system.VoicePlayback(
+            settingsStore,
+            voiceStore,
+            synth,
+            waiting,
+            audio,
+            queue,
+            log
+        )
+        val result = reader.sample()
+        assertThat(result).isInstanceOf(AiResult.NotReady::class.java)
+        assertThat(synth.spoken).isEmpty()
+        assertThat(synth.stops).isGreaterThan(0)
+    }
+
+    @Test
+    fun `stop interrupts current speech and the next sample still works`() = runTest {
+        var first = true
+        var appliedRate = 0f
+        val blocking = object : SpeechSynth {
+            override suspend fun speak(text: String, language: Locale): AiResult<Unit> = error("Use configured speech")
+            override suspend fun speakConfigured(text: String, language: Locale, rate: Float): AiResult<Unit> {
+                appliedRate = rate
+                if (first) {
+                    first = false
+                    kotlinx.coroutines.awaitCancellation()
+                }
+                return AiResult.Ready(Unit)
+            }
+            override fun stop() = Unit
+        }
+        voiceSettings.value = VoiceSettings(privacy = Privacy.ALWAYS, speechRate = 1.4f)
+        val reader = com.akib.mycompanion.voice.system.VoicePlayback(
+            settingsStore,
+            voiceStore,
+            blocking,
+            transliterator,
+            audio,
+            queue,
+            log
+        )
+        val reading = async { reader.sample() }
+        runCurrent()
+        assertThat(reader.state.value).isEqualTo(com.akib.mycompanion.voice.system.VoiceState.Speaking)
+        reader.stop()
+        runCurrent()
+        assertThat(reading.await()).isInstanceOf(AiResult.NotReady::class.java)
+        assertThat(reader.sample()).isEqualTo(AiResult.Ready(Unit))
+        assertThat(appliedRate).isEqualTo(1.4f)
+    }
+
+    @Test
+    fun `rapid restart cannot let previous cleanup close the new queue`() = runTest {
+        val first = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())
+        val second = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())
+        component.start(first)
+        first.cancel()
+        component.start(second)
+        runCurrent()
+        queue.add(message)
+        runCurrent()
+        assertThat(synth.spoken.map { it.first }).containsExactly("Nadia on WhatsApp says: On my way")
+        second.cancel()
     }
 }

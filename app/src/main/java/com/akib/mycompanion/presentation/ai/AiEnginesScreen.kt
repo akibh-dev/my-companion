@@ -130,10 +130,11 @@ fun AiEnginesRoute(modifier: Modifier = Modifier, viewModel: AiEnginesViewModel 
         item {
             Text(
                 "Each feature works with a built-in fallback. Switch an engine to its model to try it; " +
-                    "today's models are dummies until the local models are ready.",
+                    "Banglish uses offline IndicXlit; the other model slots are placeholders.",
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
+        item { BanglishPreviewCard() }
         items(AiEngine.entries, key = { it.name }) { engine ->
             EngineCard(
                 engine = engine,
@@ -165,6 +166,7 @@ private fun EngineCard(
                     Text(
                         when {
                             !installed -> "No model installed: fallback only"
+                            useModel && engine == AiEngine.TRANSLITERATOR -> "Using offline IndicXlit"
                             useModel -> "Using the model (dummy)"
                             else -> "Using the fallback"
                         },

@@ -1,0 +1,5 @@
+source=আমি এখন বাসায়। kal dekha hobe. Please call me later.
+converted=আমি এখন বাসায়। কাল দেখা হবে. Please call me later.
+stage=completed
+completed_segments=2
+detail=

@@ -1,10 +1,18 @@
 package com.akib.mycompanion.voice.system
 
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.media.AudioAttributes
+import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
+import androidx.core.content.ContextCompat
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -13,13 +21,8 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import com.akib.mycompanion.ai.ModelLoader
-import com.akib.mycompanion.ai.SpeechSynth
-import com.akib.mycompanion.ai.Transliterator
-import com.akib.mycompanion.ai.valueOrNull
 import com.akib.mycompanion.core.host.HostedComponent
 import com.akib.mycompanion.core.log.AppLog
-import com.akib.mycompanion.core.settings.AiEngine
 import com.akib.mycompanion.core.settings.Feature
 import com.akib.mycompanion.core.settings.Settings
 import com.akib.mycompanion.core.settings.SettingsStore
@@ -30,15 +33,21 @@ import com.akib.mycompanion.messaging.IncomingMessage
 import com.akib.mycompanion.messaging.MessageConsumer
 import com.akib.mycompanion.voice.domain.AudioSituation
 import com.akib.mycompanion.voice.domain.Privacy
+import com.akib.mycompanion.voice.domain.ReadingMode
 import com.akib.mycompanion.voice.domain.VoiceDecider
 import com.akib.mycompanion.voice.domain.VoiceSettings
-import com.akib.mycompanion.voice.domain.VoiceText
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.Closeable
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -52,25 +61,29 @@ private val Context.voiceStore: DataStore<Preferences> by preferencesDataStore(n
 class VoiceSettingsStore @Inject constructor(@ApplicationContext context: Context) {
     private val store = context.voiceStore
 
-    val settings: Flow<VoiceSettings> = store.data.map { p ->
+    private fun decode(p: Preferences): VoiceSettings {
         val defaults = VoiceSettings()
-        VoiceSettings(
+        return VoiceSettings(
             privacy = enumOf<Privacy>(p[PRIVACY]) ?: defaults.privacy,
             apps = enumsOf<ChatApp>(p[APPS]) ?: defaults.apps,
             senders = p[SENDERS].orEmpty().sorted(),
-            maxChars = p[MAX_CHARS] ?: defaults.maxChars,
-            speechRate = p[RATE] ?: defaults.speechRate,
+            maxChars = (p[MAX_CHARS] ?: defaults.maxChars).coerceIn(60, 600),
+            speechRate = (p[RATE] ?: defaults.speechRate).takeIf { it.isFinite() }?.coerceIn(0.5f, 2f) ?: 1f,
+            readingMode = enumOf<ReadingMode>(p[MODE]) ?: defaults.readingMode,
         )
     }
 
+    val settings: Flow<VoiceSettings> = store.data.map(::decode)
+
     suspend fun update(change: (VoiceSettings) -> VoiceSettings) {
-        val s = change(settings.first())
         store.edit { p ->
+            val s = change(decode(p))
             p[PRIVACY] = s.privacy.name
             p[APPS] = s.apps.map { it.name }.toSet()
-            p[SENDERS] = s.senders.toSet()
-            p[MAX_CHARS] = s.maxChars
-            p[RATE] = s.speechRate
+            p[SENDERS] = s.senders.map(String::trim).filter(String::isNotEmpty).toSet()
+            p[MAX_CHARS] = s.maxChars.coerceIn(60, 600)
+            p[RATE] = s.speechRate.takeIf { it.isFinite() }?.coerceIn(0.5f, 2f) ?: 1f
+            p[MODE] = s.readingMode.name
         }
     }
 
@@ -80,72 +93,123 @@ class VoiceSettingsStore @Inject constructor(@ApplicationContext context: Contex
         val SENDERS = stringSetPreferencesKey("senders")
         val MAX_CHARS = intPreferencesKey("max_chars")
         val RATE = floatPreferencesKey("rate")
+        val MODE = stringPreferencesKey("reading_mode")
     }
 }
 
-/** Audio output and call state, from the AudioManager. */
-class AudioWatcher @Inject constructor(@ApplicationContext context: Context) {
+/** Actual anticipated speech routes; connected devices alone do not prove private output. */
+class AudioWatcher @Inject constructor(@ApplicationContext private val context: Context) {
     private val audio = context.getSystemService(AudioManager::class.java)
 
     fun situation(): AudioSituation {
-        val outputs = audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS).map { it.type }
+        val routes = runCatching { audio.getAudioDevicesForAttributes(ATTRIBUTES) }.getOrDefault(emptyList())
         return AudioSituation(
-            privateOutput = outputs.any { it in PRIVATE_OUTPUTS },
-            inCall = audio.mode == AudioManager.MODE_IN_CALL || audio.mode == AudioManager.MODE_IN_COMMUNICATION ||
-                audio.mode == AudioManager.MODE_RINGTONE,
+            privateOutput = routes.isNotEmpty() && routes.all { it.type in PRIVATE_OUTPUTS },
+            inCall = audio.mode != AudioManager.MODE_NORMAL,
         )
     }
 
-    /** Lowers other audio (music) while a message is read, then lets it come back (FR-5.9). */
-    suspend fun <T> ducking(block: suspend () -> T): T {
+    fun onPrivateRouteLost(onLoss: () -> Unit): Closeable {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (intent.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) onLoss()
+            }
+        }
+        val callback = object : AudioDeviceCallback() {
+            override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) {
+                if (removedDevices.any { it.type in PRIVATE_OUTPUTS }) onLoss()
+            }
+        }
+        ContextCompat.registerReceiver(
+            context,
+            receiver,
+            IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        try {
+            audio.registerAudioDeviceCallback(callback, Handler(Looper.getMainLooper()))
+        } catch (failure: Exception) {
+            context.unregisterReceiver(receiver)
+            throw failure
+        }
+        return Closeable {
+            audio.unregisterAudioDeviceCallback(callback)
+            context.unregisterReceiver(receiver)
+        }
+    }
+
+    suspend fun <T> ducking(block: suspend () -> T): T = coroutineScope {
+        val operation = currentCoroutineContext()[Job]!!
         val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ASSISTANT)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                    .build(),
-            )
-            .build()
-        audio.requestAudioFocus(request)
-        return try {
+            .setAudioAttributes(ATTRIBUTES)
+            .setOnAudioFocusChangeListener(
+                { if (it < 0) operation.cancel(VoiceInterrupted("Audio focus lost")) },
+                Handler(Looper.getMainLooper()),
+            ).build()
+        check(audio.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) { "Audio focus denied" }
+        try {
             block()
         } finally {
             audio.abandonAudioFocusRequest(request)
         }
     }
 
-    private companion object {
-        /** Headphones, headsets, and Bluetooth audio (headphones or the car). */
-        val PRIVATE_OUTPUTS = setOf(
+    companion object {
+        val ATTRIBUTES: AudioAttributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ASSISTANT).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build()
+        private val PRIVATE_OUTPUTS = setOf(
             AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
             AudioDeviceInfo.TYPE_WIRED_HEADSET,
             AudioDeviceInfo.TYPE_USB_HEADSET,
             AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
             AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
             AudioDeviceInfo.TYPE_BLE_HEADSET,
-            AudioDeviceInfo.TYPE_BLE_SPEAKER,
+            AudioDeviceInfo.TYPE_HEARING_AID,
         )
     }
 }
 
-/** The reading queue (FR-5.2): one message at a time, in order. */
+internal class VoiceInterrupted(reason: String) : CancellationException(reason)
+
 @Singleton
 class VoiceQueue @Inject constructor() {
-    data class Item(val text: String, val queuedAt: Long)
+    data class Item(val message: IncomingMessage, val queuedAt: Long, val generation: Long)
+    val items = Channel<Item>(capacity = 20, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    private var generation = 0L
+    private var accepting = false
+    private val seen = linkedMapOf<List<Any>, Long>()
 
-    val items =
-        Channel<Item>(capacity = MAX_QUEUED, onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST)
-
-    fun add(text: String, now: Long) {
-        items.trySend(Item(text, now))
+    @Synchronized fun open() {
+        accepting = true
     }
 
-    private companion object {
-        const val MAX_QUEUED = 20
+    @Synchronized fun close() {
+        accepting = false
+        clear()
+        seen.clear()
+    }
+
+    @Synchronized fun clear() {
+        generation++
+        while (items.tryReceive().isSuccess) Unit
+    }
+
+    @Synchronized fun current(item: Item): Boolean = accepting && item.generation == generation
+
+    @Synchronized fun add(message: IncomingMessage, now: Long = SystemClock.elapsedRealtime()) {
+        if (!accepting) return
+        seen.entries.removeAll { now - it.value > STALE_MILLIS }
+        val fingerprint = listOf(message.app, message.key, message.sender, message.text, message.postedAt)
+        if (fingerprint in seen) return
+        seen[fingerprint] = now
+        if (seen.size > 200) seen.remove(seen.keys.first())
+        items.trySend(Item(message, now, generation))
+    }
+    companion object {
+        const val STALE_MILLIS = 5 * 60_000L
     }
 }
 
-/** Puts readable messages in the queue while voice mode is on. */
 class VoiceConsumer @Inject constructor(
     private val settingsStore: SettingsStore,
     private val voiceSettings: VoiceSettingsStore,
@@ -155,72 +219,57 @@ class VoiceConsumer @Inject constructor(
 ) : MessageConsumer {
     override suspend fun onMessage(message: IncomingMessage) {
         if (!settingsStore.settings.first().isActive(Feature.VOICE_MODE)) return
-        val settings = voiceSettings.settings.first()
-        val skip = VoiceDecider.skipReason(message, settings, audio.situation())
+        val skip = VoiceDecider.skipReason(message, voiceSettings.settings.first(), audio.situation())
         if (skip != null) {
-            log.i(TAG, "not read: $skip")
+            log.i("Voice", "not queued: $skip")
             return
         }
-        queue.add(VoiceText.sentence(message, settings.maxChars), System.currentTimeMillis())
-    }
-
-    private companion object {
-        const val TAG = "Voice"
+        queue.add(message)
     }
 }
 
-/**
- * Reads the queue aloud while voice mode is on. Waits out phone calls (FR-5.6), drops messages that
- * waited too long, and keeps the voice model loaded only while it runs (plan §2, RAM rule).
- */
+@Singleton
 class VoiceComponent @Inject constructor(
     private val queue: VoiceQueue,
-    private val speech: SpeechSynth,
-    private val transliterator: Transliterator,
+    private val playback: VoicePlayback,
     private val audio: AudioWatcher,
-    private val loader: ModelLoader,
-    private val log: AppLog,
 ) : HostedComponent {
+    private val lifecycle = kotlinx.coroutines.sync.Mutex()
     override val name = "voice-mode"
-
     override fun isWanted(settings: Settings) = settings.isActive(Feature.VOICE_MODE)
-
     override fun start(scope: CoroutineScope) {
         scope.launch {
-            loader.keep(AiEngine.SPEECH_SYNTH, true)
+            lifecycle.lock()
             try {
-                for (item in queue.items) {
-                    while (audio.situation().inCall) delay(CALL_CHECK_MILLIS)
-                    if (System.currentTimeMillis() - item.queuedAt > STALE_MILLIS) continue
-                    read(item.text)
-                }
+                queue.open()
+                consume()
             } finally {
-                withContext(NonCancellable) {
-                    speech.stop()
-                    loader.keep(AiEngine.SPEECH_SYNTH, false)
+                try {
+                    withContext(NonCancellable) {
+                        queue.close()
+                        playback.stop()
+                        playback.release()
+                    }
+                } finally {
+                    lifecycle.unlock()
                 }
             }
         }
     }
 
-    private suspend fun read(text: String) {
-        // Banglish goes through the transliterator; its fallback passes it through until Track B's model.
-        val spoken = if (VoiceText.looksLikeBanglish(
-                text
-            )
-        ) {
-            transliterator.toBangla(text).valueOrNull() ?: text
-        } else {
-            text
+    private suspend fun consume() {
+        for (item in queue.items) {
+            while (audio.situation().inCall &&
+                SystemClock.elapsedRealtime() - item.queuedAt < VoiceQueue.STALE_MILLIS
+            ) {
+                delay(250)
+            }
+            if (!queue.current(item) ||
+                SystemClock.elapsedRealtime() - item.queuedAt >= VoiceQueue.STALE_MILLIS
+            ) {
+                continue
+            }
+            playback.read(item)
         }
-        audio.ducking {
-            speech.speak(spoken, VoiceText.language(spoken))
-        }
-        log.i("Voice", "read a message")
-    }
-
-    private companion object {
-        const val CALL_CHECK_MILLIS = 2_000L
-        const val STALE_MILLIS = 5 * 60_000L
     }
 }

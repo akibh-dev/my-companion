@@ -25,7 +25,7 @@ open class ChatAdapter(val app: ChatApp) {
             text = text.trim(),
             conversation = if (group) parts.conversationTitle ?: groupName(parts) ?: sender else sender,
             isGroup = group,
-            postedAt = parts.postedAt,
+            postedAt = parts.messageTimes.lastOrNull() ?: parts.postedAt,
             canReply = parts.hasReplyAction,
         )
     }

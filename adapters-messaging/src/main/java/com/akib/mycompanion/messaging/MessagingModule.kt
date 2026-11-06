@@ -17,6 +17,8 @@ import dagger.multibindings.Multibinds
 abstract class MessagingModule {
     @Multibinds abstract fun consumers(): Set<MessageConsumer>
 
+    @Multibinds abstract fun observers(): Set<NotificationObserver>
+
     companion object {
         /** Sideloaded apps must first "Allow restricted settings" (Android 13+, plan §3). */
         @Provides @IntoSet

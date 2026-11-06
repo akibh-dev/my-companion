@@ -1,0 +1,31 @@
+category	input	expected
+banglish	ami bhalo achi	আমি ভালো আছি
+banglish	tumi kemon acho?	তুমি কেমন আছো?
+banglish	ami bangla boli	আমি বাংলা বলি
+banglish	amar nam rahim	আমার নাম রহিম
+banglish	aj brishti hobe	আজ বৃষ্টি হবে
+banglish	kal dekha hobe	কাল দেখা হবে
+banglish	ami bari jabo	আমি বাড়ি যাবো
+banglish	tumi kothay acho	তুমি কোথায় আছো
+banglish	ki korcho	কি করছো
+banglish	ami ashchi	আমি আসছি
+english	I am fine	I am fine
+english	call me later	call me later
+english	see you tomorrow	see you tomorrow
+english	meeting at five	meeting at five
+english	thank you	thank you
+english	please send the file	please send the file
+english	good morning	good morning
+english	on my way	on my way
+english	are you coming?	are you coming?
+english	I will be there	I will be there
+mixed	ami meeting e achi	আমি meeting এ আছি
+mixed	tumi call koro	তুমি call করো
+mixed	file ta pathao	file টা পাঠাও
+mixed	ami office e jabo	আমি office এ যাবো
+mixed	kal meeting ache	কাল meeting আছে
+mixed	please ekhane asho	please এখানে আসো
+mixed	thanks bhai	thanks ভাই
+mixed	ami busy achi	আমি busy আছি
+mixed	aj class ache	আজ class আছে
+mixed	message ta dekho	message টা দেখো

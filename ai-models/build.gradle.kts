@@ -15,4 +15,11 @@ kapt {
 
 dependencies {
     api(project(":ai-api"))
+    implementation(libs.onnxruntime.android)
 }
+
+val verifyBanglishModels by tasks.registering(Exec::class) {
+    workingDir(rootProject.projectDir)
+    commandLine("python3", "tools/banglish/fetch_models.py", "--check")
+}
+tasks.named("preBuild") { dependsOn(verifyBanglishModels) }

@@ -10,6 +10,12 @@ enum class Privacy(val title: String) {
     ALWAYS("Also through the speaker"),
 }
 
+enum class ReadingMode(val title: String) {
+    AUTO("Auto (conservative)"),
+    BANGLISH("Banglish text"),
+    ORIGINAL("As written"),
+}
+
 data class VoiceSettings(
     val privacy: Privacy = Privacy.HEADPHONES_OR_CAR,
     val apps: Set<ChatApp> = ChatApp.entries.toSet(),
@@ -19,6 +25,7 @@ data class VoiceSettings(
     val maxChars: Int = 200,
     /** 1.0 = normal. */
     val speechRate: Float = 1.0f,
+    val readingMode: ReadingMode = ReadingMode.AUTO,
 )
 
 /** What the phone is doing, as far as speaking aloud is concerned. */
@@ -38,6 +45,9 @@ object VoiceDecider {
 
 /** Turns a message into something pleasant to hear (FR-5.2, 5.3, 5.10). */
 object VoiceText {
+    /** One Bengali voice for the complete message; English keeps its spelling and may have an accent. */
+    val readingLanguage: Locale = Locale.forLanguageTag("bn-BD")
+
     private val LINK = Regex("""(https?://|www\.)\S+""", RegexOption.IGNORE_CASE)
 
     /** Common emoji in words; anything else emoji-like is dropped rather than read as gibberish. */
@@ -53,12 +63,16 @@ object VoiceText {
     )
 
     fun sentence(message: IncomingMessage, maxChars: Int): String {
+        return announce(message, clean(message.text, maxChars))
+    }
+
+    fun announce(message: IncomingMessage, body: String): String {
         val who = if (message.isGroup && message.conversation != message.sender) {
             "${message.sender} in ${message.conversation} on ${message.app.title}"
         } else {
             "${message.sender} on ${message.app.title}"
         }
-        return "$who says: ${clean(message.text, maxChars)}"
+        return "$who says: $body"
     }
 
     fun clean(text: String, maxChars: Int): String {
@@ -66,7 +80,12 @@ object VoiceText {
         EMOJI.forEach { (emoji, word) -> out = out.replace(emoji, " $word ") }
         out = out.filter { ch -> !Character.isSurrogate(ch) && Character.getType(ch) != Character.OTHER_SYMBOL.toInt() }
         out = out.replace(Regex("\\s+"), " ").trim()
-        if (out.length > maxChars) out = out.take(maxChars).substringBeforeLast(' ') + ", and more"
+        val limit = maxChars.coerceIn(1, 600)
+        if (out.length > limit) {
+            out = out.take(limit).let {
+                if (it.contains(' ')) it.substringBeforeLast(' ') else it
+            } + ", and more"
+        }
         return out.ifEmpty { "an emoji" }
     }
 

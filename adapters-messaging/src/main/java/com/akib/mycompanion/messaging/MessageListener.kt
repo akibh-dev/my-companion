@@ -35,6 +35,8 @@ class MessageListener : NotificationListenerService() {
 
     @Inject lateinit var log: AppLog
 
+    @Inject lateinit var observers: Set<@JvmSuppressWildcards NotificationObserver>
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onListenerConnected() {
@@ -48,6 +50,19 @@ class MessageListener : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
+        observers.forEach { observer ->
+            scope.launch {
+                try {
+                    observer.onPosted(sbn)
+                } catch (
+                    cancelled: kotlinx.coroutines.CancellationException
+                ) {
+                    throw cancelled
+                } catch (failure: Exception) {
+                    log.e(TAG, "observer failed", failure)
+                }
+            }
+        }
         val app = ChatApp.of(sbn.packageName) ?: return
         val parts = NotificationExtractor.parts(sbn)
         val message = ChatAdapter.ALL.getValue(app).parse(parts)
@@ -56,7 +71,15 @@ class MessageListener : NotificationListenerService() {
         NotificationExtractor.replyAction(sbn.notification)?.let { replies.remember(sbn.key, it) }
         consumers.forEach { consumer ->
             scope.launch {
-                runCatching { consumer.onMessage(message) }.onFailure { log.e(TAG, "consumer failed", it) }
+                try {
+                    consumer.onMessage(message)
+                } catch (
+                    cancelled: kotlinx.coroutines.CancellationException
+                ) {
+                    throw cancelled
+                } catch (failure: Exception) {
+                    log.e(TAG, "consumer failed", failure)
+                }
             }
         }
     }
@@ -75,6 +98,11 @@ class MessageListener : NotificationListenerService() {
     }
 }
 
+/** Optional notification integrations; the debug build uses one for its own spoken test fixture. */
+interface NotificationObserver {
+    suspend fun onPosted(notification: StatusBarNotification)
+}
+
 object NotificationExtractor {
     fun parts(sbn: StatusBarNotification): NotificationParts {
         val notification = sbn.notification
@@ -88,6 +116,7 @@ object NotificationExtractor {
             text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString(),
             conversationTitle = style?.conversationTitle?.toString(),
             isGroupConversation = style?.isGroupConversation ?: false,
+            messageTimes = style?.messages.orEmpty().map { it.timestamp },
             messages = style?.messages.orEmpty().map { it.person?.name?.toString() to it.text?.toString().orEmpty() },
             isGroupSummary = notification.flags and Notification.FLAG_GROUP_SUMMARY != 0,
             isOngoing = notification.flags and Notification.FLAG_ONGOING_EVENT != 0,

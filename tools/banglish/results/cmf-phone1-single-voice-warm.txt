@@ -1,0 +1,9 @@
+source=আমি এখন বাসায়। kal dekha hobe. Please call me later.
+converted=আমি এখন বাসায়। কাল দেখা হবে. Please call me later.
+stage=completed
+completed_segments=1
+detail=
+voice_name=bn-BD-language
+model_load_ms=0
+conversion_ms=838
+tts_queue_to_start_ms=9

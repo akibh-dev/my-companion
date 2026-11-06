@@ -28,6 +28,9 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Fetch pinned offline transliteration models
+        run: python3 tools/banglish/fetch_models.py
+
       - name: Format check, unit + Robolectric tests, lint, build APK
         id: gradle
         shell: bash

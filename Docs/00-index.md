@@ -117,3 +117,7 @@ What did we decide?
 ## Alternatives Considered
 - Option A — why rejected
 ```
+Voice implementation: [research plan](09-banglish-model-research-plan.md),
+[prototype/device evidence](10-banglish-prototype-results.md),
+[voice auditions](11-voice-style-audition.md), and
+[current reader setup and validation](12-production-voice.md).

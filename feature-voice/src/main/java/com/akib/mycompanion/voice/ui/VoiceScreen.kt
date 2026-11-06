@@ -1,5 +1,6 @@
 package com.akib.mycompanion.voice.ui
 
+import android.content.Intent
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -26,25 +27,23 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
-import com.akib.mycompanion.ai.AiResult
-import com.akib.mycompanion.ai.SpeechSynth
+import com.akib.mycompanion.core.settings.AiEngine
 import com.akib.mycompanion.core.settings.Feature
 import com.akib.mycompanion.core.settings.Settings
 import com.akib.mycompanion.core.settings.SettingsStore
 import com.akib.mycompanion.messaging.ChatApp
-import com.akib.mycompanion.messaging.IncomingMessage
 import com.akib.mycompanion.voice.domain.Privacy
+import com.akib.mycompanion.voice.domain.ReadingMode
 import com.akib.mycompanion.voice.domain.VoiceSettings
-import com.akib.mycompanion.voice.domain.VoiceText
-import com.akib.mycompanion.voice.system.AudioWatcher
+import com.akib.mycompanion.voice.system.VoicePlayback
 import com.akib.mycompanion.voice.system.VoiceSettingsStore
+import com.akib.mycompanion.voice.system.VoiceState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlin.math.roundToInt
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -52,8 +51,7 @@ import kotlinx.coroutines.launch
 class VoiceViewModel @Inject constructor(
     private val settingsStore: SettingsStore,
     private val voiceSettings: VoiceSettingsStore,
-    private val speech: SpeechSynth,
-    private val audio: AudioWatcher,
+    private val playback: VoicePlayback,
 ) : ViewModel() {
     val app: StateFlow<Settings> = settingsStore.settings.stateIn(
         viewModelScope,
@@ -62,36 +60,45 @@ class VoiceViewModel @Inject constructor(
     )
     val settings: StateFlow<VoiceSettings> =
         voiceSettings.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), VoiceSettings())
-    private val mutableTest = MutableStateFlow<String?>(null)
-    val test: StateFlow<String?> = mutableTest.asStateFlow()
+    val playbackState = playback.state
+    private var testJob: Job? = null
 
     fun onVoiceMode(on: Boolean) {
-        viewModelScope.launch { settingsStore.setEnabled(Feature.VOICE_MODE, on) }
+        viewModelScope.launch {
+            if (on && settings.value.readingMode != ReadingMode.ORIGINAL) {
+                settingsStore.setUseModel(AiEngine.TRANSLITERATOR, true)
+            }
+            settingsStore.setEnabled(Feature.VOICE_MODE, on)
+            if (!on) playback.stop()
+        }
     }
 
     fun update(change: (VoiceSettings) -> VoiceSettings) {
         viewModelScope.launch { voiceSettings.update(change) }
     }
 
-    /** Voice test (plan §11): reads a sample like a real message, ignoring the privacy setting. */
-    fun onTest() {
+    fun mode(mode: ReadingMode) {
         viewModelScope.launch {
-            val sample =
-                IncomingMessage(
-                    "test",
-                    ChatApp.WHATSAPP,
-                    "Rahim",
-                    "Are you coming? 😊 https://example.com",
-                    "Rahim",
-                    false,
-                    0,
-                    false
-                )
-            val text = VoiceText.sentence(sample, settings.value.maxChars)
-            mutableTest.value = text
-            val result = audio.ducking { speech.speak(text, VoiceText.language(text)) }
-            if (result is AiResult.NotReady) mutableTest.value = "$text\n(${result.reason})"
+            if (mode != ReadingMode.ORIGINAL) {
+                settingsStore.setUseModel(AiEngine.TRANSLITERATOR, true)
+            }
+            voiceSettings.update { it.copy(readingMode = mode) }
         }
+    }
+
+    fun onTest() {
+        if (testJob?.isActive == true) return
+        testJob = viewModelScope.launch { playback.sample() }
+    }
+
+    fun stop() {
+        testJob?.cancel()
+        playback.stop()
+    }
+
+    override fun onCleared() {
+        testJob?.cancel()
+        super.onCleared()
     }
 }
 
@@ -100,7 +107,8 @@ class VoiceViewModel @Inject constructor(
 fun VoiceRoute(modifier: Modifier = Modifier, viewModel: VoiceViewModel = hiltViewModel()) {
     val app by viewModel.app.collectAsStateWithLifecycle()
     val s by viewModel.settings.collectAsStateWithLifecycle()
-    val test by viewModel.test.collectAsStateWithLifecycle()
+    val state by viewModel.playbackState.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
     var senders by remember(s.senders) { mutableStateOf(s.senders.joinToString(", ")) }
     LazyColumn(
         modifier = modifier,
@@ -118,6 +126,10 @@ fun VoiceRoute(modifier: Modifier = Modifier, viewModel: VoiceViewModel = hiltVi
             }
             if (app.paused) Text("Paused from Home", color = MaterialTheme.colorScheme.error)
             Text("Also a Quick Settings tile. Silent during calls.", style = MaterialTheme.typography.bodySmall)
+            Text(
+                "One Bengali voice reads the whole message, including English words.",
+                style = MaterialTheme.typography.bodySmall,
+            )
         }
         item {
             Text("Where", style = MaterialTheme.typography.titleSmall)
@@ -134,11 +146,42 @@ fun VoiceRoute(modifier: Modifier = Modifier, viewModel: VoiceViewModel = hiltVi
                 value = senders,
                 onValueChange = { text ->
                     senders = text
-                    viewModel.update { it.copy(senders = text.split(',').map(String::trim).filter(String::isNotEmpty)) }
                 },
                 label = { Text("Only these people (empty = everyone)") },
                 modifier = Modifier.fillMaxWidth(),
             )
+            FilledTonalButton(onClick = {
+                viewModel.update { it.copy(senders = senders.split(',').map(String::trim).filter(String::isNotEmpty)) }
+            }) { Text("Save people") }
+        }
+        item {
+            Text("Reading mode", style = MaterialTheme.typography.titleSmall)
+            Chips(
+                ReadingMode.entries,
+                { it.title },
+                { it == s.readingMode },
+                viewModel::mode
+            )
+            Text(
+                "Auto converts common Banglish words and preserves other English words. " +
+                    "Banglish text converts every Latin word.",
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+        item {
+            Text("Speech speed: ${s.speechRate}")
+            Slider(value = s.speechRate, onValueChange = { rate ->
+                viewModel.update {
+                    it.copy(speechRate = rate)
+                }
+            }, valueRange = 0.5f..2f)
+        }
+        item {
+            FilledTonalButton(onClick = {
+                context.startActivity(
+                    Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                )
+            }) { Text("Notification access settings") }
         }
         item {
             Text("Cut messages after ${s.maxChars} characters", style = MaterialTheme.typography.titleSmall)
@@ -150,7 +193,17 @@ fun VoiceRoute(modifier: Modifier = Modifier, viewModel: VoiceViewModel = hiltVi
         }
         item {
             FilledTonalButton(onClick = viewModel::onTest) { Text("Read a test message") }
-            test?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            FilledTonalButton(onClick = viewModel::stop) { Text("Stop reading") }
+            Text(
+                when (val current = state) {
+                    VoiceState.Idle -> "Ready"
+                    VoiceState.Preparing -> "Preparing message…"
+                    VoiceState.Speaking -> "Reading…"
+                    is VoiceState.Blocked -> current.reason
+                    is VoiceState.Failed -> current.reason
+                },
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
 }

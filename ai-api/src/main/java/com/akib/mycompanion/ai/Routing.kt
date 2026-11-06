@@ -13,6 +13,7 @@ import java.util.Locale
 import java.util.Optional
 import javax.inject.Inject
 import javax.inject.Qualifier
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 
 /** Marks a model implementation (Track B; dummies until the local models are ready). */
@@ -36,7 +37,13 @@ class AiRouter @Inject constructor(
     ): AiResult<T> {
         val backed = model.orElse(null)
         if (backed != null && settings.settings.first().usesModel(engine)) {
-            val answer = loader.use(engine) { backed.call() } ?: backed.call()
+            val answer = try {
+                loader.use(engine) { backed.call() } ?: backed.call()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                AiResult.NotReady("The local model is unavailable")
+            }
             if (answer is AiResult.Ready) return answer
         }
         return fallback()
@@ -61,6 +68,18 @@ class RoutedSpeechSynth @Inject constructor(
 ) : SpeechSynth {
     override suspend fun speak(text: String, language: Locale) =
         router.route(AiEngine.SPEECH_SYNTH, model, { speak(text, language) }) { fallback.speak(text, language) }
+
+    override suspend fun prepare(language: Locale) = fallback.prepare(language)
+
+    override suspend fun speakConfigured(text: String, language: Locale, rate: Float) =
+        router.route(AiEngine.SPEECH_SYNTH, model, { speakConfigured(text, language, rate) }) {
+            fallback.speakConfigured(text, language, rate)
+        }
+
+    override suspend fun shutdown() {
+        model.orElse(null)?.shutdown()
+        fallback.shutdown()
+    }
 
     override fun stop() {
         model.ifPresent(SpeechSynth::stop)

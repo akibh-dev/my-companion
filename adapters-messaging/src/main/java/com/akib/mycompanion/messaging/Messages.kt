@@ -46,6 +46,7 @@ data class NotificationParts(
     val isOngoing: Boolean,
     val category: String?,
     val hasReplyAction: Boolean,
+    val messageTimes: List<Long> = emptyList(),
 )
 
 /** Something that wants every incoming chat message (auto-reply, voice mode). */
