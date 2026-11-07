@@ -23,6 +23,8 @@ import com.akib.mycompanion.core.log.AppLog
 import com.akib.mycompanion.data.alarm.AndroidAlarmScheduler
 import com.akib.mycompanion.data.local.AppDatabase
 import com.akib.mycompanion.data.local.MIGRATION_1_2
+import com.akib.mycompanion.data.local.MIGRATION_2_3
+import com.akib.mycompanion.data.local.MIGRATION_3_4
 import com.akib.mycompanion.data.local.ReminderEntity
 import com.akib.mycompanion.domain.model.Reminder
 import com.akib.mycompanion.messaging.ChatAdapter
@@ -47,7 +49,7 @@ class DeviceComponentsTest {
         InstrumentationRegistry.getInstrumentation().uiAutomation
             .grantRuntimePermission(context.packageName, Manifest.permission.POST_NOTIFICATIONS)
         val db = Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
-            .addMigrations(MIGRATION_1_2).build()
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
         val scheduler = AndroidAlarmScheduler(context)
         val manager = context.getSystemService(NotificationManager::class.java)
         val title = "Device alarm ${UUID.randomUUID()}"

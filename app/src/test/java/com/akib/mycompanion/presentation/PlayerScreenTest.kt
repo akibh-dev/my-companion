@@ -27,6 +27,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.akib.mycompanion.R
+import com.akib.mycompanion.domain.model.PlaybackHistoryEntry
 import com.akib.mycompanion.domain.model.PlaybackState
 import com.akib.mycompanion.domain.model.Playlist
 import com.akib.mycompanion.domain.model.PlaylistItem
@@ -117,6 +118,11 @@ class PlayerScreenTest {
         override fun onRenamePlaylist(playlist: Playlist) = record("rename:${playlist.id}")
 
         override fun onDeletePlaylist(playlist: Playlist) = record("delete:${playlist.id}")
+        override fun onReplayHistory(
+            entry: PlaybackHistoryEntry,
+            resume: Boolean
+        ) = record("history:${entry.video.id}:$resume")
+        override fun onClearHistory() = record("clearHistory")
     }
 
     /** Lazy lists only compose what's on screen; scroll the list until the node exists. */
@@ -334,5 +340,21 @@ class PlayerScreenTest {
         assertThat(playlistSummary(Playlist(name = "x", itemCount = 1, totalSeconds = 30))).isEqualTo("1 video")
         assertThat(playlistSummary(Playlist(name = "x", itemCount = 20, totalSeconds = 4_500)))
             .isEqualTo("20 videos · 1 h 15 min")
+    }
+
+    @Test fun `history has its own tab and shows saved video replay and resume actions`() {
+        show(
+            PlayerUiState(
+                section = PlayerSection.HISTORY,
+                history = listOf(PlaybackHistoryEntry(a, System.currentTimeMillis(), 12_000, 185_000)),
+            )
+        )
+        compose.onNodeWithText("History").assertIsDisplayed()
+        compose.onNodeWithText("Today").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("First song").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Resume").performScrollTo().performClick()
+        assertThat(calls).contains("history:aaaaaaaaaaa:true")
+        compose.onNodeWithText("Clear history").performScrollTo().performClick()
+        assertThat(calls).contains("clearHistory")
     }
 }

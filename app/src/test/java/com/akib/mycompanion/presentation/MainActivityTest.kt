@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -68,8 +69,9 @@ class MainActivityTest {
         compose.waitUntilAtLeastOneExists(hasText("No one here yet"), timeoutMillis = 10_000)
 
         compose.onNodeWithText("Reminders").performClick()
-        compose.onNodeWithText("Send now").assertIsDisplayed()
-        compose.onNodeWithText("Nothing scheduled").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Send now").performScrollTo().assertIsDisplayed()
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Nothing scheduled"))
+        compose.onNodeWithText("Nothing scheduled").assertIsDisplayed()
     }
 
     @Test

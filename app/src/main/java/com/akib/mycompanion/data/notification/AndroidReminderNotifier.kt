@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import com.akib.mycompanion.MainActivity
 import com.akib.mycompanion.R
 import com.akib.mycompanion.Tab
+import com.akib.mycompanion.data.sound.ReminderSoundChannels
 import com.akib.mycompanion.domain.model.Contact
 import com.akib.mycompanion.domain.model.Reminder
 import com.akib.mycompanion.domain.port.ReminderNotifier
@@ -25,6 +26,7 @@ import javax.inject.Inject
 
 class AndroidReminderNotifier @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val sounds: ReminderSoundChannels = ReminderSoundChannels(context),
 ) : ReminderNotifier {
 
     private val manager = NotificationManagerCompat.from(context)
@@ -33,12 +35,12 @@ class AndroidReminderNotifier @Inject constructor(
     @SuppressLint("MissingPermission")
     override fun show(reminder: Reminder, contact: Contact?): Boolean {
         if (!canPost(context)) return false
-        ensureChannel(context)
+        val channel = sounds.channel(reminder.sound)
 
         val id = reminder.notificationId
         val snooze = broadcast(id, ReminderReceiver.snoozeIntent(context, reminder.id), ACTION_SNOOZE)
         val done = broadcast(id, ReminderReceiver.doneIntent(context, reminder.id), ACTION_DONE)
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(context, channel)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(reminder.title)
             .setPriority(NotificationCompat.PRIORITY_HIGH)

@@ -17,10 +17,16 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.akib.mycompanion.MainActivity
 import com.akib.mycompanion.data.youtube.CachingStreamResolver
+import com.akib.mycompanion.di.ApplicationScope
+import com.akib.mycompanion.domain.repository.PlaybackHistoryRepository
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 
 /**
  * Plays audio in the background like a music app: media notification, lock-screen and headset
@@ -32,6 +38,12 @@ class PlaybackService : MediaSessionService() {
 
     @Inject lateinit var resolver: CachingStreamResolver
 
+    @Inject lateinit var history: PlaybackHistoryRepository
+
+    @Inject @ApplicationScope
+    lateinit var persistenceScope: CoroutineScope
+    private val historyScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var historyRecorder: PlaybackHistoryRecorder? = null
     private var session: MediaSession? = null
 
     @OptIn(UnstableApi::class)
@@ -57,6 +69,7 @@ class PlaybackService : MediaSessionService() {
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .build()
         player.addListener(RetryExpiredStream(player, resolver))
+        historyRecorder = PlaybackHistoryRecorder(player, history, historyScope, persistenceScope)
 
         session = MediaSession.Builder(this, player)
             .setCallback(SessionCallback)
@@ -83,6 +96,8 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        historyRecorder?.close()
+        historyScope.cancel()
         session?.run {
             player.release()
             release()

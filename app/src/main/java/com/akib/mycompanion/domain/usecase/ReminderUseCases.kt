@@ -1,6 +1,7 @@
 package com.akib.mycompanion.domain.usecase
 
 import com.akib.mycompanion.domain.model.Reminder
+import com.akib.mycompanion.domain.model.ReminderSound
 import com.akib.mycompanion.domain.model.ReminderTime
 import com.akib.mycompanion.domain.model.Repeat
 import com.akib.mycompanion.domain.port.AlarmScheduler
@@ -38,20 +39,35 @@ class ScheduleReminderUseCase @Inject constructor(
         time: ReminderTime,
         repeat: Repeat = Repeat.Never,
         contactId: Long? = null,
+        sound: ReminderSound = ReminderSound.Default,
+        editingId: Long? = null,
     ): ScheduleResult {
         if (title.isBlank() && message.isBlank()) return ScheduleResult.EmptyContent
         if (!time.isValid() || !repeat.isValid()) return ScheduleResult.InvalidTime
 
+        val existing = editingId?.let { reminders.get(it) ?: return ScheduleResult.InvalidTime }
+        val trigger = runCatching {
+            calculator.firstTrigger(
+                time,
+                repeat
+            )
+        }.getOrElse { return ScheduleResult.InvalidTime }
         val reminder = reminders.save(
             Reminder(
+                id = existing?.id ?: 0,
                 title = title.trim().ifEmpty { DEFAULT_TITLE },
                 message = message.trim(),
-                triggerAtMillis = calculator.firstTrigger(time, repeat),
+                triggerAtMillis = trigger,
                 repeat = repeat,
                 contactId = contactId,
+                sound = sound,
             ),
         )
 
+        if (existing != null) {
+            scheduler.cancel(existing.id)
+            fire.cancelNotification(existing.id)
+        }
         if (time is ReminderTime.InMinutes && time.minutes == 0) {
             val shown = fire(reminder.id)
             return if (shown) ScheduleResult.Shown(reminder) else ScheduleResult.NotificationsBlocked
@@ -82,6 +98,9 @@ class ScheduleReminderUseCase @Inject constructor(
     private fun ReminderTime.isValid(): Boolean = when (this) {
         is ReminderTime.InMinutes -> minutes in 0..MAX_MINUTES
         is ReminderTime.AtTime -> hour in 0..23 && minute in 0..59
+        is ReminderTime.AtDateTime -> runCatching {
+            calculator.firstTrigger(this) > calculator.inMinutes(0)
+        }.getOrDefault(false)
     }
 
     companion object {
@@ -101,8 +120,11 @@ class FireReminderUseCase @Inject constructor(
     private val scheduler: AlarmScheduler,
     private val calculator: ReminderTimeCalculator,
 ) {
+    fun cancelNotification(reminderId: Long) = notifier.cancel(reminderId.toInt())
+
     suspend operator fun invoke(reminderId: Long): Boolean {
         val reminder = reminders.get(reminderId) ?: return false
+        if (reminder.delivered || reminder.triggerAtMillis > calculator.inMinutes(0)) return false
         val contact = reminder.contactId?.let { contacts.get(it) }
         val shown = notifier.show(reminder, contact)
 
@@ -169,8 +191,9 @@ class CancelReminderUseCase @Inject constructor(
 }
 
 /**
- * Alarms are wiped on reboot. Re-arm everything still pending, fire anything that came due
- * while the phone was off, and clean up old delivered reminders.
+ * Alarms are wiped on reboot. Re-arm pending reminders, skip missed repeat occurrences,
+ * deliver overdue one-offs, and clean up old delivered reminders. Calendar anchors are also
+ * reinterpreted in the current timezone after clock/timezone changes.
  */
 class RestoreRemindersUseCase @Inject constructor(
     private val reminders: ReminderRepository,
@@ -178,12 +201,29 @@ class RestoreRemindersUseCase @Inject constructor(
     private val fire: FireReminderUseCase,
     private val cleanUp: CleanUpRemindersUseCase,
     private val clock: Clock,
+    private val calculator: ReminderTimeCalculator = ReminderTimeCalculator(clock),
 ) {
     suspend operator fun invoke() {
         cleanUp()
         val now = clock.nowMillis()
         reminders.getPending().forEach { reminder ->
-            if (reminder.triggerAtMillis > now) scheduler.schedule(reminder) else fire(reminder.id)
+            when {
+                reminder.repeat is Repeat.CalendarDays || reminder.repeat is Repeat.CalendarMonths ||
+                    (reminder.repeat.isRepeating && reminder.triggerAtMillis <= now) -> {
+                    val previous = if (
+                        reminder.repeat is Repeat.CalendarDays || reminder.repeat is Repeat.CalendarMonths
+                    ) {
+                        now - 1
+                    } else {
+                        reminder.triggerAtMillis
+                    }
+                    calculator.next(reminder.repeat, previous)?.let { next ->
+                        scheduler.schedule(reminders.save(reminder.copy(triggerAtMillis = next)))
+                    }
+                }
+                reminder.triggerAtMillis > now -> scheduler.schedule(reminder)
+                else -> fire(reminder.id)
+            }
         }
     }
 }

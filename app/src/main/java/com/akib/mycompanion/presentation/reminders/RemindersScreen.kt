@@ -35,6 +35,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -45,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.akib.mycompanion.presentation.common.OutlinedStateTextField
 import java.time.DayOfWeek
@@ -69,6 +71,13 @@ fun RemindersScreen(
     onSubmit: () -> Unit,
     onCancelReminder: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    onPickDateTime: () -> Unit = {},
+    onCustomNumberChange: (String) -> Unit = {},
+    onCustomUnitChange: (RepeatUnit) -> Unit = {},
+    soundContent: @Composable () -> Unit = {},
+    onEditReminder: (Long) -> Unit = {},
+    onCancelEdit: () -> Unit = {},
+    preciseTimingAllowed: Boolean = true,
 ) {
     LazyColumn(
         modifier = modifier,
@@ -77,6 +86,9 @@ fun RemindersScreen(
     ) {
         if (!notificationsAllowed) {
             item { NotificationsOffBanner(onAllowNotifications) }
+        }
+        if (!preciseTimingAllowed) {
+            item { Text("Precise timing is unavailable. Reminders may arrive later than the selected time.") }
         }
         item {
             ComposerCard(
@@ -90,6 +102,11 @@ fun RemindersScreen(
                 onEveryChange = onEveryChange,
                 onContactChange = onContactChange,
                 onSubmit = onSubmit,
+                onPickDateTime = onPickDateTime,
+                onCustomNumberChange = onCustomNumberChange,
+                onCustomUnitChange = onCustomUnitChange,
+                soundContent = soundContent,
+                onCancelEdit = onCancelEdit,
             )
         }
         item {
@@ -109,7 +126,11 @@ fun RemindersScreen(
             }
         } else {
             items(state.upcoming, key = { it.id }) { reminder ->
-                UpcomingRow(reminder, onCancel = { onCancelReminder(reminder.id) })
+                UpcomingRow(
+                    reminder,
+                    onCancel = { onCancelReminder(reminder.id) },
+                    onEdit = { onEditReminder(reminder.id) }
+                )
             }
         }
     }
@@ -147,6 +168,11 @@ private fun ComposerCard(
     onEveryChange: (Int) -> Unit,
     onContactChange: (Long?) -> Unit,
     onSubmit: () -> Unit,
+    onPickDateTime: () -> Unit,
+    onCustomNumberChange: (String) -> Unit,
+    onCustomUnitChange: (RepeatUnit) -> Unit,
+    soundContent: @Composable () -> Unit,
+    onCancelEdit: () -> Unit,
 ) {
     val form = state.form
     ElevatedCard(Modifier.fillMaxWidth()) {
@@ -166,6 +192,10 @@ private fun ComposerCard(
                 modifier = Modifier.fillMaxWidth(),
             )
 
+            if (form.editingId != null) {
+                Text("Editing reminder", style = MaterialTheme.typography.titleSmall)
+                TextButton(onClick = onCancelEdit) { Text("Cancel editing") }
+            }
             Text("When", style = MaterialTheme.typography.labelLarge)
             Row(
                 Modifier.horizontalScroll(rememberScrollState()),
@@ -186,18 +216,33 @@ private fun ComposerCard(
                 )
             }
 
-            RepeatPicker(state, onRepeatChange, onDayToggle, onEveryChange)
+            OutlinedButton(onClick = onPickDateTime) {
+                Text(if (form.choice is WhenChoice.OnDateTime) state.pickedTimeLabel else "Pick first date and time")
+            }
+            RepeatPicker(state, onRepeatChange, onDayToggle, onEveryChange, onCustomNumberChange, onCustomUnitChange)
+            state.validationMessage?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            if (state.nextOccurrences.isNotEmpty()) {
+                Text("Next notifications", style = MaterialTheme.typography.labelLarge)
+                state.nextOccurrences.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
+            }
+            soundContent()
 
             if (state.contacts.isNotEmpty()) {
                 CallButtonPicker(state, onContactChange)
             }
 
             // Reading the text here recomposes only when it changes; nothing is sent back anywhere.
-            val canSubmit = form.canSubmit(title.text, message.text)
+            val canSubmit = form.canSubmit(title.text, message.text) && state.validationMessage == null
             Button(onClick = onSubmit, enabled = canSubmit, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Filled.Notifications, contentDescription = null)
                 Spacer(Modifier.size(8.dp))
-                Text(if (form.choice == WhenChoice.Now) "Send now" else "Set reminder")
+                Text(
+                    when {
+                        form.editingId != null -> "Save changes"
+                        form.choice == WhenChoice.Now -> "Send now"
+                        else -> "Set reminder"
+                    }
+                )
             }
         }
     }
@@ -211,6 +256,8 @@ private fun RepeatPicker(
     onRepeatChange: (RepeatChoice) -> Unit,
     onDayToggle: (DayOfWeek) -> Unit,
     onEveryChange: (Int) -> Unit,
+    onCustomNumberChange: (String) -> Unit,
+    onCustomUnitChange: (RepeatUnit) -> Unit,
 ) {
     val form = state.form
     Text("Repeat", style = MaterialTheme.typography.labelLarge)
@@ -240,6 +287,32 @@ private fun RepeatPicker(
                     selected = chip.selected,
                     onClick = { onEveryChange(chip.minutes) },
                     label = { Text(chip.label) }
+                )
+            }
+        }
+        RepeatChoice.CUSTOM -> {
+            OutlinedTextField(
+                value = form.customNumber,
+                onValueChange = onCustomNumberChange,
+                label = { Text("Repeat every") },
+                singleLine = true,
+                isError = form.customCount == null,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            ChipRow {
+                RepeatUnit.entries.forEach { unit ->
+                    FilterChip(
+                        selected = unit == form.customUnit,
+                        onClick = { onCustomUnitChange(unit) },
+                        label = { Text(unit.title) }
+                    )
+                }
+            }
+            if (form.customUnit == RepeatUnit.MINUTES && (form.customCount ?: 15) < 15) {
+                Text(
+                    "Short intervals may be delayed while the phone sleeps.",
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
         }
@@ -295,7 +368,7 @@ private fun CallButtonPicker(state: RemindersUiState, onContactChange: (Long?) -
 }
 
 @Composable
-private fun UpcomingRow(reminder: UpcomingReminder, onCancel: () -> Unit) {
+private fun UpcomingRow(reminder: UpcomingReminder, onCancel: () -> Unit, onEdit: () -> Unit) {
     val details = buildList {
         add(reminder.whenText)
         reminder.repeatText?.let(::add)
@@ -311,8 +384,11 @@ private fun UpcomingRow(reminder: UpcomingReminder, onCancel: () -> Unit) {
                 }
             },
             trailingContent = {
-                IconButton(onClick = onCancel) {
-                    Icon(Icons.Filled.Close, contentDescription = "Cancel ${reminder.title}")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = onEdit) { Text("Edit") }
+                    IconButton(onClick = onCancel) {
+                        Icon(Icons.Filled.Close, contentDescription = "Cancel ${reminder.title}")
+                    }
                 }
             },
         )

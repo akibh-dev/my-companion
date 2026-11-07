@@ -6,8 +6,12 @@ import com.akib.mycompanion.data.alarm.AndroidAlarmScheduler
 import com.akib.mycompanion.data.local.AppDatabase
 import com.akib.mycompanion.data.local.ContactDao
 import com.akib.mycompanion.data.local.MIGRATION_1_2
+import com.akib.mycompanion.data.local.MIGRATION_2_3
+import com.akib.mycompanion.data.local.MIGRATION_3_4
+import com.akib.mycompanion.data.local.PlaybackHistoryDao
 import com.akib.mycompanion.data.local.PlaylistDao
 import com.akib.mycompanion.data.local.ReminderDao
+import com.akib.mycompanion.data.local.ReminderSoundDao
 import com.akib.mycompanion.data.notification.AndroidReminderNotifier
 import com.akib.mycompanion.data.phonebook.AndroidPhonebookSource
 import com.akib.mycompanion.data.repository.RoomContactRepository
@@ -51,7 +55,7 @@ object DatabaseModule {
     @Singleton
     fun database(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .build()
 
     @Provides
@@ -62,6 +66,12 @@ object DatabaseModule {
 
     @Provides
     fun playlistDao(db: AppDatabase): PlaylistDao = db.playlistDao()
+
+    @Provides
+    fun reminderSoundDao(db: AppDatabase): ReminderSoundDao = db.reminderSoundDao()
+
+    @Provides
+    fun playbackHistoryDao(db: AppDatabase): PlaybackHistoryDao = db.playbackHistoryDao()
 }
 
 @Module

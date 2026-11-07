@@ -2,9 +2,12 @@ package com.akib.mycompanion.presentation.reminders
 
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.clearText
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.akib.mycompanion.domain.model.Contact
+import com.akib.mycompanion.domain.model.Reminder
+import com.akib.mycompanion.domain.model.ReminderSound
 import com.akib.mycompanion.domain.model.ReminderTime
 import com.akib.mycompanion.domain.model.Repeat
 import com.akib.mycompanion.domain.repository.ContactRepository
@@ -15,6 +18,7 @@ import com.akib.mycompanion.domain.usecase.ScheduleReminderUseCase
 import com.akib.mycompanion.domain.usecase.ScheduleResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.DayOfWeek
+import java.time.LocalDateTime
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -35,10 +39,13 @@ sealed interface WhenChoice {
 
     data class At(val hour: Int, val minute: Int) : WhenChoice
 
+    data class OnDateTime(val dateTime: LocalDateTime) : WhenChoice
+
     fun toReminderTime(): ReminderTime = when (this) {
         Now -> ReminderTime.InMinutes(0)
         is InMinutes -> ReminderTime.InMinutes(minutes)
         is At -> ReminderTime.AtTime(hour, minute)
+        is OnDateTime -> ReminderTime.AtDateTime(dateTime)
     }
 
     companion object {
@@ -55,6 +62,14 @@ enum class RepeatChoice(val label: String) {
     DAYS("On days"),
     MONTHLY("Every month"),
     EVERY("Every few hours"),
+    CUSTOM("Custom repeat"),
+}
+
+enum class RepeatUnit(val title: String, val maximum: Int) {
+    MINUTES("minutes", Repeat.MAX_EVERY_MINUTES),
+    HOURS("hours", Repeat.MAX_EVERY_MINUTES / 60),
+    DAYS("days", Repeat.MAX_CALENDAR_DAYS),
+    MONTHS("months", Repeat.MAX_CALENDAR_MONTHS),
 }
 
 /**
@@ -69,9 +84,22 @@ data class ReminderForm(
     /** For [RepeatChoice.EVERY]. */
     val everyMinutes: Int = 60,
     val contactId: Long? = null,
+    val customNumber: String = "12",
+    val customUnit: RepeatUnit = RepeatUnit.MINUTES,
+    val sound: ReminderSound = ReminderSound.Default,
+    val editingId: Long? = null,
+    val calendarAnchor: LocalDateTime? = null,
+    val calendarAnchorCount: Int? = null,
+    val monthlyDay: Int? = null,
 ) {
     /** "On days" needs at least one day ticked. */
-    val repeatComplete: Boolean get() = repeat != RepeatChoice.DAYS || days.isNotEmpty()
+    val customCount: Int? get() = customNumber.toIntOrNull()?.takeIf { it in 1..customUnit.maximum }
+    val repeatComplete: Boolean get() = when (repeat) {
+        RepeatChoice.DAYS -> days.isNotEmpty()
+        RepeatChoice.CUSTOM -> customCount != null
+        RepeatChoice.EVERY -> Repeat.Every(everyMinutes).isValid()
+        else -> true
+    }
 
     /** A reminder needs a title or a message, and a complete repeat choice. */
     fun canSubmit(title: CharSequence, message: CharSequence): Boolean =
@@ -108,6 +136,8 @@ data class RemindersUiState(
     val repeatSummary: String? = null,
     val upcoming: List<UpcomingReminder> = emptyList(),
     val contacts: List<Contact> = emptyList(),
+    val nextOccurrences: List<String> = emptyList(),
+    val validationMessage: String? = null,
 )
 
 sealed interface RemindersEvent {
@@ -116,7 +146,7 @@ sealed interface RemindersEvent {
 
 @HiltViewModel
 class RemindersViewModel @Inject constructor(
-    reminders: ReminderRepository,
+    private val reminders: ReminderRepository,
     contacts: ContactRepository,
     private val scheduleReminder: ScheduleReminderUseCase,
     private val cancelReminder: CancelReminderUseCase,
@@ -138,7 +168,9 @@ class RemindersViewModel @Inject constructor(
     val uiState: StateFlow<RemindersUiState> =
         combine(form, reminders.observeUpcoming(), contacts.observeAll()) { form, upcoming, people ->
             val names = people.associate { it.id to it.name }
-            val picked = form.choice as? WhenChoice.At
+            val picked = form.choice.takeIf { it is WhenChoice.At || it is WhenChoice.OnDateTime }
+            val repeat = form.toRepeat()
+            val previews = preview(form, repeat)
             RemindersUiState(
                 form = form,
                 presets = WhenChoice.presets.map { ChoiceChip(it, choiceLabel(it), selected = it == form.choice) },
@@ -151,7 +183,14 @@ class RemindersViewModel @Inject constructor(
                         selected = it == form.everyMinutes
                     )
                 },
-                repeatSummary = form.toRepeat()?.let(formatter::repeat),
+                repeatSummary = repeat?.let(formatter::repeat),
+                nextOccurrences = previews.map(formatter::format),
+                validationMessage = when {
+                    form.repeat == RepeatChoice.CUSTOM && form.customCount == null ->
+                        "Enter a whole number from 1 to ${form.customUnit.maximum}"
+                    previews.isEmpty() && form.choice is WhenChoice.OnDateTime -> "Choose a future date and time"
+                    else -> null
+                },
                 contacts = people,
                 upcoming = upcoming.map { reminder ->
                     UpcomingReminder(
@@ -166,7 +205,9 @@ class RemindersViewModel @Inject constructor(
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), RemindersUiState())
 
-    fun onChoiceChange(choice: WhenChoice) = form.update { it.copy(choice = choice) }
+    fun onChoiceChange(choice: WhenChoice) = form.update {
+        it.copy(choice = choice, calendarAnchor = null, monthlyDay = null)
+    }
 
     fun onRepeatChange(repeat: RepeatChoice) = form.update { current ->
         // "On days" starts with the day it would first fire, so it's never empty by surprise.
@@ -188,6 +229,14 @@ class RemindersViewModel @Inject constructor(
 
     fun onEveryChange(minutes: Int) = form.update { it.copy(everyMinutes = minutes) }
 
+    fun onCustomNumberChange(number: String) = form.update { it.copy(customNumber = number) }
+
+    fun onCustomUnitChange(unit: RepeatUnit) = form.update {
+        if (it.customUnit == unit) it else it.copy(customUnit = unit, calendarAnchor = null, calendarAnchorCount = null)
+    }
+
+    fun onSoundChange(sound: ReminderSound) = form.update { it.copy(sound = sound) }
+
     fun onContactChange(contactId: Long?) = form.update { it.copy(contactId = contactId) }
 
     /** The domain repeat for the form; null when the form can't make one yet (no days ticked). */
@@ -195,9 +244,29 @@ class RemindersViewModel @Inject constructor(
         RepeatChoice.NEVER -> Repeat.Never
         RepeatChoice.DAILY -> Repeat.Daily
         RepeatChoice.DAYS -> days.takeIf { it.isNotEmpty() }?.let(Repeat::Weekly)
-        RepeatChoice.MONTHLY -> Repeat.Monthly(firstDate(this).dayOfMonth)
-        RepeatChoice.EVERY -> Repeat.Every(everyMinutes)
+        RepeatChoice.MONTHLY -> Repeat.Monthly(monthlyDay ?: firstDate(this).dayOfMonth)
+        RepeatChoice.EVERY -> Repeat.Every(everyMinutes).takeIf(Repeat::isValid)
+        RepeatChoice.CUSTOM -> customCount?.let { count ->
+            val unchangedAnchor = calendarAnchor?.takeIf { calendarAnchorCount == null || calendarAnchorCount == count }
+            val anchor = unchangedAnchor ?: calculator.localDateTime(calculator.firstTrigger(choice.toReminderTime()))
+            when (customUnit) {
+                RepeatUnit.MINUTES -> Repeat.Every(count)
+                RepeatUnit.HOURS -> Repeat.Every(Math.multiplyExact(count, 60))
+                RepeatUnit.DAYS -> Repeat.CalendarDays(count, anchor)
+                RepeatUnit.MONTHS -> Repeat.CalendarMonths(count, anchor)
+            }
+        }
     }
+
+    private fun preview(form: ReminderForm, repeat: Repeat?): List<Long> = runCatching {
+        if (repeat == null) return@runCatching emptyList()
+        val first = calculator.firstTrigger(form.choice.toReminderTime(), repeat)
+        if (form.choice is WhenChoice.OnDateTime && first <= calculator.inMinutes(0)) return@runCatching emptyList()
+        buildList {
+            add(first)
+            if (repeat.isRepeating) kotlin.repeat(2) { calculator.next(repeat, last())?.let(::add) }
+        }
+    }.getOrDefault(emptyList())
 
     /** The day a reminder made from this form would first fire (today for "Now"). */
     private fun firstDate(form: ReminderForm) = calculator.date(calculator.firstTrigger(form.choice.toReminderTime()))
@@ -206,6 +275,7 @@ class RemindersViewModel @Inject constructor(
         WhenChoice.Now -> "Now"
         is WhenChoice.InMinutes -> if (choice.minutes % 60 == 0) "${choice.minutes / 60} h" else "${choice.minutes} min"
         is WhenChoice.At -> formatter.clockTime(choice.hour, choice.minute)
+        is WhenChoice.OnDateTime -> formatter.format(calculator.firstTrigger(choice.toReminderTime()))
     }
 
     fun onSubmit() {
@@ -220,6 +290,8 @@ class RemindersViewModel @Inject constructor(
                 time = current.choice.toReminderTime(),
                 repeat = repeat,
                 contactId = current.contactId,
+                sound = current.sound,
+                editingId = current.editingId,
             )
             val message = when (result) {
                 is ScheduleResult.Scheduled -> {
@@ -248,6 +320,56 @@ class RemindersViewModel @Inject constructor(
     /** ", then every day" / ", then every Sun, Thu"; empty for a one-off. */
     private fun then(repeat: Repeat): String =
         formatter.repeat(repeat)?.let { ", then " + it.replaceFirstChar(Char::lowercaseChar) }.orEmpty()
+
+    fun onEdit(reminderId: Long) {
+        viewModelScope.launch {
+            val reminder = reminders.get(reminderId) ?: return@launch
+            title.setTextAndPlaceCursorAtEnd(reminder.title)
+            message.setTextAndPlaceCursorAtEnd(reminder.message)
+            form.value = reminder.toForm()
+        }
+    }
+
+    fun onCancelEdit() = resetForm()
+
+    private fun Reminder.toForm(): ReminderForm {
+        val kind = when (repeat) {
+            Repeat.Never -> RepeatChoice.NEVER
+            Repeat.Daily -> RepeatChoice.DAILY
+            is Repeat.Weekly -> RepeatChoice.DAYS
+            is Repeat.Monthly -> RepeatChoice.MONTHLY
+            is Repeat.Every, is Repeat.CalendarDays, is Repeat.CalendarMonths -> RepeatChoice.CUSTOM
+        }
+        val unit = when (repeat) {
+            is Repeat.CalendarDays -> RepeatUnit.DAYS
+            is Repeat.CalendarMonths -> RepeatUnit.MONTHS
+            else -> RepeatUnit.MINUTES
+        }
+        val count = when (val value = repeat) {
+            is Repeat.Every -> value.minutes
+            is Repeat.CalendarDays -> value.count
+            is Repeat.CalendarMonths -> value.count
+            else -> 12
+        }
+        return ReminderForm(
+            choice = WhenChoice.OnDateTime(calculator.localDateTime(triggerAtMillis)),
+            repeat = kind,
+            days = (repeat as? Repeat.Weekly)?.days.orEmpty(),
+            customNumber = count.toString(), customUnit = unit,
+            contactId = contactId, sound = sound, editingId = id,
+            calendarAnchor = when (val value = repeat) {
+                is Repeat.CalendarDays -> value.anchor
+                is Repeat.CalendarMonths -> value.anchor
+                else -> null
+            },
+            calendarAnchorCount = when (val value = repeat) {
+                is Repeat.CalendarDays -> value.count
+                is Repeat.CalendarMonths -> value.count
+                else -> null
+            },
+            monthlyDay = (repeat as? Repeat.Monthly)?.dayOfMonth,
+        )
+    }
 
     fun onCancel(reminderId: Long) {
         viewModelScope.launch {

@@ -9,6 +9,8 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.akib.mycompanion.data.local.AppDatabase
 import com.akib.mycompanion.data.local.MIGRATION_1_2
+import com.akib.mycompanion.data.local.MIGRATION_2_3
+import com.akib.mycompanion.data.local.MIGRATION_3_4
 import com.akib.mycompanion.data.repository.RoomContactRepository
 import com.akib.mycompanion.data.repository.RoomPlaylistRepository
 import com.akib.mycompanion.fakes.FakeClock
@@ -103,7 +105,7 @@ class PlaylistStorageTest {
         createVersion1Database()
 
         val database = Room.databaseBuilder(context, AppDatabase::class.java, MIGRATED_DB)
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .allowMainThreadQueries()
             .build()
         db = database

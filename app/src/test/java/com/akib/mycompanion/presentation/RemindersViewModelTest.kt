@@ -18,9 +18,11 @@ import com.akib.mycompanion.presentation.reminders.ReminderTimeFormatter
 import com.akib.mycompanion.presentation.reminders.RemindersEvent
 import com.akib.mycompanion.presentation.reminders.RemindersViewModel
 import com.akib.mycompanion.presentation.reminders.RepeatChoice
+import com.akib.mycompanion.presentation.reminders.RepeatUnit
 import com.akib.mycompanion.presentation.reminders.WhenChoice
 import com.google.common.truth.Truth.assertThat
 import java.time.DayOfWeek
+import java.time.LocalDateTime
 import java.util.Locale
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
@@ -216,5 +218,121 @@ class RemindersViewModelTest {
             assertThat(reminders.all).isEmpty()
             assertThat(scheduler.cancelled).containsExactly(id)
         }
+    }
+
+    @Test
+    fun `custom twelve minute repeat previews three occurrences and schedules it`() = runTest {
+        viewModel.uiState.test {
+            viewModel.title.setTextAndPlaceCursorAtEnd("Stretch")
+            viewModel.onChoiceChange(WhenChoice.InMinutes(12))
+            viewModel.onRepeatChange(RepeatChoice.CUSTOM)
+            viewModel.onCustomNumberChange("12")
+            val state = expectMostRecentItem()
+            assertThat(state.repeatSummary).isEqualTo("Every 12 min")
+            assertThat(state.nextOccurrences).containsExactly("Today, 10:12 AM", "Today, 10:24 AM", "Today, 10:36 AM")
+                .inOrder()
+            assertThat(state.form.canSubmit(viewModel.title.text, viewModel.message.text)).isTrue()
+        }
+        viewModel.events.test {
+            viewModel.onSubmit()
+            assertThat(awaitItem()).isInstanceOf(RemindersEvent.Message::class.java)
+        }
+        assertThat(reminders.all.single().repeat).isEqualTo(com.akib.mycompanion.domain.model.Repeat.Every(12))
+    }
+
+    @Test
+    fun `custom calendar repeat uses first date and validates invalid intervals`() = runTest {
+        viewModel.uiState.test {
+            viewModel.onChoiceChange(WhenChoice.OnDateTime(LocalDateTime.of(2027, 1, 31, 9, 30)))
+            viewModel.onRepeatChange(RepeatChoice.CUSTOM)
+            viewModel.onCustomUnitChange(RepeatUnit.MONTHS)
+            viewModel.onCustomNumberChange("3")
+            val state = expectMostRecentItem()
+            assertThat(state.repeatSummary).isEqualTo("Every 3 months on the 31st")
+            assertThat(state.nextOccurrences).hasSize(3)
+            listOf("", "0", "-1", "abc", "99999999999999999999", "121").forEach {
+                viewModel.onCustomNumberChange(it)
+                val invalid = expectMostRecentItem()
+                assertThat(invalid.form.canSubmit("Hi", "")).isFalse()
+                assertThat(invalid.validationMessage).isNotNull()
+                assertThat(invalid.nextOccurrences).isEmpty()
+            }
+        }
+    }
+
+    @Test
+    fun `past chosen datetime is marked invalid`() = runTest {
+        viewModel.uiState.test {
+            viewModel.onChoiceChange(WhenChoice.OnDateTime(LocalDateTime.of(2026, 10, 22, 8, 0)))
+            assertThat(expectMostRecentItem().validationMessage).isEqualTo("Choose a future date and time")
+        }
+    }
+
+    @Test
+    fun `editing a short month occurrence preserves its original monthly anchor and sound`() = runTest {
+        val anchor = LocalDateTime.of(2027, 1, 31, 9, 0)
+        val repeat = com.akib.mycompanion.domain.model.Repeat.CalendarMonths(1, anchor)
+        val saved = reminders.save(
+            com.akib.mycompanion.domain.model.Reminder(
+                title = "Monthly",
+                message = "Keep day 31",
+                triggerAtMillis = millisAt(2027, 2, 28, 9, 0),
+                repeat = repeat,
+                sound = com.akib.mycompanion.domain.model.ReminderSound.Silent,
+            )
+        )
+        viewModel.uiState.test {
+            viewModel.onEdit(saved.id)
+            val editing = expectMostRecentItem().form
+            assertThat(editing.editingId).isEqualTo(saved.id)
+            assertThat(editing.calendarAnchor).isEqualTo(anchor)
+            assertThat(editing.sound).isEqualTo(com.akib.mycompanion.domain.model.ReminderSound.Silent)
+        }
+        viewModel.events.test {
+            viewModel.onSubmit()
+            awaitItem()
+        }
+        assertThat(reminders.all.single().id).isEqualTo(saved.id)
+        assertThat(reminders.all.single().repeat).isEqualTo(repeat)
+        assertThat(reminders.all.single().sound).isEqualTo(saved.sound)
+    }
+
+    @Test
+    fun `changing calendar interval reanchors to the chosen first occurrence`() = runTest {
+        val saved = reminders.save(
+            com.akib.mycompanion.domain.model.Reminder(
+                title = "Monthly",
+                message = "",
+                triggerAtMillis = millisAt(2027, 2, 28, 9, 0),
+                repeat = com.akib.mycompanion.domain.model.Repeat.CalendarMonths(
+                    1,
+                    LocalDateTime.of(2027, 1, 31, 9, 0)
+                ),
+            )
+        )
+        viewModel.uiState.test {
+            viewModel.onEdit(saved.id)
+            viewModel.onCustomNumberChange("3")
+            assertThat(expectMostRecentItem().repeatSummary).isEqualTo("Every 3 months on the 28th")
+            // A text correction back to the old count retains the originally requested day 31.
+            viewModel.onCustomNumberChange("")
+            expectMostRecentItem()
+            viewModel.onCustomNumberChange("1")
+            assertThat(expectMostRecentItem().repeatSummary).isEqualTo("Every 1 month on the 31st")
+            viewModel.onCustomNumberChange("3")
+            expectMostRecentItem()
+        }
+        viewModel.events.test {
+            viewModel.onSubmit()
+            awaitItem()
+        }
+        val updated = reminders.all.single()
+        assertThat(updated.repeat).isEqualTo(
+            com.akib.mycompanion.domain.model.Repeat.CalendarMonths(
+                3,
+                LocalDateTime.of(2027, 2, 28, 9, 0)
+            )
+        )
+        assertThat(calculator.next(updated.repeat, updated.triggerAtMillis)).isEqualTo(millisAt(2027, 5, 28, 9, 0))
     }
 }
