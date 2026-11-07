@@ -18,6 +18,7 @@ import com.akib.mycompanion.domain.model.PlaylistItem
 import com.akib.mycompanion.domain.model.Reminder
 import com.akib.mycompanion.messaging.ChatApp
 import com.akib.mycompanion.voice.domain.Privacy
+import com.akib.mycompanion.voice.domain.ReadingMode
 import com.akib.mycompanion.voice.domain.VoiceSettings
 import java.time.Instant
 import java.time.ZoneId
@@ -137,7 +138,8 @@ object ExportJson {
                     .put("apps", names(voice.apps))
                     .put("senders", JSONArray(voice.senders))
                     .put("maxChars", voice.maxChars)
-                    .put("speechRate", voice.speechRate.toDouble()),
+                    .put("speechRate", voice.speechRate.toDouble())
+                    .put("readingMode", voice.readingMode.name),
             )
             .put(
                 "autoReply",
@@ -185,6 +187,7 @@ object ExportJson {
                 senders = strings(voiceJson.optJSONArray("senders")) ?: voiceDefaults.senders,
                 maxChars = voiceJson.optInt("maxChars", voiceDefaults.maxChars),
                 speechRate = voiceJson.optDouble("speechRate", voiceDefaults.speechRate.toDouble()).toFloat(),
+                readingMode = enumOf<ReadingMode>(voiceJson.optString("readingMode")) ?: voiceDefaults.readingMode,
             ),
             autoReply = AutoReplySettings(
                 audience = enumOf<Audience>(replyJson.optString("audience")) ?: replyDefaults.audience,

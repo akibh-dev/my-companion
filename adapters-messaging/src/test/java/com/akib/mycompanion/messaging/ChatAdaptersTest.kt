@@ -124,6 +124,8 @@ class ChatAdaptersTest {
         val parts = NotificationExtractor.parts(sbn)
 
         assertThat(parts.messages).containsExactly("Karim" to "Dinner at 8")
+        assertThat(parts.messageTimes).containsExactly(1_000L)
+        assertThat(parse(parts.copy(postedAt = 9_000))!!.postedAt).isEqualTo(1_000L)
         assertThat(parts.isGroupConversation).isTrue()
         assertThat(parts.conversationTitle).isEqualTo("Family")
         assertThat(parts.hasReplyAction).isTrue()

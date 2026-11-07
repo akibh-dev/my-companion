@@ -5,6 +5,7 @@ import com.akib.mycompanion.core.settings.AiEngine
 import com.google.common.truth.Truth.assertThat
 import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertThrows
 import org.junit.Test
@@ -121,5 +122,25 @@ class ModelLoaderTest {
         Thread.sleep(300)
         assertThat(summarizer.loads.get()).isEqualTo(0)
         assertThat(summarizer.releases.get()).isEqualTo(0)
+    }
+
+    @Test
+    fun `one completed caller cannot release another active callers model`() = runBlocking {
+        val started = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val finish = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val busy = async(kotlinx.coroutines.Dispatchers.Default) {
+            loader.use(AiEngine.SUMMARIZER) {
+                started.complete(Unit)
+                finish.await()
+            }
+        }
+        started.await()
+        loader.use(AiEngine.SUMMARIZER) { }
+        kotlinx.coroutines.delay(350)
+        assertThat(summarizer.releases.get()).isEqualTo(0)
+        finish.complete(Unit)
+        busy.await()
+        kotlinx.coroutines.delay(350)
+        assertThat(summarizer.releases.get()).isEqualTo(1)
     }
 }

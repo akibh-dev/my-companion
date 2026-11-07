@@ -24,6 +24,12 @@ interface Transliterator {
 interface SpeechSynth {
     suspend fun speak(text: String, language: Locale = Locale.getDefault()): AiResult<Unit>
 
+    suspend fun prepare(language: Locale): AiResult<Unit> = AiResult.Ready(Unit)
+
+    suspend fun speakConfigured(text: String, language: Locale, rate: Float): AiResult<Unit> = speak(text, language)
+
+    suspend fun shutdown() = stop()
+
     fun stop()
 }
 

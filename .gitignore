@@ -94,3 +94,7 @@ out/
 # Claude Code agent worktrees (temporary copies of the repo)
 .claude/worktrees/
 .idea/misc.xml
+
+# Pinned pretrained graphs: fetch with tools/banglish/fetch_models.py before evaluating.
+ai-models/src/main/assets/indicxlit/*.onnx
+ai-models/src/main/assets/indicxlit/*.download

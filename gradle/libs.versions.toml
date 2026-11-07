@@ -14,6 +14,7 @@ media3 = "1.8.0"
 newpipeExtractor = "v0.26.5"
 okhttp = "4.12.0"
 coil = "2.7.0"
+onnxruntime = "1.23.2"
 
 # Testing
 junit = "4.13.2"
@@ -32,6 +33,7 @@ navigation = "2.9.3"
 maplibre = "11.12.2"
 
 [libraries]
+onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxruntime" }
 androidx-test-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 # The _nio variant is required by NewPipeExtractor below Android 13.
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }

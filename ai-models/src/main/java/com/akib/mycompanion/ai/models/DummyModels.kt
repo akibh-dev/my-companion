@@ -127,7 +127,7 @@ private const val LOAD_MILLIS = 50L
 @InstallIn(SingletonComponent::class)
 abstract class DummyModelsModule {
     @Binds @ModelBacked
-    abstract fun transliterator(impl: DummyTransliterator): Transliterator
+    abstract fun transliterator(impl: IndicXlitTransliterator): Transliterator
 
     @Binds @ModelBacked
     abstract fun speechSynth(impl: DummySpeechSynth): SpeechSynth
@@ -139,7 +139,7 @@ abstract class DummyModelsModule {
     abstract fun summarizer(impl: DummySummarizer): Summarizer
 
     @Binds @IntoSet
-    abstract fun transliteratorModel(impl: DummyTransliterator): LoadableModel
+    abstract fun transliteratorModel(impl: IndicXlitTransliterator): LoadableModel
 
     @Binds @IntoSet
     abstract fun speechSynthModel(impl: DummySpeechSynth): LoadableModel

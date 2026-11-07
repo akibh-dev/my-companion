@@ -1,0 +1,31 @@
+category	input	expected	actual	load_ms	inference_ms
+banglish	ami bhalo achi	আমি ভালো আছি	আমি ভালো আচি	779	803
+banglish	tumi kemon acho?	তুমি কেমন আছো?	তুমি কেমন আচো?	752	991
+banglish	ami bangla boli	আমি বাংলা বলি	আমি বাংলা বলি	2122	3019
+banglish	amar nam rahim	আমার নাম রহিম	আমার নাম রহিম	1901	1704
+banglish	aj brishti hobe	আজ বৃষ্টি হবে	আজ বৃষ্টি হবে	740	1209
+banglish	kal dekha hobe	কাল দেখা হবে	কাল দেখা হবে	718	926
+banglish	ami bari jabo	আমি বাড়ি যাবো	আমি বারি যাবো	707	783
+banglish	tumi kothay acho	তুমি কোথায় আছো	তুমি কথায় আচো	713	866
+banglish	ki korcho	কি করছো	কি করছো	716	416
+banglish	ami ashchi	আমি আসছি	আমি আশ্চি	1247	534
+english	I am fine	I am fine	ই এএম ফাইন	712	920
+english	call me later	call me later	কল মে লেটের	710	689
+english	see you tomorrow	see you tomorrow	সি যৌ টমোরো	712	672
+english	meeting at five	meeting at five	মিটিং অ্যাট ফাইভ	721	1162
+english	thank you	thank you	থ্যাঙ্ক যৌ	2280	2074
+english	please send the file	please send the file	প্লিজ সেন্ড থে ফাইল	2029	1469
+english	good morning	good morning	গুড মর্নিং	681	683
+english	on my way	on my way	ওন মাই ওয়ে	682	728
+english	are you coming?	are you coming?	আরে যৌ কমিং?	731	691
+english	I will be there	I will be there	ই উইল বে থেরে	731	1013
+mixed	ami meeting e achi	আমি meeting এ আছি	আমি মিটিং ই আচি	699	1072
+mixed	tumi call koro	তুমি call করো	তুমি কল করো	758	671
+mixed	file ta pathao	file টা পাঠাও	ফাইল টিএ পাঠাও	683	921
+mixed	ami office e jabo	আমি office এ যাবো	আমি অফিস ই যাবো	679	950
+mixed	kal meeting ache	কাল meeting আছে	কাল মিটিং আচে	733	804
+mixed	please ekhane asho	please এখানে আসো	প্লিজ এখানে আশো	837	1030
+mixed	thanks bhai	thanks ভাই	থ্যাংকস ভাই	669	585
+mixed	ami busy achi	আমি busy আছি	আমি বিউজি আচি	724	1021
+mixed	aj class ache	আজ class আছে	আজ ক্লাস আচে	774	894
+mixed	message ta dekho	message টা দেখো	মেসেজ টিএ দেখো	716	870

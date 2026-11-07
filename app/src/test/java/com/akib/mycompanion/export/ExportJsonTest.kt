@@ -101,6 +101,7 @@ class ExportJsonTest {
                 senders = listOf("Mum"),
                 maxChars = 120,
                 speechRate = 1.25f,
+                readingMode = com.akib.mycompanion.voice.domain.ReadingMode.BANGLISH,
             ),
             autoReply = AutoReplySettings(
                 audience = Audience.ALLOW_LIST,

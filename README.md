@@ -10,7 +10,7 @@ Personal Android app (Kotlin) for the Nothing CMF Phone 1 (Android 16), on-devic
 - **Auto-reply & missed-call SMS** – replies through WhatsApp, Messenger, Signal, Telegram and Messages notifications
 - **Voice mode** – reads incoming messages aloud, privately
 - **Keep screen on outdoors**, quick actions widget and data export
-- AI features run behind interfaces with dummy models until the local models are ready
+- Offline IndicXlit converts Banglish for voice mode; the remaining AI model slots are placeholders
 
 Built as a **learning vehicle** for Android development.
 
@@ -70,6 +70,7 @@ Built as a **learning vehicle** for Android development.
 git clone <repo-url>
 
 # Or build from command line
+python3 tools/banglish/fetch_models.py
 ./gradlew assembleDebug
 ```
 
@@ -130,3 +131,4 @@ See [Docs/resources/official-docs.md](Docs/resources/official-docs.md) for curat
 ---
 
 *Personal project - not for Play Store distribution.*
+Voice reader setup and limitations: [production voice notes](Docs/12-production-voice.md).

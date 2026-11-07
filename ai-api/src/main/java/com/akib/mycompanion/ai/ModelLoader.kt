@@ -41,6 +41,7 @@ class ModelLoader internal constructor(
 
     private val byEngine = models.associateBy { it.engine }
     private val loaded = mutableSetOf<AiEngine>()
+    private val active = mutableMapOf<AiEngine, Int>()
     private val kept = mutableSetOf<AiEngine>()
     private val releases = mutableMapOf<AiEngine, Job>()
     private val lock = Mutex()
@@ -60,11 +61,15 @@ class ModelLoader internal constructor(
                 loaded += engine
                 log.i(TAG, "loaded ${engine.name}")
             }
+            active[engine] = (active[engine] ?: 0) + 1
         }
         return try {
             withContext(Dispatchers.Default) { block() }
         } finally {
-            scheduleRelease(engine)
+            withContext(kotlinx.coroutines.NonCancellable) {
+                lock.withLock { active[engine] = (active[engine] ?: 1) - 1 }
+                scheduleRelease(engine)
+            }
         }
     }
 
@@ -75,12 +80,12 @@ class ModelLoader internal constructor(
     }
 
     private suspend fun scheduleRelease(engine: AiEngine) = lock.withLock {
-        if (engine in kept || engine !in loaded) return@withLock
+        if (engine in kept || engine !in loaded || (active[engine] ?: 0) > 0) return@withLock
         releases.remove(engine)?.cancel()
         releases[engine] = scope.launch {
             delay(releaseAfterMillis)
             lock.withLock {
-                if (engine in kept || engine !in loaded) return@withLock
+                if (engine in kept || engine !in loaded || (active[engine] ?: 0) > 0) return@withLock
                 byEngine[engine]?.release()
                 loaded -= engine
                 log.i(TAG, "released ${engine.name}")

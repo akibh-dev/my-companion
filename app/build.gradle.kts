@@ -38,6 +38,8 @@ android {
         compose = true
     }
 
+    sourceSets.getByName("androidTest").assets.srcDir(rootProject.file("tools/banglish/fixtures"))
+
     testOptions {
         unitTests {
             // Robolectric needs merged resources and the manifest.
