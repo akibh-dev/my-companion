@@ -1,7 +1,10 @@
 package com.akib.mycompanion.presentation
 
 import app.cash.turbine.test
+import com.akib.mycompanion.domain.model.PlaybackHistoryEntry
 import com.akib.mycompanion.domain.model.PlaybackState
+import com.akib.mycompanion.domain.repository.HistoryVisit
+import com.akib.mycompanion.domain.repository.PlaybackHistoryRepository
 import com.akib.mycompanion.domain.usecase.CreatePlaylistUseCase
 import com.akib.mycompanion.domain.usecase.RenamePlaylistUseCase
 import com.akib.mycompanion.domain.usecase.SaveQueueAsPlaylistUseCase
@@ -13,6 +16,7 @@ import com.akib.mycompanion.presentation.player.PlayerEvent
 import com.akib.mycompanion.presentation.player.PlayerSection
 import com.akib.mycompanion.presentation.player.PlayerViewModel
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
@@ -27,6 +31,20 @@ class PlayerViewModelTest {
     private val playlists = FakePlaylistRepository()
     private val playback = FakePlayback()
     private val create = CreatePlaylistUseCase(playlists)
+    private val recent = MutableStateFlow<List<PlaybackHistoryEntry>>(emptyList())
+    private val history = object : PlaybackHistoryRepository {
+        override fun observe() = recent
+        override fun beginVisit(videoId: String) = HistoryVisit(videoId, 0, 0)
+        override suspend fun record(visit: HistoryVisit, entry: PlaybackHistoryEntry) = Unit
+        override suspend fun remove(
+            videoId: String
+        ) {
+            recent.value = recent.value.filterNot { it.video.id == videoId }
+        }
+        override suspend fun clear() {
+            recent.value = emptyList()
+        }
+    }
 
     private val viewModel by lazy {
         PlayerViewModel(
@@ -35,6 +53,7 @@ class PlayerViewModelTest {
             createPlaylist = create,
             renamePlaylist = RenamePlaylistUseCase(playlists),
             saveQueueAsPlaylist = SaveQueueAsPlaylistUseCase(create, playlists),
+            history = history,
         )
     }
 
@@ -176,5 +195,34 @@ class PlayerViewModelTest {
             assertThat(state.section).isEqualTo(PlayerSection.QUEUE)
             assertThat(state.openPlaylist).isNull()
         }
+    }
+
+    @Test fun `history section mirrors storage and deletion clears it`() = runTest {
+        val entry = PlaybackHistoryEntry(a, 100, 12_000, 60_000)
+        recent.value = listOf(entry)
+        viewModel.uiState.test {
+            viewModel.onSectionChange(PlayerSection.HISTORY)
+            assertThat(expectMostRecentItem().history).containsExactly(entry)
+            viewModel.onRemoveHistory(entry)
+            assertThat(expectMostRecentItem().history).isEmpty()
+            recent.value = listOf(entry)
+            expectMostRecentItem()
+            viewModel.onClearHistory()
+            assertThat(expectMostRecentItem().history).isEmpty()
+        }
+    }
+
+    @Test fun `history replay resumes explicitly and can enqueue or save to a playlist`() = runTest {
+        val entry = PlaybackHistoryEntry(a, 100, 12_000, 60_000)
+        viewModel.onReplay(entry, false)
+        assertThat(playback.calls.last()).isEqualTo("playNow:aaaaaaaaaaa@0 shuffle=false")
+        viewModel.onReplay(entry, true)
+        assertThat(playback.calls.last()).isEqualTo("seek:12000")
+        viewModel.onHistoryQueue(entry)
+        assertThat(playback.calls.last()).isEqualTo("addToQueue:aaaaaaaaaaa")
+        val mix = playlists.create("Mix")
+        viewModel.onHistoryPlaylist(entry, mix.id)
+        viewModel.onHistoryPlaylist(entry, mix.id)
+        assertThat(playlists.items(mix.id).map { it.video }).containsExactly(a)
     }
 }

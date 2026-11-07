@@ -18,6 +18,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.akib.mycompanion.domain.model.PlaybackHistoryEntry
 import com.akib.mycompanion.domain.model.Playlist
 import com.akib.mycompanion.domain.model.PlaylistItem
 import com.akib.mycompanion.presentation.common.ObserveAsEvents
@@ -27,6 +28,8 @@ private sealed interface PlayerDialog {
     data object NewPlaylist : PlayerDialog
 
     data object SaveQueue : PlayerDialog
+
+    data object ClearHistory : PlayerDialog
 
     data class Rename(val playlist: Playlist) : PlayerDialog
 
@@ -123,6 +126,20 @@ fun PlayerRoute(
             override fun onDeletePlaylist(playlist: Playlist) {
                 dialog = PlayerDialog.Delete(playlist)
             }
+
+            override fun onReplayHistory(entry: PlaybackHistoryEntry, resume: Boolean) = playerViewModel.onReplay(
+                entry,
+                resume
+            )
+            override fun onQueueHistory(entry: PlaybackHistoryEntry) = playerViewModel.onHistoryQueue(entry)
+            override fun onPlaylistHistory(
+                entry: PlaybackHistoryEntry,
+                playlistId: Long
+            ) = playerViewModel.onHistoryPlaylist(entry, playlistId)
+            override fun onRemoveHistory(entry: PlaybackHistoryEntry) = playerViewModel.onRemoveHistory(entry)
+            override fun onClearHistory() {
+                dialog = PlayerDialog.ClearHistory
+            }
         }
     }
 
@@ -130,6 +147,18 @@ fun PlayerRoute(
 
     when (val open = dialog) {
         null -> Unit
+        PlayerDialog.ClearHistory -> AlertDialog(
+            onDismissRequest = { dialog = null },
+            title = { Text("Clear listening history?") },
+            text = { Text("All local listening history will be removed. Your queue and playlists stay available.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    playerViewModel.onClearHistory()
+                    dialog = null
+                }) { Text("Clear history") }
+            },
+            dismissButton = { TextButton(onClick = { dialog = null }) { Text("Cancel") } },
+        )
         PlayerDialog.NewPlaylist -> NameDialog(
             title = "New playlist",
             initial = "",

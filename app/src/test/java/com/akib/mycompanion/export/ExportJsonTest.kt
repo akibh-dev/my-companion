@@ -50,12 +50,14 @@ class ExportJsonTest {
             message = "After breakfast",
             triggerAtMillis = millisAt(2026, 10, 24, 8, 0),
             repeat = Repeat.Daily,
+            sound = com.akib.mycompanion.domain.model.ReminderSound.Preset("bell"),
             contactId = 3,
         )
         val item = ExportJson.reminders(listOf(reminder), listOf(mum), DHAKA)
             .getJSONArray("items").getJSONObject(0)
         assertThat(item.getString("next")).isEqualTo("2026-10-24T08:00")
         assertThat(item.getString("repeat")).isEqualTo("DAILY")
+        assertThat(item.getString("sound")).isEqualTo("PRESET:bell")
         assertThat(item.getString("callButtonFor")).isEqualTo("Mum")
     }
 

@@ -20,6 +20,7 @@ import com.akib.mycompanion.presentation.reminders.ReminderForm
 import com.akib.mycompanion.presentation.reminders.RemindersScreen
 import com.akib.mycompanion.presentation.reminders.RemindersUiState
 import com.akib.mycompanion.presentation.reminders.RepeatChoice
+import com.akib.mycompanion.presentation.reminders.RepeatUnit
 import com.akib.mycompanion.presentation.reminders.UpcomingReminder
 import com.akib.mycompanion.presentation.reminders.WhenChoice
 import com.akib.mycompanion.ui.theme.CompanionTheme
@@ -59,6 +60,8 @@ class RemindersScreenTest {
                     onRepeatChange = { events += "repeat:$it" },
                     onDayToggle = { events += "day:$it" },
                     onEveryChange = { events += "every:$it" },
+                    onCustomNumberChange = { events += "custom:$it" },
+                    onCustomUnitChange = { events += "unit:$it" },
                     onContactChange = { events += "contact:$it" },
                     onSubmit = { events += "submit" },
                     onCancelReminder = { events += "cancel:$it" },
@@ -206,5 +209,18 @@ class RemindersScreenTest {
         compose.onNodeWithText("Allow").performClick()
 
         assertThat(events).containsExactly("allow")
+    }
+
+    @Test
+    fun `custom repeat exposes editable number and all units`() {
+        show(
+            RemindersUiState(form = ReminderForm(repeat = RepeatChoice.CUSTOM, customNumber = "")),
+            titleText = "Water"
+        )
+        compose.onNodeWithText("Repeat every").performScrollTo().performTextInput("12")
+        assertThat(events).contains("custom:12")
+        compose.onNodeWithText("months").performScrollTo().performClick()
+        assertThat(events).contains("unit:${RepeatUnit.MONTHS}")
+        compose.onNodeWithText("Send now").performScrollTo().assertIsNotEnabled()
     }
 }

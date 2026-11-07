@@ -6,6 +6,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.akib.mycompanion.domain.model.Contact
 import com.akib.mycompanion.domain.model.Reminder
+import com.akib.mycompanion.domain.model.ReminderSound
 import com.akib.mycompanion.domain.model.Repeat
 
 @Entity(tableName = "contacts", indices = [Index(value = ["phone"], unique = true)])
@@ -30,6 +31,7 @@ data class ReminderEntity(
     val repeat: String,
     @ColumnInfo(name = "contact_id") val contactId: Long?,
     val delivered: Boolean,
+    @ColumnInfo(defaultValue = "'DEFAULT'") val sound: String = "DEFAULT",
 ) {
     fun toDomain() = Reminder(
         id = id,
@@ -39,6 +41,7 @@ data class ReminderEntity(
         repeat = Repeat.decode(repeat),
         contactId = contactId,
         delivered = delivered,
+        sound = ReminderSound.decode(sound),
     )
 
     companion object {
@@ -50,6 +53,7 @@ data class ReminderEntity(
             repeat = reminder.repeat.encode(),
             contactId = reminder.contactId,
             delivered = reminder.delivered,
+            sound = reminder.sound.encode(),
         )
     }
 }

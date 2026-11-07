@@ -121,3 +121,5 @@ Voice implementation: [research plan](09-banglish-model-research-plan.md),
 [prototype/device evidence](10-banglish-prototype-results.md),
 [voice auditions](11-voice-style-audition.md), and
 [current reader setup and validation](12-production-voice.md).
+
+Reminder and player upgrades: [Plan 13](13-reminder-upgrades-and-player-history-plan.md) and [implementation report](14-plan13-implementation.md).

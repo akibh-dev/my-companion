@@ -2,10 +2,13 @@ package com.akib.mycompanion.presentation.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.akib.mycompanion.domain.model.PlaybackHistoryEntry
 import com.akib.mycompanion.domain.model.PlaybackState
 import com.akib.mycompanion.domain.model.Playlist
 import com.akib.mycompanion.domain.model.PlaylistItem
 import com.akib.mycompanion.domain.port.Playback
+import com.akib.mycompanion.domain.repository.NoPlaybackHistory
+import com.akib.mycompanion.domain.repository.PlaybackHistoryRepository
 import com.akib.mycompanion.domain.repository.PlaylistRepository
 import com.akib.mycompanion.domain.usecase.CreatePlaylistUseCase
 import com.akib.mycompanion.domain.usecase.PlaylistNameResult
@@ -26,7 +29,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-enum class PlayerSection { QUEUE, PLAYLISTS }
+enum class PlayerSection { QUEUE, PLAYLISTS, HISTORY }
 
 /** A playlist opened from the Playlists section. */
 data class OpenPlaylist(val playlist: Playlist, val items: List<PlaylistItem>)
@@ -36,6 +39,7 @@ data class PlayerUiState(
     val section: PlayerSection = PlayerSection.QUEUE,
     val playlists: List<Playlist> = emptyList(),
     val openPlaylist: OpenPlaylist? = null,
+    val history: List<PlaybackHistoryEntry> = emptyList(),
 )
 
 sealed interface PlayerEvent {
@@ -50,6 +54,7 @@ class PlayerViewModel @Inject constructor(
     private val createPlaylist: CreatePlaylistUseCase,
     private val renamePlaylist: RenamePlaylistUseCase,
     private val saveQueueAsPlaylist: SaveQueueAsPlaylistUseCase,
+    private val history: PlaybackHistoryRepository = NoPlaybackHistory,
 ) : ViewModel() {
 
     private val section = MutableStateFlow(PlayerSection.QUEUE)
@@ -68,8 +73,14 @@ class PlayerViewModel @Inject constructor(
     }
 
     val uiState: StateFlow<PlayerUiState> =
-        combine(playback.state, section, playlists.observePlaylists(), openPlaylist) { state, section, all, open ->
-            PlayerUiState(playback = state, section = section, playlists = all, openPlaylist = open)
+        combine(
+            playback.state,
+            section,
+            playlists.observePlaylists(),
+            openPlaylist,
+            history.observe()
+        ) { state, section, all, open, recent ->
+            PlayerUiState(playback = state, section = section, playlists = all, openPlaylist = open, history = recent)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), PlayerUiState())
 
     init {
@@ -98,7 +109,7 @@ class PlayerViewModel @Inject constructor(
 
     fun onSectionChange(newSection: PlayerSection) {
         section.value = newSection
-        if (newSection == PlayerSection.QUEUE) openPlaylistId.value = null
+        if (newSection != PlayerSection.PLAYLISTS) openPlaylistId.value = null
     }
 
     fun onOpenPlaylist(playlistId: Long) {
@@ -173,6 +184,32 @@ class PlayerViewModel @Inject constructor(
                 else -> message(nameProblem(result))
             }
         }
+    }
+
+    fun onReplay(entry: PlaybackHistoryEntry, resume: Boolean) {
+        playback.playNow(listOf(entry.video))
+        if (resume && entry.positionMs > 0 && (entry.durationMs > 0L && entry.positionMs < entry.durationMs - 1_000)) {
+            playback.seekTo(entry.positionMs)
+        }
+    }
+
+    fun onHistoryQueue(entry: PlaybackHistoryEntry) {
+        playback.addToQueue(entry.video)
+    }
+
+    fun onHistoryPlaylist(entry: PlaybackHistoryEntry, playlistId: Long) {
+        viewModelScope.launch {
+            if (!playlists.contains(playlistId, entry.video.id)) playlists.addItem(playlistId, entry.video)
+            message("Added to playlist")
+        }
+    }
+
+    fun onRemoveHistory(entry: PlaybackHistoryEntry) {
+        viewModelScope.launch { history.remove(entry.video.id) }
+    }
+
+    fun onClearHistory() {
+        viewModelScope.launch { history.clear() }
     }
 
     private fun nameProblem(result: PlaylistNameResult): String = when (result) {

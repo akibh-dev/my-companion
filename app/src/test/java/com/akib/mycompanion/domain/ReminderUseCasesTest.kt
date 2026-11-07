@@ -21,6 +21,7 @@ import com.akib.mycompanion.fakes.FakeReminderRepository
 import com.akib.mycompanion.fakes.millisAt
 import com.google.common.truth.Truth.assertThat
 import java.time.DayOfWeek
+import java.time.LocalDateTime
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
@@ -122,6 +123,7 @@ class ReminderUseCasesTest {
     @Test
     fun `a one-off reminder is shown with its contact and marked delivered`() = runTest {
         val saved = reminders.save(reminder(contactId = mum.id))
+        clock.now = saved.triggerAtMillis
 
         assertThat(fire(saved.id)).isTrue()
 
@@ -152,6 +154,7 @@ class ReminderUseCasesTest {
     @Test
     fun `a removed contact just means no call button`() = runTest {
         val saved = reminders.save(reminder(contactId = 999))
+        clock.now = saved.triggerAtMillis
 
         fire(saved.id)
 
@@ -229,7 +232,7 @@ class ReminderUseCasesTest {
     fun `an impossible repeat is refused`() = runTest {
         assertThat(schedule("Gym", "", ReminderTime.AtTime(7, 0), Repeat.Weekly(emptySet())))
             .isEqualTo(ScheduleResult.InvalidTime)
-        assertThat(schedule("Water", "", ReminderTime.InMinutes(0), Repeat.Every(1)))
+        assertThat(schedule("Water", "", ReminderTime.InMinutes(0), Repeat.Every(0)))
             .isEqualTo(ScheduleResult.InvalidTime)
     }
 
@@ -303,4 +306,51 @@ class ReminderUseCasesTest {
         contactId = contactId,
         delivered = delivered,
     )
+
+    @Test
+    fun `editing keeps reminder identity and replaces its existing alarm`() = runTest {
+        val old = reminders.save(reminder(trigger = millisAt(2026, 10, 23, 11, 0)))
+        scheduler.schedule(old)
+        val result = schedule("Updated", "Text", ReminderTime.InMinutes(12), Repeat.Every(12), editingId = old.id)
+        val updated = (result as ScheduleResult.Scheduled).reminder
+        assertThat(updated.id).isEqualTo(old.id)
+        assertThat(reminders.all).containsExactly(updated)
+        assertThat(scheduler.cancelled).containsExactly(old.id)
+        assertThat(scheduler.scheduled).containsExactly(old.id, millisAt(2026, 10, 23, 10, 12))
+        assertThat(notifier.cancelled).containsExactly(old.notificationId)
+    }
+
+    @Test
+    fun `stale alarm after editing does not fire a future reminder early`() = runTest {
+        val future = reminders.save(reminder(trigger = millisAt(2026, 10, 23, 11, 0)))
+        assertThat(fire(future.id)).isFalse()
+        assertThat(notifier.shown).isEmpty()
+        assertThat(reminders.get(future.id)!!.delivered).isFalse()
+    }
+
+    @Test
+    fun `an explicitly past datetime is rejected without changing alarms`() = runTest {
+        assertThat(schedule("Past", "", ReminderTime.AtDateTime(LocalDateTime.of(2026, 10, 22, 9, 0))))
+            .isEqualTo(ScheduleResult.InvalidTime)
+        assertThat(scheduler.scheduled).isEmpty()
+    }
+
+    @Test
+    fun `restore skips missed repeating occurrences without changing the interval anchor`() = runTest {
+        val original = reminders.save(reminder(trigger = millisAt(2026, 10, 20, 10, 0), repeat = Repeat.Every(12)))
+        clock.now = millisAt(2026, 10, 23, 10, 7)
+        restore()
+        assertThat(notifier.shown).isEmpty()
+        assertThat(reminders.get(original.id)!!.triggerAtMillis).isEqualTo(millisAt(2026, 10, 23, 10, 12))
+    }
+
+    @Test
+    fun `snooze keeps the custom calendar cadence and done keeps the schedule`() = runTest {
+        val repeat = Repeat.CalendarMonths(3, LocalDateTime.of(2026, 1, 31, 18, 0))
+        val original = reminders.save(reminder(trigger = millisAt(2026, 10, 31, 18, 0), repeat = repeat))
+        snooze(original.id)
+        dismiss(original.id)
+        assertThat(reminders.get(original.id)).isEqualTo(original)
+        assertThat(reminders.all.single { it.id != original.id }.repeat).isEqualTo(Repeat.Never)
+    }
 }

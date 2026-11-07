@@ -1,6 +1,7 @@
 package com.akib.mycompanion.domain.model
 
 import java.time.DayOfWeek
+import java.time.LocalDateTime
 
 /**
  * A custom notification the user asked for.
@@ -17,6 +18,7 @@ data class Reminder(
     val repeat: Repeat = Repeat.Never,
     val contactId: Long? = null,
     val delivered: Boolean = false,
+    val sound: ReminderSound = ReminderSound.Default,
 ) {
     /** Notification ids are ints; reminder ids stay far below Int.MAX_VALUE on a personal device. */
     val notificationId: Int get() = id.toInt()
@@ -42,6 +44,11 @@ sealed interface Repeat {
     /** Every [minutes] (e.g. "drink water every 2 hours"). */
     data class Every(val minutes: Int) : Repeat
 
+    /** Calendar intervals retain the originally selected wall-clock anchor across timezone changes. */
+    data class CalendarDays(val count: Int, val anchor: LocalDateTime) : Repeat
+
+    data class CalendarMonths(val count: Int, val anchor: LocalDateTime) : Repeat
+
     val isRepeating: Boolean get() = this != Never
 
     fun isValid(): Boolean = when (this) {
@@ -49,6 +56,8 @@ sealed interface Repeat {
         is Weekly -> days.isNotEmpty()
         is Monthly -> dayOfMonth in 1..31
         is Every -> minutes in MIN_EVERY_MINUTES..MAX_EVERY_MINUTES
+        is CalendarDays -> count in 1..MAX_CALENDAR_DAYS && anchor.year in 1970..9999
+        is CalendarMonths -> count in 1..MAX_CALENDAR_MONTHS && anchor.year in 1970..9999
     }
 
     fun encode(): String = when (this) {
@@ -57,11 +66,15 @@ sealed interface Repeat {
         is Weekly -> "WEEKLY:" + days.sorted().joinToString(",") { it.name.take(3) }
         is Monthly -> "MONTHLY:$dayOfMonth"
         is Every -> "EVERY:$minutes"
+        is CalendarDays -> "CALENDAR_DAYS:$count:$anchor"
+        is CalendarMonths -> "CALENDAR_MONTHS:$count:$anchor"
     }
 
     companion object {
-        const val MIN_EVERY_MINUTES = 15
-        const val MAX_EVERY_MINUTES = 7 * 24 * 60
+        const val MIN_EVERY_MINUTES = 1
+        const val MAX_EVERY_MINUTES = 365 * 24 * 60
+        const val MAX_CALENDAR_DAYS = 3650
+        const val MAX_CALENDAR_MONTHS = 120
 
         /** Unknown or damaged text reads as [Never], so one bad row can't break the list. */
         fun decode(text: String): Repeat {
@@ -76,6 +89,11 @@ sealed interface Repeat {
                 )
                 "MONTHLY" -> value.toIntOrNull()?.let(::Monthly)
                 "EVERY" -> value.toIntOrNull()?.let(::Every)
+                "CALENDAR_DAYS", "CALENDAR_MONTHS" -> runCatching {
+                    val count = value.substringBefore(':').toInt()
+                    val anchor = LocalDateTime.parse(value.substringAfter(':'))
+                    if (kind == "CALENDAR_DAYS") CalendarDays(count, anchor) else CalendarMonths(count, anchor)
+                }.getOrNull()
                 else -> Never
             }
             return decoded?.takeIf { it.isValid() } ?: Never
@@ -90,4 +108,7 @@ sealed interface ReminderTime {
 
     /** Next occurrence of this local clock time (today if still ahead, otherwise tomorrow). */
     data class AtTime(val hour: Int, val minute: Int) : ReminderTime
+
+    /** A chosen local date and time, interpreted in the current timezone. */
+    data class AtDateTime(val dateTime: LocalDateTime) : ReminderTime
 }

@@ -68,6 +68,10 @@ class ReminderTimeFormatter(
             }
         is Repeat.Monthly -> "Every month on the ${ordinal(repeat.dayOfMonth)}"
         is Repeat.Every -> "Every ${duration(repeat.minutes)}"
+        is Repeat.CalendarDays -> "Every ${repeat.count} ${if (repeat.count == 1) "day" else "days"} at " +
+            clockTime(repeat.anchor.hour, repeat.anchor.minute)
+        is Repeat.CalendarMonths -> "Every ${repeat.count} ${if (repeat.count == 1) "month" else "months"} on the " +
+            ordinal(repeat.anchor.dayOfMonth)
     }
 
     /** 30 → "30 min", 120 → "2 h", 90 → "1 h 30 min". */

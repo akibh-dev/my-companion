@@ -53,6 +53,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.akib.mycompanion.R
+import com.akib.mycompanion.domain.model.PlaybackHistoryEntry
 import com.akib.mycompanion.domain.model.PlaybackState
 import com.akib.mycompanion.domain.model.Playlist
 import com.akib.mycompanion.domain.model.PlaylistItem
@@ -113,6 +114,12 @@ interface PlayerActions {
     fun onRenamePlaylist(playlist: Playlist)
 
     fun onDeletePlaylist(playlist: Playlist)
+
+    fun onReplayHistory(entry: PlaybackHistoryEntry, resume: Boolean) = Unit
+    fun onQueueHistory(entry: PlaybackHistoryEntry) = Unit
+    fun onPlaylistHistory(entry: PlaybackHistoryEntry, playlistId: Long) = Unit
+    fun onRemoveHistory(entry: PlaybackHistoryEntry) = Unit
+    fun onClearHistory() = Unit
 }
 
 /** Player tab: link box ([linkText] is its Compose text state), now playing, then Up next / Playlists. */
@@ -147,11 +154,17 @@ fun PlayerScreen(
                     onClick = { actions.onSectionChange(PlayerSection.PLAYLISTS) },
                     text = { Text("Playlists") },
                 )
+                Tab(
+                    selected = state.section == PlayerSection.HISTORY,
+                    onClick = { actions.onSectionChange(PlayerSection.HISTORY) },
+                    text = { Text("History") },
+                )
             }
         }
 
         when {
             state.section == PlayerSection.QUEUE -> queueItems(state.playback, actions)
+            state.section == PlayerSection.HISTORY -> historyItems(state.history, state.playlists, actions)
             state.openPlaylist != null -> playlistDetail(state.openPlaylist, actions)
             else -> playlistItems(state.playlists, actions)
         }

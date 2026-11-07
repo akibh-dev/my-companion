@@ -56,6 +56,7 @@ object ExportJson {
                     .put("next", localTime(reminder.triggerAtMillis, zone))
                     .put("nextEpochMillis", reminder.triggerAtMillis)
                     .put("repeat", reminder.repeat.encode())
+                    .put("sound", reminder.sound.encode())
                     .put("callButtonFor", reminder.contactId?.let(names::get) ?: JSONObject.NULL)
             },
         )

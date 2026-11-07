@@ -2,6 +2,7 @@ package com.akib.mycompanion.presentation.reminders
 
 import android.Manifest
 import android.app.Activity
+import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Context
 import android.content.ContextWrapper
@@ -26,6 +27,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.akib.mycompanion.data.notification.AndroidReminderNotifier
 import com.akib.mycompanion.presentation.common.ObserveAsEvents
+import java.time.LocalDateTime
 import java.util.Calendar
 
 /** Connects [RemindersScreen] to its ViewModel and to Android (notification permission, time picker). */
@@ -47,10 +49,15 @@ fun RemindersRoute(
 
     // Re-checked on every resume: the user may have just changed it in system settings.
     var notificationsAllowed by remember { mutableStateOf(AndroidReminderNotifier.canPost(context)) }
+    val alarms = context.getSystemService(android.app.AlarmManager::class.java)
+    var preciseTimingAllowed by remember { mutableStateOf(alarms.canScheduleExactAlarms()) }
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) notificationsAllowed = AndroidReminderNotifier.canPost(context)
+            if (event == Lifecycle.Event.ON_RESUME) {
+                notificationsAllowed = AndroidReminderNotifier.canPost(context)
+                preciseTimingAllowed = alarms.canScheduleExactAlarms()
+            }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
@@ -75,6 +82,7 @@ fun RemindersRoute(
         title = viewModel.title,
         message = viewModel.message,
         notificationsAllowed = notificationsAllowed,
+        preciseTimingAllowed = preciseTimingAllowed,
         onAllowNotifications = { notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS) },
         onChoiceChange = viewModel::onChoiceChange,
         onPickTime = {
@@ -88,6 +96,18 @@ fun RemindersRoute(
                 DateFormat.is24HourFormat(context),
             ).show()
         },
+        onPickDateTime = {
+            val selected = (state.form.choice as? WhenChoice.OnDateTime)?.dateTime ?: LocalDateTime.now()
+            DatePickerDialog(context, { _, year, month, day ->
+                TimePickerDialog(context, { _, hour, minute ->
+                    viewModel.onChoiceChange(
+                        WhenChoice.OnDateTime(LocalDateTime.of(year, month + 1, day, hour, minute))
+                    )
+                }, selected.hour, selected.minute, DateFormat.is24HourFormat(context)).show()
+            }, selected.year, selected.monthValue - 1, selected.dayOfMonth).show()
+        },
+        onCustomNumberChange = viewModel::onCustomNumberChange,
+        onCustomUnitChange = viewModel::onCustomUnitChange,
         onRepeatChange = viewModel::onRepeatChange,
         onDayToggle = viewModel::onDayToggle,
         onEveryChange = viewModel::onEveryChange,
@@ -101,6 +121,11 @@ fun RemindersRoute(
             }
         },
         onCancelReminder = viewModel::onCancel,
+        onEditReminder = viewModel::onEdit,
+        onCancelEdit = viewModel::onCancelEdit,
+        soundContent = {
+            ReminderSoundPicker(selected = state.form.sound, onSelected = viewModel::onSoundChange)
+        },
         modifier = modifier,
     )
 }

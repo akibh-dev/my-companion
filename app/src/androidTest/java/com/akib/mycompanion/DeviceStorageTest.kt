@@ -7,6 +7,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.akib.mycompanion.core.crypto.FieldCipher
 import com.akib.mycompanion.data.local.AppDatabase
 import com.akib.mycompanion.data.local.MIGRATION_1_2
+import com.akib.mycompanion.data.local.MIGRATION_2_3
+import com.akib.mycompanion.data.local.MIGRATION_3_4
 import com.akib.mycompanion.data.local.PlaylistEntity
 import com.google.common.truth.Truth.assertThat
 import java.security.KeyStore
@@ -63,7 +65,7 @@ class DeviceStorageTest {
                 old.version = 1
             }
             val db = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                .addMigrations(MIGRATION_1_2).build()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
             try {
                 assertThat(db.contactDao().get(1)?.name).isEqualTo("Device fixture")
                 assertThat(db.reminderDao().get(1)?.message).isEqualTo("Keep me")
