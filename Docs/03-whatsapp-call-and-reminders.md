@@ -6,8 +6,8 @@ What the app does today, how each piece works, and the Android concepts behind i
 
 | Screen | Action | What happens |
 |--------|--------|--------------|
-| **People** | Tap the green call button | WhatsApp voice call starts (or the chat opens, see below) |
-| | ⋮ → Add to home screen | A home-screen icon that calls that person in one tap |
+| **People** | Tap the green call button | Hands off to a supported WhatsApp call action, or explains why chat is used |
+| | ⋮ → Add to home screen | A home-screen icon using the saved person’s latest number and the same call recovery flow |
 | | ⋮ → Edit / Remove | Remove shows a snackbar with **Undo** |
 | | Add person → Choose from phone contacts | Name and number filled from the phone book |
 | **Reminders** | Title/message + **Now** | Notification appears immediately |
@@ -17,24 +17,19 @@ What the app does today, how each piece works, and the Android concepts behind i
 | | Notification buttons | **Snooze 10 min**, **Done**, optional **Call** |
 | | Upcoming list ✕ | Cancels the alarm and deletes the reminder |
 
-Reminders survive reboots and app updates (`BootReceiver` re-arms them; anything missed while the phone was off fires right away).
+Reminders survive reboots and app updates (`BootReceiver` re-arms them; overdue one-offs are delivered and missed repeat occurrences are skipped).
 
 ## How the one-tap WhatsApp call works
 
-WhatsApp has **no public "call this number" API**. What it does do: for every phone contact that uses WhatsApp, it adds a row to the Contacts provider with MIME type
-`vnd.android.cursor.item/vnd.com.whatsapp.voip.call` (Business: `…vnd.com.whatsapp.w4b.voip.call`). Launching that row with `ACTION_VIEW` starts the call.
+Direct calling uses private contact actions exposed by the installed WhatsApp client. Those rows are not a public calling API; their availability and behavior depend on the client, contact sync and contacts access. Candidate MIME/account combinations must be confirmed on the target phone rather than inferred solely from an installed package name.
 
-```
-CallContactUseCase
-  ├─ WhatsApp installed?            no  → "WhatsApp isn't installed"
-  ├─ find voip row for the number   (needs READ_CONTACTS + number saved in phone contacts)
-  │     found → ACTION_VIEW row     → call starts
-  └─ otherwise → https://wa.me/<digits> → chat opens (call button is one tap away)
-```
+The resolver scopes lookup to the requested phone-book number, checks each call row's number and raw-contact account, and restricts launch to the selected package. Full-number comparison replaces the old unconditional ten-digit suffix fallback. Ambiguous candidates are refused. When both supported variants have distinct valid targets, the user chooses the app; the app does not silently switch accounts after a rejected launch.
 
-Matching (`WhatsAppNumberMatcher`) compares the number against the row's WhatsApp id (`8801711123456@s.whatsapp.net`) and its label, falling back to the last 10 digits so numbers saved without a country code still match.
+People, shortcuts and reminder actions share permission recovery. Shortcut intents retain the app contact ID and existing token rather than storing a provider row ID; lookup happens again at each attempt so contact edits and provider sync are respected. Missing or permanently denied contacts permission uses a visible recovery host, while a normal supported shortcut handoff stays invisible.
 
-**Caveat:** this relies on WhatsApp's undocumented contact rows. If a WhatsApp update changes them, calls degrade to opening the chat; nothing crashes.
+A successful Android intent launch establishes **handoff**, not a ringing or connected call. Missing rows, denied lookup, ambiguous numbers, unavailable handlers and rejected launches have distinct fallback explanations. Chat launch failure is separate from WhatsApp not being installed. A saved My Companion contact does not create a phone-book contact or force WhatsApp synchronization.
+
+See [Plan 14](14-whatsapp-direct-call-plan.md) for the compatibility and acceptance requirements. Real client behavior requires explicit testing on the phone; synthetic provider/fake-client tests only establish routing and recovery.
 
 ### Phone numbers
 

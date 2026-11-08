@@ -123,3 +123,7 @@ Voice implementation: [research plan](09-banglish-model-research-plan.md),
 [current reader setup and validation](12-production-voice.md).
 
 Reminder and player upgrades: [Plan 13](13-reminder-upgrades-and-player-history-plan.md) and [implementation report](14-plan13-implementation.md).
+
+WhatsApp calling: [direct-call diagnosis and repair plan](14-whatsapp-direct-call-plan.md).
+
+WhatsApp call recovery: [implementation and validation](15-whatsapp-call-recovery.md).

@@ -3,22 +3,95 @@ package com.akib.mycompanion.domain.port
 import com.akib.mycompanion.domain.model.Contact
 import com.akib.mycompanion.domain.model.Reminder
 
-/** Talks to WhatsApp. Implemented in the data layer with intents and the Contacts provider. */
-interface WhatsAppGateway {
-    fun isInstalled(): Boolean
-
-    /** The WhatsApp "voice call" entry for this number in the phone's contacts, if WhatsApp created one. */
-    fun findVoiceCallTarget(digits: String): VoiceCallTarget?
-
-    /** Starts the call. Returns false if nothing could handle it. */
-    fun startVoiceCall(target: VoiceCallTarget): Boolean
-
-    /** Opens the chat with this number (wa.me link). Returns false if nothing could handle it. */
-    fun openChat(digits: String): Boolean
+/** Identity is explicit: Business and personal are never interchanged after a chosen handoff fails. */
+enum class WhatsAppVariant(val packageName: String, val title: String) {
+    STANDARD("com.whatsapp", "WhatsApp"),
+    BUSINESS("com.whatsapp.w4b", "WhatsApp Business"),
 }
 
-/** A row in ContactsContract.Data that WhatsApp (or WhatsApp Business) can launch as a voice call. */
-data class VoiceCallTarget(val dataId: Long, val mimeType: String)
+enum class WhatsAppCallFailure {
+    PERMISSION_REQUIRED,
+    PROVIDER_DENIED,
+    PROVIDER_ERROR,
+    NO_PHONEBOOK_MATCH,
+    NO_VOICE_ROW,
+    AMBIGUOUS,
+    INVALID_NUMBER,
+    NO_HANDLER,
+    LAUNCH_DENIED,
+    STALE_TARGET,
+    APP_NOT_INSTALLED,
+}
+
+sealed interface VoiceCallLookup {
+    data class Found(val targets: List<VoiceCallTarget>) : VoiceCallLookup
+    data class Unavailable(val reason: WhatsAppCallFailure) : VoiceCallLookup
+}
+
+sealed interface WhatsAppLaunchResult {
+    data object HandedOff : WhatsAppLaunchResult
+    data class Failed(val reason: WhatsAppCallFailure) : WhatsAppLaunchResult
+}
+
+/** Diagnostic observations deliberately exclude numbers, contact/account names and provider IDs. */
+data class VoiceCallObservation(
+    val accountType: String,
+    val mimeType: String,
+    val variant: WhatsAppVariant?,
+    val numberMatches: Boolean,
+    val handlerAvailable: Boolean,
+)
+
+data class VoiceCallInspection(
+    val result: VoiceCallLookup,
+    val phonebookMatches: Int = 0,
+    val candidateRows: Int = 0,
+    val observations: List<VoiceCallObservation> = emptyList(),
+)
+
+/** Provider lookup suspends on IO; launching resumes in the foreground caller's coroutine context. */
+interface WhatsAppGateway {
+    fun isInstalled(): Boolean
+    fun findVoiceCallTarget(digits: String): VoiceCallTarget?
+    fun startVoiceCall(target: VoiceCallTarget): Boolean
+    fun openChat(digits: String): Boolean
+
+    fun installedVariants(): List<WhatsAppVariant> =
+        if (isInstalled()) listOf(WhatsAppVariant.STANDARD) else emptyList()
+
+    suspend fun resolveVoiceCall(digits: String): VoiceCallLookup = findVoiceCallTarget(
+        com.akib.mycompanion.domain.whatsapp.WhatsAppNumberMatcher.normalize(digits).orEmpty(),
+    )?.let {
+        VoiceCallLookup.Found(listOf(it))
+    } ?: VoiceCallLookup.Unavailable(WhatsAppCallFailure.NO_VOICE_ROW)
+
+    suspend fun launchVoiceCall(target: VoiceCallTarget): WhatsAppLaunchResult =
+        if (startVoiceCall(target)) {
+            WhatsAppLaunchResult.HandedOff
+        } else {
+            WhatsAppLaunchResult.Failed(WhatsAppCallFailure.NO_HANDLER)
+        }
+
+    fun launchChat(digits: String, variant: WhatsAppVariant): WhatsAppLaunchResult =
+        if (openChat(digits)) {
+            WhatsAppLaunchResult.HandedOff
+        } else {
+            WhatsAppLaunchResult.Failed(WhatsAppCallFailure.NO_HANDLER)
+        }
+
+    fun canHandle(target: VoiceCallTarget): Boolean = false
+}
+
+/** Ephemeral lookup result. Never persist this row ID in Room or shortcut extras. */
+data class VoiceCallTarget(
+    val dataId: Long,
+    val mimeType: String,
+    val variant: WhatsAppVariant = WhatsAppVariant.STANDARD,
+    val accountType: String = "com.whatsapp",
+    val normalizedNumber: String = "",
+) {
+    val packageName: String get() = variant.packageName
+}
 
 /** Wakes the app up at a reminder's trigger time. */
 interface AlarmScheduler {

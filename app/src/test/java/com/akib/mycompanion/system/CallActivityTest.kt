@@ -9,9 +9,12 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.akib.mycompanion.di.ApplicationScope
 import com.akib.mycompanion.di.CoroutinesModule
 import com.akib.mycompanion.di.IoDispatcher
+import com.akib.mycompanion.domain.port.WhatsAppVariant
 import com.akib.mycompanion.domain.usecase.CallContactUseCase
+import com.akib.mycompanion.domain.usecase.CallPreparation
 import com.akib.mycompanion.domain.usecase.CallResult
 import com.akib.mycompanion.presentation.call.CallActivity
+import com.akib.mycompanion.presentation.call.CallFlowActivity
 import com.akib.mycompanion.presentation.contacts.CallMessages
 import com.google.common.truth.Truth.assertThat
 import dagger.hilt.android.testing.BindValue
@@ -63,18 +66,20 @@ class CallActivityTest {
 
     @Test
     fun `calls the person and closes`() {
-        coEvery { callContact(5L) } returns CallResult.CallStarted
+        coEvery { callContact.prepare(5L) } returns CallPreparation.Ready(WhatsAppVariant.STANDARD)
+        coEvery { callContact(5L, WhatsAppVariant.STANDARD) } returns CallResult.CallStarted
 
         val activity = launch(CallActivity.intent(app, 5L))
 
-        coVerify { callContact(5L) }
+        coVerify { callContact(5L, WhatsAppVariant.STANDARD) }
         assertThat(activity.isFinishing).isTrue()
         assertThat(ShadowToast.getLatestToast()).isNull()
     }
 
     @Test
     fun `explains a chat fallback`() {
-        coEvery { callContact(5L) } returns CallResult.ChatOpened
+        coEvery { callContact.prepare(5L) } returns CallPreparation.Ready(WhatsAppVariant.STANDARD)
+        coEvery { callContact(5L, WhatsAppVariant.STANDARD) } returns CallResult.ChatOpened
 
         launch(CallActivity.intent(app, 5L))
 
@@ -83,7 +88,8 @@ class CallActivityTest {
 
     @Test
     fun `clears the reminder notification it came from`() {
-        coEvery { callContact(5L) } returns CallResult.CallStarted
+        coEvery { callContact.prepare(5L) } returns CallPreparation.Ready(WhatsAppVariant.STANDARD)
+        coEvery { callContact(5L, WhatsAppVariant.STANDARD) } returns CallResult.CallStarted
         val manager = app.getSystemService(NotificationManager::class.java)
         val notification = NotificationCompat.Builder(app, "reminders")
             .setSmallIcon(android.R.drawable.ic_popup_reminder)
@@ -123,6 +129,26 @@ class CallActivityTest {
         launch(guessed)
 
         coVerify(exactly = 0) { callContact(any<Long>()) }
+    }
+
+    @Test
+    fun `permission recovery is delegated to a visible host without starting a call`() {
+        coEvery { callContact.prepare(5L) } returns CallPreparation.PermissionRequired
+        val activity = launch(CallActivity.intent(app, 5L))
+        val recovery = shadowOf(activity).nextStartedActivity
+        assertThat(recovery.component!!.className).isEqualTo(CallFlowActivity::class.java.name)
+        assertThat(recovery.getLongExtra(CallActivity.EXTRA_CONTACT_ID, -1)).isEqualTo(5L)
+        coVerify(exactly = 0) { callContact(any<Long>(), any<WhatsAppVariant>()) }
+        assertThat(activity.isFinishing).isTrue()
+    }
+
+    @Test
+    fun `two valid variants are chosen in the visible host without a silent call`() {
+        coEvery { callContact.prepare(5L) } returns CallPreparation.ChooseVariant(WhatsAppVariant.entries)
+        val activity = launch(CallActivity.intent(app, 5L))
+        assertThat(shadowOf(activity).nextStartedActivity.component!!.className)
+            .isEqualTo(CallFlowActivity::class.java.name)
+        coVerify(exactly = 0) { callContact(any<Long>(), any<WhatsAppVariant>()) }
     }
 
     private fun launch(intent: Intent): CallActivity {
