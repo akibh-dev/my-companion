@@ -18,7 +18,9 @@ Docs/
 │   ├── 002-hilt-vs-koin.md
 │   └── 003-compose-vs-xml.md
 ├── learning/                # Step-by-step learning path ← START HERE
-│   ├── README.md            # How to start + full 24-step path
+│   ├── README.md            # Java → Kotlin → Android course entry point
+│   ├── java-kotlin/         # 12 chapters, runnable sources, exercises and answers
+│   ├── legacy-learning-path.md # Historical Android-only plan
 │   └── 01-compose-state.md  # Step 01 guide + your learning note
 ├── references/              # Quick reference sheets
 │   ├── coroutines-flow.md
@@ -50,7 +52,7 @@ The counts and device findings below describe earlier versions.
 - Tested end to end on an Android 17 emulator: all three features work; 8 issues to fix
   (incl. 1 security, 1 accessibility) — see [`06-device-test-report.md`](06-device-test-report.md)
 
-**Start here**: [`learning/README.md`](learning/README.md) — setup checklist, the step loop, and the full path.
+**Start here**: [`learning/README.md`](learning/README.md) — a Java → Kotlin → Android course with 12 chapters, runnable console examples, exercise answers, repository traces, and a flexible study plan. Its setup follows the current SDK 36 build; older guides below describe historical versions.
 
 **Files to read first**:
 0. `06-device-test-report.md` — **Where the work paused**: test results and the fix list

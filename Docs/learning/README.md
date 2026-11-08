@@ -1,134 +1,40 @@
-# Learning Path — Start Here
+# Learn Java, Kotlin, and this Android app
 
-A step-by-step path from "Hello World" to a working personal companion app
-(custom notifications, background YouTube audio, notification listener, tiles).
+Begin with [00 — Setup](java-kotlin/00-setup.md). No programming experience is assumed. Learn Java fundamentals, translate them into Kotlin, then use Kotlin to understand Android and this app. Already know Java? Answer chapters 01–02's checkpoints and begin chapter 03.
 
-Each step is **one small feature you build yourself**, plus the Android concepts behind it.
-The steps are ordered so that every step only uses things you learned earlier.
+This is a practical foundation through an Android capstone, not a reference for every JVM API. Lessons include explanations, practice, checkpoints, and official references. Console examples use synthetic reminder data and never send messages, calls, or notifications.
 
----
+## Read in order
 
-## How to Start (Do This Once)
+| Chapter | Learn | Practice |
+|---|---|---|
+| [00 — Setup](java-kotlin/00-setup.md) | JDK, compiler, JVM, Gradle, Android runtime | Run Java and Kotlin |
+| [01 — Java basics](java-kotlin/01-java-basics.md) | Types, variables, decisions, loops, functions | Validate reminder delays |
+| [02 — Java objects](java-kotlin/02-java-objects.md) | Classes, interfaces, collections, generics, errors | Build a catalogue |
+| [03 — Kotlin basics](java-kotlin/03-kotlin-basics.md) | Functions, null safety, ranges, equality | Translate Java logic |
+| [04 — Kotlin modeling](java-kotlin/04-kotlin-modeling.md) | Data/sealed classes, lambdas, collections, generics | Model results and transform data |
+| [05 — Interoperability and JVM](java-kotlin/05-interop-jvm.md) | Platform types, Java APIs, memory | Call Java from Kotlin |
+| [06 — Coroutines and Flow](java-kotlin/06-coroutines-flow.md) | Suspension, cancellation, dispatchers, observable state | Collect updates and run concurrent work |
+| [07 — Android and Compose](java-kotlin/07-android-compose.md) | Lifecycle, state, ViewModel, persistence | Build a reminder form |
+| [08 — Repository tour](java-kotlin/08-repository-tour.md) | Clean layers, Hilt, Room, DataStore, services | Trace existing features |
+| [09 — Testing and debugging](java-kotlin/09-testing-debugging.md) | Boundaries, fakes, coroutine tests, Git | Diagnose bugs |
+| [10 — Projects and answers](java-kotlin/10-projects-answers.md) | Requirements and incremental implementation | Complete console and Android projects |
+| [11 — Reference and study plan](java-kotlin/11-reference-study-plan.md) | Syntax comparison, glossary, resources | Follow a flexible 12-week plan |
 
-### 1. Check your tools
+Runnable sources are in [examples/](java-kotlin/examples/). Chapters distinguish console programs from Android integration snippets. Exercises include answers or acceptance criteria; the console capstone has complete source.
 
-| Tool | Required | Check with |
-|------|----------|------------|
-| JDK | 17 | `java -version` |
-| Android SDK | Platform 34 + platform-tools | `adb version` |
-| IDE | Android Studio or IntelliJ IDEA (with Android plugin) | — |
-| Device | Phone with wireless debugging, or an emulator (API 24+) | `adb devices` |
-| Git | Configured as `akib35` | `git config user.name` |
+## How to study
 
-If `adb` is not found, see the ADB section of [`../02-quick-reference.md`](../02-quick-reference.md).
+Use 45–75 minute sessions: read a section, predict output, run it, change one input, and explain the result. Solve exercises before reading answers. Repeat a chapter when you cannot explain its checkpoint. Finished exercises matter more than dates.
 
-### 2. Confirm the Hello World app still runs
+Keep experiments in a separate learning project. Read this repo alongside the course; production changes belong on a feature branch with focused checks. App feature completeness and your learning progress are separate things.
 
-```bash
-./gradlew :app:installDebug
-adb shell am start -n com.akib.mycompanion/.MainActivity
-```
+## Repository baseline
 
-You should see "Hello World!" on your phone. If the build fails, check the version table in
-[`../02-quick-reference.md`](../02-quick-reference.md) (JDK 17 is the usual culprit).
+This course follows main after PR #4 removed Private Vault and Quick Capture. People, Reminders, Player, context rules, messaging automation, voice mode, keep-screen-on, widgets, and export remain. AI implementations are placeholders.
 
-### 3. Read these once (≈30 min)
+The build uses compile/minimum/target SDK 36, Java/Kotlin bytecode target 17, and JDK 21 for Robolectric tests. Verify [app/build.gradle.kts](../../app/build.gradle.kts) and [the version catalog](../../gradle/libs.versions.toml) before changing tools. Historical documents may describe older SDKs and features.
 
-1. [`../01-hello-world-explained.md`](../01-hello-world-explained.md) — what every file does
-2. [`../02-quick-reference.md`](../02-quick-reference.md) — commands and versions
-3. [`../architecture/001-mvvm-clean.md`](../architecture/001-mvvm-clean.md) — skim only; it will make sense around Step 05
+Supporting material: [Compose state](01-compose-state.md), [testing](../04-testing.md), [reminders](../03-whatsapp-call-and-reminders.md), [player](../05-youtube-player.md), and [implementation guide](../implementation-guide.md). The [previous learning path](legacy-learning-path.md) remains explicitly historical.
 
-### 4. Open Step 01 and follow the loop below
-
----
-
-## The Loop (Every Step)
-
-```
- ┌─▶ 1. Read the step file (concepts first, code second)
- │   2. Create a branch:   git switch -c feat/step-NN-short-name
- │   3. Build it yourself — type the code, don't paste it
- │   4. Run it on the device, try the "Break It" experiments
- │   5. Answer the checkpoint questions without looking
- │   6. Fill in "My Learning Note" at the bottom of the step file
- │   7. Commit (conventional commits, in your name only), push, open a PR, merge
- └── 8. Tick the step in the table below → next step
-```
-
-**Rules of thumb**
-- One step per branch/PR. Small PRs are easier to review — even by yourself.
-- Stuck for more than 30 minutes? Write the problem in your note, read the linked official docs, then ask.
-- Don't skip "Break It" experiments. Seeing the wrong behaviour is how the right one sticks.
-
----
-
-## The Full Path
-
-Status: ⬜ not started · 🟨 in progress · ✅ done
-
-### Phase 0 — Compose & App Foundations
-Goal: be comfortable building screens and structuring an app.
-
-| # | Step | You will build | Key concepts | Status |
-|---|------|----------------|--------------|--------|
-| 01 | [Compose State & Events](01-compose-state.md) | Counter + feature toggles on Home | Recomposition, `remember`, state hoisting, `rememberSaveable` | ⬜ |
-| 02 | Layouts, Lists & Theming | Scrollable feature list with your own Material 3 theme | `Column`/`Row`/`Box`, `LazyColumn`, `Modifier` order, `ui/theme` | ⬜ |
-| 03 | Gradle Housekeeping | Move deps to the version catalog, Compose BOM, ktlint | `libs.versions.toml`, BOM, plugins, `./gradlew ktlintCheck` | ⬜ |
-| 04 | Activity Lifecycle | Lifecycle logger; survive rotation & process death | `onCreate`…`onDestroy`, config changes, `adb` process kill | ⬜ |
-| 05 | ViewModel & UI State | Home screen driven by a ViewModel | `ViewModel`, `StateFlow`, sealed `UiState`, unidirectional data flow | ⬜ |
-| 06 | Navigation | Home ⇄ Settings ⇄ About screens | `NavHost`, routes, arguments, back stack | ⬜ |
-| 07 | Dependency Injection (Hilt) | `@HiltAndroidApp` app, injected ViewModels | `@Inject`, `@Module`, scopes, KSP/kapt | ⬜ |
-| 08 | Clean Layers & Unit Tests | `domain/` + `data/` packages, first use case with tests | Repository pattern, JUnit, MockK, Turbine | ⬜ |
-
-### Phase 1 — Custom Notifications (MVP feature P0)
-Goal: create, schedule and act on your own notifications.
-
-| # | Step | You will build | Key concepts | Status |
-|---|------|----------------|--------------|--------|
-| 09 | First Notification | "Send test notification" button | `NotificationChannel`, `NotificationCompat`, `POST_NOTIFICATIONS` runtime permission | ⬜ |
-| 10 | Notification Actions | "Snooze" / "Done" buttons on the notification | `PendingIntent` (immutable/mutable), `BroadcastReceiver` | ⬜ |
-| 11 | Settings with DataStore | Persisted settings screen | Preferences DataStore, `Flow` from disk | ⬜ |
-| 12 | Scheduled Notifications | Daily / periodic reminders | `WorkManager` vs `AlarmManager`, constraints, exact alarm permission | ⬜ |
-| 13 | Room Database | Saved reminder templates + history | `@Entity`, `@Dao`, migrations, Room + Flow | ⬜ |
-
-### Phase 2 — Background Media (foundation for P1)
-Goal: play audio that survives the screen turning off.
-
-| # | Step | You will build | Key concepts | Status |
-|---|------|----------------|--------------|--------|
-| 14 | Services 101 | A foreground service with an ongoing notification | Service lifecycle, foreground service types (Android 14) | ⬜ |
-| 15 | ExoPlayer Basics | Play a local / sample audio file | Media3 `ExoPlayer`, `MediaItem`, player states | ⬜ |
-| 16 | MediaSessionService | Lock-screen & Bluetooth controls | `MediaSessionService`, `MediaController`, audio focus, "becoming noisy" | ⬜ |
-
-### Phase 3 — YouTube Background Playback (P1)
-Goal: share a YouTube link to the app and listen with the screen off.
-
-| # | Step | You will build | Key concepts | Status |
-|---|------|----------------|--------------|--------|
-| 17 | Networking Basics | Fetch & parse JSON from a public API | Retrofit/OkHttp, coroutines, error handling | ⬜ |
-| 18 | Share Intent | "Share → My Companion" from the YouTube app | Intent filters, `ACTION_SEND`, parsing URLs | ⬜ |
-| 19 | Stream Extraction | Video ID → audio stream URL | NewPipeExtractor, background threads, expiring URLs | ⬜ |
-| 20 | Streaming Playback & Queue | Background YouTube audio with a queue | Progressive/DASH sources, buffering, caching, retries | ⬜ |
-
-### Phase 4 — System Integrations (P2–P4)
-
-| # | Step | You will build | Key concepts | Status |
-|---|------|----------------|--------------|--------|
-| 21 | Notification Listener | Read & filter other apps' notifications | `NotificationListenerService`, special-access permissions | ⬜ |
-| 22 | Quick Settings Tile | Toggle playback from the shade | `TileService` | ⬜ |
-| 23 | Home Screen Widget | Playback widget | Jetpack Glance | ⬜ |
-| 24 | Floating Overlay | Floating playback controls | `SYSTEM_ALERT_WINDOW`, `WindowManager` | ⬜ |
-
-> Step files are written one at a time, just before you start each step,
-> so they match what the code actually looks like by then.
-
----
-
-## Where Things Go
-
-| What | Where |
-|------|-------|
-| Step guide + your learning note for that step | `Docs/learning/NN-name.md` |
-| A decision you made ("why X over Y") | `Docs/architecture/NNN-title.md` (ADR template in [`../00-index.md`](../00-index.md)) |
-| A cheat sheet you keep coming back to | `Docs/references/` |
-| A great article or video | `Docs/resources/` |
+Core references: [Dev.java](https://dev.java/learn/), [Kotlin documentation](https://kotlinlang.org/docs/home.html), and [Android Basics with Compose](https://developer.android.com/courses/android-basics-compose/course).
