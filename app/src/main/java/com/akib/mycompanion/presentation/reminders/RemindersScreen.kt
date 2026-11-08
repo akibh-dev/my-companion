@@ -33,6 +33,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -81,9 +82,16 @@ fun RemindersScreen(
 ) {
     LazyColumn(
         modifier = modifier,
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        item {
+            Text(
+                "For the things worth coming back to.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         if (!notificationsAllowed) {
             item { NotificationsOffBanner(onAllowNotifications) }
         }
@@ -376,6 +384,7 @@ private fun UpcomingRow(reminder: UpcomingReminder, onCancel: () -> Unit, onEdit
     }.joinToString(" · ")
     ElevatedCard(Modifier.fillMaxWidth()) {
         ListItem(
+            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
             headlineContent = { Text(reminder.title) },
             supportingContent = {
                 Column {

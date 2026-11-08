@@ -13,6 +13,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -104,6 +105,8 @@ class MainActivityTest {
         compose.waitUntilAtLeastOneExists(hasText("Heartbeat gaps"), timeoutMillis = 10_000)
         compose.onNodeWithContentDescription("Back").performClick()
 
+        // Home restores its scroll position; branding is part of the list in the approved design.
+        compose.onNode(hasScrollToIndexAction()).performScrollToIndex(0)
         compose.waitUntilAtLeastOneExists(hasText("My Companion"), timeoutMillis = 10_000)
     }
 }

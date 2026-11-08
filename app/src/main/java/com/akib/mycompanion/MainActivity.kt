@@ -144,6 +144,6 @@ class MainActivity : ComponentActivity() {
 enum class Tab(val label: String, val title: String, @DrawableRes val icon: Int, val route: String) {
     HOME("Home", "My Companion", R.drawable.ic_home, "home"),
     PEOPLE("People", "Call someone", R.drawable.ic_call, "people"),
-    REMINDERS("Reminders", "Reminders", R.drawable.ic_notification, "reminders"),
+    REMINDERS("Reminders", "Reminders", R.drawable.ic_reminder, "reminders"),
     PLAYER("Player", "Player", R.drawable.ic_music_note, "player"),
 }
