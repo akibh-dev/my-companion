@@ -9,9 +9,12 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.lifecycleScope
 import com.akib.mycompanion.di.IoDispatcher
 import com.akib.mycompanion.domain.usecase.CallContactUseCase
+import com.akib.mycompanion.domain.usecase.CallPreparation
+import com.akib.mycompanion.domain.usecase.CallResult
 import com.akib.mycompanion.presentation.contacts.CallMessages
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -28,6 +31,13 @@ class CallActivity : ComponentActivity() {
     @Inject
     @IoDispatcher
     lateinit var io: CoroutineDispatcher
+
+    private var consumed = false
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean(CONSUMED, consumed)
+        super.onSaveInstanceState(outState)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,12 +56,35 @@ class CallActivity : ComponentActivity() {
             finish()
             return
         }
-        lifecycleScope.launch {
-            // Finding the WhatsApp call entry queries the Contacts provider: keep it off the main thread.
-            val result = withContext(io) { callContact(contactId) }
-            val message = CallMessages.forResult(result)
-            if (message != null) Toast.makeText(applicationContext, message, Toast.LENGTH_LONG).show()
+        if (savedInstanceState?.getBoolean(CONSUMED) == true) {
             finish()
+            return
+        }
+        consumed = true
+        lifecycleScope.launch {
+            try {
+                val preparation = withContext(io) { callContact.prepare(contactId) }
+                if (preparation is CallPreparation.Ready) {
+                    // Lookup suspends on IO internally; the launch resumes on this foreground/Main context.
+                    when (val result = callContact(contactId, preparation.variant)) {
+                        is CallResult.ChooseVariant -> startActivity(
+                            CallFlowActivity.intent(this@CallActivity, contactId)
+                        )
+                        else -> CallMessages.forResult(result)?.let {
+                            Toast.makeText(applicationContext, it, Toast.LENGTH_LONG).show()
+                        }
+                    }
+                } else {
+                    startActivity(CallFlowActivity.intent(this@CallActivity, contactId))
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                Toast.makeText(applicationContext, "Couldn't open WhatsApp. Try again from People.", Toast.LENGTH_LONG)
+                    .show()
+            } finally {
+                finish()
+            }
         }
     }
 
@@ -60,6 +93,7 @@ class CallActivity : ComponentActivity() {
         const val EXTRA_NOTIFICATION_ID = "notification_id"
         const val EXTRA_TOKEN = "token"
         const val OUTDATED_SHORTCUT = "This shortcut is out of date. Add it again from My Companion."
+        private const val CONSUMED = "handoff_consumed"
         private const val NO_ID = -1L
         private const val NO_NOTIFICATION = Int.MIN_VALUE
 

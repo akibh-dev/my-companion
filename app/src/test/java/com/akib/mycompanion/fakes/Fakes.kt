@@ -12,8 +12,12 @@ import com.akib.mycompanion.domain.port.PickedPhone
 import com.akib.mycompanion.domain.port.Playback
 import com.akib.mycompanion.domain.port.ReminderNotifier
 import com.akib.mycompanion.domain.port.VideoInfoSource
+import com.akib.mycompanion.domain.port.VoiceCallLookup
 import com.akib.mycompanion.domain.port.VoiceCallTarget
+import com.akib.mycompanion.domain.port.WhatsAppCallFailure
 import com.akib.mycompanion.domain.port.WhatsAppGateway
+import com.akib.mycompanion.domain.port.WhatsAppLaunchResult
+import com.akib.mycompanion.domain.port.WhatsAppVariant
 import com.akib.mycompanion.domain.repository.ContactRepository
 import com.akib.mycompanion.domain.repository.PlaylistRepository
 import com.akib.mycompanion.domain.repository.ReminderRepository
@@ -136,19 +140,48 @@ class FakeWhatsAppGateway(
 ) : WhatsAppGateway {
     val calls = mutableListOf<VoiceCallTarget>()
     val chats = mutableListOf<String>()
+    val lookups = mutableListOf<String>()
+    val chatVariants = mutableListOf<WhatsAppVariant>()
+    var variants: List<WhatsAppVariant>? = null
+    var lookup: VoiceCallLookup? = null
+    var callFailure = WhatsAppCallFailure.NO_HANDLER
+    var chatFailure = WhatsAppCallFailure.NO_HANDLER
 
     override fun isInstalled(): Boolean = installed
-
+    override fun installedVariants() = variants ?: if (installed) {
+        listOf(WhatsAppVariant.STANDARD)
+    } else {
+        emptyList()
+    }
     override fun findVoiceCallTarget(digits: String): VoiceCallTarget? = target
-
+    override suspend fun resolveVoiceCall(digits: String): VoiceCallLookup {
+        lookups += digits
+        return lookup ?: target?.let { VoiceCallLookup.Found(listOf(it)) }
+            ?: VoiceCallLookup.Unavailable(
+                WhatsAppCallFailure.NO_VOICE_ROW,
+            )
+    }
     override fun startVoiceCall(target: VoiceCallTarget): Boolean {
         calls += target
         return callWorks
     }
-
+    override suspend fun launchVoiceCall(target: VoiceCallTarget): WhatsAppLaunchResult =
+        if (startVoiceCall(target)) {
+            WhatsAppLaunchResult.HandedOff
+        } else {
+            WhatsAppLaunchResult.Failed(callFailure)
+        }
     override fun openChat(digits: String): Boolean {
         chats += digits
         return chatWorks
+    }
+    override fun launchChat(digits: String, variant: WhatsAppVariant): WhatsAppLaunchResult {
+        chatVariants += variant
+        return if (openChat(digits)) {
+            WhatsAppLaunchResult.HandedOff
+        } else {
+            WhatsAppLaunchResult.Failed(chatFailure)
+        }
     }
 }
 

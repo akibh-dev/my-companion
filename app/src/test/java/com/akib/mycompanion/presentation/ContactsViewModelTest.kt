@@ -5,6 +5,8 @@ import app.cash.turbine.test
 import com.akib.mycompanion.domain.model.Contact
 import com.akib.mycompanion.domain.port.PickedPhone
 import com.akib.mycompanion.domain.port.VoiceCallTarget
+import com.akib.mycompanion.domain.port.WhatsAppCallFailure
+import com.akib.mycompanion.domain.port.WhatsAppVariant
 import com.akib.mycompanion.domain.usecase.CallContactUseCase
 import com.akib.mycompanion.domain.usecase.CallResult
 import com.akib.mycompanion.domain.usecase.SaveContactUseCase
@@ -169,9 +171,17 @@ class ContactsViewModelTest {
 
         viewModel.events.test {
             viewModel.onCall(mum)
-            assertThat(awaitItem()).isEqualTo(ContactsEvent.Message(CallMessages.forResult(CallResult.ChatOpened)!!))
+            assertThat(
+                awaitItem()
+            ).isEqualTo(
+                ContactsEvent.Message(
+                    CallMessages.forResult(
+                        CallResult.ChatFallback(WhatsAppCallFailure.NO_VOICE_ROW, WhatsAppVariant.STANDARD)
+                    )!!
+                )
+            )
         }
-        assertThat(whatsApp.chats).containsExactly("8801711123456")
+        assertThat(whatsApp.chats).containsExactly(mum.digits)
     }
 
     @Test

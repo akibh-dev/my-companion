@@ -8,8 +8,10 @@ import androidx.lifecycle.viewModelScope
 import com.akib.mycompanion.di.IoDispatcher
 import com.akib.mycompanion.domain.model.Contact
 import com.akib.mycompanion.domain.port.PhonebookSource
+import com.akib.mycompanion.domain.port.WhatsAppCallFailure
 import com.akib.mycompanion.domain.repository.ContactRepository
 import com.akib.mycompanion.domain.usecase.CallContactUseCase
+import com.akib.mycompanion.domain.usecase.CallPreparation
 import com.akib.mycompanion.domain.usecase.CallResult
 import com.akib.mycompanion.domain.usecase.SaveContactResult
 import com.akib.mycompanion.domain.usecase.SaveContactUseCase
@@ -53,6 +55,9 @@ data class ContactsUiState(
 
 sealed interface ContactsEvent {
     data class Message(val text: String) : ContactsEvent
+
+    /** Continue in a visible permission/variant-choice host; only the app contact ID crosses the boundary. */
+    data class CallRecovery(val contactId: Long) : ContactsEvent
 
     /** Shown as a snackbar with Undo. */
     data class Removed(val contact: Contact) : ContactsEvent
@@ -148,8 +153,20 @@ class ContactsViewModel @Inject constructor(
 
     fun onCall(contact: Contact) {
         viewModelScope.launch {
-            val result: CallResult = withContext(io) { callContact(contact) }
-            CallMessages.forResult(result)?.let { eventChannel.send(ContactsEvent.Message(it)) }
+            val preparation = withContext(io) { callContact.prepare(contact.id) }
+            if (preparation is CallPreparation.PermissionRequired || preparation is CallPreparation.ChooseVariant) {
+                eventChannel.send(ContactsEvent.CallRecovery(contact.id))
+                return@launch
+            }
+            // The gateway suspends provider queries on IO and hands off on this foreground/Main context.
+            val result = callContact(contact.id)
+            if (result is CallResult.ChooseVariant ||
+                result is CallResult.Failed && result.reason == WhatsAppCallFailure.PERMISSION_REQUIRED
+            ) {
+                eventChannel.send(ContactsEvent.CallRecovery(contact.id))
+            } else {
+                CallMessages.forResult(result)?.let { eventChannel.send(ContactsEvent.Message(it)) }
+            }
         }
     }
 
@@ -185,13 +202,39 @@ class ContactsViewModel @Inject constructor(
 }
 
 object CallMessages {
-    /** What to tell the user after a call attempt; null when the call simply started. */
+    /** A successful activity handoff establishes neither ringing nor a connected call. */
     fun forResult(result: CallResult): String? = when (result) {
         CallResult.CallStarted -> null
         CallResult.ChatOpened ->
-            "Opened the WhatsApp chat. For one-tap calls, save this number in your phone contacts " +
-                "and allow contacts access."
+            "Opened the WhatsApp chat. " +
+                "Direct calling needs a matching WhatsApp phone-contact action."
         CallResult.WhatsAppNotInstalled -> "WhatsApp isn't installed"
         CallResult.ContactNotFound -> "This person was removed from My Companion"
+        is CallResult.ChooseVariant -> "Choose WhatsApp or WhatsApp Business for this attempt."
+        is CallResult.ChatFallback -> "Opened ${result.variant.title} chat instead. " + forFailure(result.reason)
+        is CallResult.Failed -> forFailure(result.reason)
+    }
+
+    fun forFailure(reason: WhatsAppCallFailure): String = when (reason) {
+        WhatsAppCallFailure.PERMISSION_REQUIRED ->
+            "Contacts access is needed to find WhatsApp's call action. Allow it in app settings to try direct calling."
+        WhatsAppCallFailure.PROVIDER_DENIED ->
+            "The phone's contacts provider denied access. Check contacts permission in app settings."
+        WhatsAppCallFailure.PROVIDER_ERROR -> "Couldn't read the phone contacts. Try again later."
+        WhatsAppCallFailure.NO_PHONEBOOK_MATCH ->
+            "This number wasn't matched in the phone book. Save it there and let WhatsApp sync its contact action."
+        WhatsAppCallFailure.NO_VOICE_ROW ->
+            "No WhatsApp voice-call action was found for this number. Check its action in the phone's Contacts app."
+        WhatsAppCallFailure.AMBIGUOUS ->
+            "More than one contact action matched. " +
+                "No direct call was started; check the saved number and phone contacts."
+        WhatsAppCallFailure.INVALID_NUMBER -> "Check this person's saved phone number before trying again."
+        WhatsAppCallFailure.NO_HANDLER ->
+            "The selected WhatsApp app couldn't open that action. Check that app or update it."
+        WhatsAppCallFailure.LAUNCH_DENIED ->
+            "Android or the selected WhatsApp app rejected the action. Try from WhatsApp."
+        WhatsAppCallFailure.STALE_TARGET ->
+            "The WhatsApp contact action changed. Try again to look up its current action."
+        WhatsAppCallFailure.APP_NOT_INSTALLED -> "The selected WhatsApp app is no longer installed."
     }
 }

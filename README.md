@@ -3,7 +3,7 @@
 Android app for reviving features on my own terms. NO CAP.
 
 Personal Android app (Kotlin) for the Nothing CMF Phone 1 (Android 16), on-device only:
-- **People** – one-tap WhatsApp calls and home-screen call icons
+- **People** – WhatsApp contact-call handoffs with chat fallback and home-screen call icons
 - **Reminders** – custom notifications, repeating daily, on chosen days, monthly or every few hours
 - **Player** – YouTube background audio with queue and playlists
 - **Context rules** – sound mode, Do Not Disturb, volume, brightness (and Wi-Fi/Bluetooth prompts) by time, place, charging, Bluetooth or Wi-Fi; offline map for places
@@ -104,7 +104,7 @@ app/
 ## 🎯 Current Status
 
 - [x] Gradle Kotlin DSL + version catalog, Hilt, Room, Compose + Material 3
-- [x] **People**: one-tap WhatsApp voice calls, pick from phone book, edit/undo, home-screen call shortcuts
+- [x] **People**: WhatsApp call handoffs with permission recovery and chat fallback, pick from phone book, edit/undo, home-screen call shortcuts
 - [x] **Reminders**: custom notifications now / later / at a time, daily repeat, Snooze / Done / Call buttons, survive reboot
 - [x] **Player**: share a YouTube video → play in the background (notification + lock-screen controls), queue, permanent playlists ([details](Docs/05-youtube-player.md))
 - [x] Tests: domain, ViewModel, Robolectric (Room, alarms, notifications, receivers) and Compose UI ([Docs/04-testing.md](Docs/04-testing.md))

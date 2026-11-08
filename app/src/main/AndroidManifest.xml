@@ -59,6 +59,12 @@
             android:taskAffinity=""
             android:theme="@style/Theme.MyCompanion.Invisible" />
 
+        <activity
+            android:name=".presentation.call.CallFlowActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:theme="@style/Theme.MyCompanion" />
+
         <!-- Appears in the share menu (YouTube "Share") and "Open with" for YouTube links. -->
         <activity
             android:name=".presentation.share.ShareActivity"
