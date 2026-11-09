@@ -1,5 +1,7 @@
 # my-companion
 
+[![Android CI](https://github.com/akibh-dev/my-companion/actions/workflows/android.yml/badge.svg?branch=main)](https://github.com/akibh-dev/my-companion/actions/workflows/android.yml)
+
 Android app for reviving features on my own terms. NO CAP.
 
 Personal Android app (Kotlin) for the Nothing CMF Phone 1 (Android 16), on-device only:
