@@ -1,27 +1,43 @@
 package com.akib.mycompanion
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -36,9 +52,13 @@ import com.akib.mycompanion.presentation.health.PermissionsScreen
 import com.akib.mycompanion.presentation.home.HomeLink
 import com.akib.mycompanion.presentation.home.HomeRoute
 import com.akib.mycompanion.presentation.home.PERMISSIONS_ROUTE
+import com.akib.mycompanion.presentation.home.SettingsScreen
 import com.akib.mycompanion.presentation.log.LogRoute
 import com.akib.mycompanion.presentation.player.PlayerRoute
 import com.akib.mycompanion.presentation.reminders.RemindersRoute
+import com.akib.mycompanion.ui.components.DotText
+import com.akib.mycompanion.ui.components.GlassNavigation
+import com.akib.mycompanion.ui.components.LocalNavigationScrolled
 
 /** What a screen gets: where to draw, the snackbar host, and how to move between screens. */
 class ScreenScope(
@@ -95,6 +115,13 @@ fun CompanionRoot(
     val route = entry?.destination?.route
     val tab = Tab.entries.firstOrNull { it.route == route }
     val screen = screens.firstOrNull { it.route == route }
+    val settingsOpen = route == "settings"
+    val scrolled = remember { mutableStateMapOf<String, Boolean>() }
+    val backdrop = rememberGraphicsLayer()
+    var contentOrigin by remember { mutableStateOf(Offset.Zero) }
+    val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val showNavigation = screen == null && !settingsOpen && !keyboardVisible
+    val reportScroll = remember(route) { { value: Boolean -> scrolled[route.orEmpty()] = value } }
 
     LaunchedEffect(requestCount) {
         if (requestedTab != null) navController.openTab(requestedTab)
@@ -102,63 +129,91 @@ fun CompanionRoot(
 
     Scaffold(
         topBar = {
-            if (screen != null) {
+            if (screen != null || settingsOpen) {
                 TopAppBar(
-                    title = { Text(screen.title) },
+                    title = { DotText(screen?.title ?: "Settings", fontSize = 22.sp) },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                     navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                         }
                     },
                 )
-            } else {
-                CenterAlignedTopAppBar(title = { Text(tab?.title ?: "") })
+            } else if (tab != Tab.HOME) {
+                TopAppBar(
+                    title = { DotText(tab?.label ?: "", fontSize = 28.sp) },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                )
             }
         },
         bottomBar = {
-            if (screen == null) {
-                NavigationBar {
-                    Tab.entries.forEach { item ->
-                        NavigationBarItem(
-                            selected = tab == item,
-                            onClick = { navController.openTab(item) },
-                            icon = { Icon(painterResource(item.icon), contentDescription = null) },
-                            label = { Text(item.label) },
-                        )
-                    }
-                }
+            if (showNavigation) {
+                GlassNavigation(
+                    selected = tab,
+                    compact = scrolled[route] == true,
+                    backdrop = backdrop,
+                    contentOrigin = contentOrigin,
+                    onSelect = { navController.openTab(it) },
+                )
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         // Edge-to-edge: the window isn't resized for the keyboard, so shrink the content above it
         // (and let a focused field scroll into view). consumeWindowInsets stops it counting the bottom bar twice.
+        val contentPadding = if (showNavigation) {
+            PaddingValues(top = padding.calculateTopPadding())
+        } else {
+            padding
+        }
         val modifier = Modifier
-            .padding(padding)
+            .padding(contentPadding)
             .consumeWindowInsets(padding)
             .imePadding()
-        NavHost(navController, startDestination = Tab.HOME.route) {
-            composable(Tab.HOME.route) {
-                HomeRoute(
-                    featureRoute = { feature -> featureRoute(feature)?.takeIf { r -> screens.any { it.route == r } } },
-                    links = links,
-                    onOpen = { navController.navigate(it) },
-                    modifier = modifier,
-                )
-            }
-            composable(Tab.PEOPLE.route) { ContactsRoute(snackbarHostState, modifier) }
-            composable(Tab.REMINDERS.route) { RemindersRoute(snackbarHostState, modifier) }
-            composable(Tab.PLAYER.route) { PlayerRoute(snackbarHostState, modifier) }
-            screens.forEach { item ->
-                composable(item.route) {
-                    item.content(
-                        ScreenScope(
-                            modifier,
-                            snackbarHostState,
-                            { navController.navigate(it) },
-                            { navController.popBackStack() }
-                        )
+        CompositionLocalProvider(LocalNavigationScrolled provides reportScroll) {
+            NavHost(
+                navController,
+                startDestination = Tab.HOME.route,
+                modifier = Modifier.fillMaxSize()
+                    .onGloballyPositioned { contentOrigin = it.positionInRoot() }
+                    .drawWithContent {
+                        backdrop.record { this@drawWithContent.drawContent() }
+                        drawLayer(backdrop)
+                    },
+                enterTransition = { EnterTransition.None },
+                exitTransition = { ExitTransition.None },
+                popEnterTransition = { EnterTransition.None },
+                popExitTransition = { ExitTransition.None },
+            ) {
+                composable(Tab.HOME.route) {
+                    HomeRoute(
+                        featureRoute = { feature ->
+                            featureRoute(
+                                feature
+                            )?.takeIf { r -> screens.any { it.route == r } }
+                        },
+                        links = links,
+                        onOpen = { navController.navigate(it) },
+                        modifier = modifier,
                     )
+                }
+                composable(Tab.PEOPLE.route) { ContactsRoute(snackbarHostState, modifier) }
+                composable(Tab.REMINDERS.route) { RemindersRoute(snackbarHostState, modifier) }
+                composable(Tab.PLAYER.route) { PlayerRoute(snackbarHostState, modifier) }
+                composable("settings") {
+                    SettingsScreen(links, onOpen = { navController.navigate(it) }, modifier = modifier)
+                }
+                screens.forEach { item ->
+                    composable(item.route) {
+                        item.content(
+                            ScreenScope(
+                                modifier,
+                                snackbarHostState,
+                                { navController.navigate(it) },
+                                { navController.popBackStack() }
+                            )
+                        )
+                    }
                 }
             }
         }

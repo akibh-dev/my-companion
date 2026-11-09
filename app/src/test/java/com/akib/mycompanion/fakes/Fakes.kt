@@ -15,6 +15,7 @@ import com.akib.mycompanion.domain.port.VideoInfoSource
 import com.akib.mycompanion.domain.port.VoiceCallLookup
 import com.akib.mycompanion.domain.port.VoiceCallTarget
 import com.akib.mycompanion.domain.port.WhatsAppCallFailure
+import com.akib.mycompanion.domain.port.WhatsAppCallKind
 import com.akib.mycompanion.domain.port.WhatsAppGateway
 import com.akib.mycompanion.domain.port.WhatsAppLaunchResult
 import com.akib.mycompanion.domain.port.WhatsAppVariant
@@ -144,6 +145,7 @@ class FakeWhatsAppGateway(
     val chatVariants = mutableListOf<WhatsAppVariant>()
     var variants: List<WhatsAppVariant>? = null
     var lookup: VoiceCallLookup? = null
+    var videoLookup: VoiceCallLookup? = null
     var callFailure = WhatsAppCallFailure.NO_HANDLER
     var chatFailure = WhatsAppCallFailure.NO_HANDLER
 
@@ -160,6 +162,11 @@ class FakeWhatsAppGateway(
             ?: VoiceCallLookup.Unavailable(
                 WhatsAppCallFailure.NO_VOICE_ROW,
             )
+    }
+    override suspend fun resolveCall(digits: String, kind: WhatsAppCallKind): VoiceCallLookup {
+        if (kind == WhatsAppCallKind.VOICE) return resolveVoiceCall(digits)
+        lookups += digits
+        return videoLookup ?: VoiceCallLookup.Unavailable(WhatsAppCallFailure.NO_VOICE_ROW)
     }
     override fun startVoiceCall(target: VoiceCallTarget): Boolean {
         calls += target

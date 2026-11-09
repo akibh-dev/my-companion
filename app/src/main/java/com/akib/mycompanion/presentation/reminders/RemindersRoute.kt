@@ -39,6 +39,7 @@ fun RemindersRoute(
 ) {
     // Typed text isn't in this state (it's the ViewModel's TextFieldStates), so the usual collection is fine.
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val savedCount by viewModel.savedCount.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     ObserveAsEvents(viewModel.events) { event ->
@@ -79,6 +80,7 @@ fun RemindersRoute(
 
     RemindersScreen(
         state = state,
+        submissionCount = savedCount,
         title = viewModel.title,
         message = viewModel.message,
         notificationsAllowed = notificationsAllowed,

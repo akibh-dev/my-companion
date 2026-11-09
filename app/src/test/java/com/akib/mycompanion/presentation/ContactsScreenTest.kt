@@ -38,6 +38,7 @@ class ContactsScreenTest {
                 state = state,
                 onAddClick = { events += "add" },
                 onCall = { events += "call:${it.name}" },
+                onVideoCall = { events += "video:${it.name}" },
                 onEdit = { events += "edit:${it.name}" },
                 onDelete = { events += "delete:${it.name}" },
                 onPinShortcut = { events += "pin:${it.name}" },
@@ -64,6 +65,13 @@ class ContactsScreenTest {
         compose.onNodeWithContentDescription("Call Mum on WhatsApp").performClick()
 
         assertThat(events).containsExactly("call:Mum")
+    }
+
+    @Test
+    fun `video call is a separate visible action`() {
+        show(ContactsUiState(contacts = listOf(mum), loading = false))
+        compose.onNodeWithContentDescription("Video call Mum on WhatsApp").assertHasClickAction().performClick()
+        assertThat(events).containsExactly("video:Mum")
     }
 
     @Test

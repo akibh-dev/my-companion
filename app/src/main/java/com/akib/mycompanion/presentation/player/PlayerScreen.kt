@@ -1,5 +1,6 @@
 package com.akib.mycompanion.presentation.player
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,12 +10,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material.icons.Icons
@@ -35,8 +40,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -47,7 +51,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -59,6 +65,7 @@ import com.akib.mycompanion.domain.model.Playlist
 import com.akib.mycompanion.domain.model.PlaylistItem
 import com.akib.mycompanion.domain.model.RepeatMode
 import com.akib.mycompanion.presentation.common.OutlinedStateTextField
+import com.akib.mycompanion.ui.components.rememberChromeListState
 
 /** Everything the Player screen can ask for; the route forwards these to the ViewModels. */
 interface PlayerActions {
@@ -132,10 +139,18 @@ fun PlayerScreen(
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
+        state = rememberChromeListState(),
         modifier = modifier,
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 144.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        item {
+            Text(
+                "A soundtrack for your day.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         item { LinkBox(link, linkText, actions) }
 
         state.playback.current?.let {
@@ -143,22 +158,38 @@ fun PlayerScreen(
         }
 
         item {
-            TabRow(selectedTabIndex = state.section.ordinal) {
-                Tab(
-                    selected = state.section == PlayerSection.QUEUE,
-                    onClick = { actions.onSectionChange(PlayerSection.QUEUE) },
-                    text = { Text("Up next") },
-                )
-                Tab(
-                    selected = state.section == PlayerSection.PLAYLISTS,
-                    onClick = { actions.onSectionChange(PlayerSection.PLAYLISTS) },
-                    text = { Text("Playlists") },
-                )
-                Tab(
-                    selected = state.section == PlayerSection.HISTORY,
-                    onClick = { actions.onSectionChange(PlayerSection.HISTORY) },
-                    text = { Text("History") },
-                )
+            Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
+                Row(Modifier.fillMaxWidth().selectableGroup().padding(5.dp)) {
+                    PlayerSection.entries.forEach { section ->
+                        val selected = state.section == section
+                        val background = if (selected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainer
+                        }
+                        val foreground = if (selected) {
+                            MaterialTheme.colorScheme.onPrimary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                        Box(
+                            Modifier.weight(1f).heightIn(min = 48.dp).clip(RoundedCornerShape(13.dp))
+                                .background(background)
+                                .selectable(selected, role = Role.Tab, onClick = { actions.onSectionChange(section) }),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                when (section) {
+                                    PlayerSection.QUEUE -> "Up next"
+                                    PlayerSection.PLAYLISTS -> "Playlists"
+                                    PlayerSection.HISTORY -> "History"
+                                },
+                                style = MaterialTheme.typography.labelLarge,
+                                color = foreground,
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -322,7 +353,7 @@ private fun SeekBar(playback: PlaybackState, actions: PlayerActions) {
 
 @Composable
 private fun ToggleIcon(icon: Int, description: String, active: Boolean, onClick: () -> Unit) {
-    val color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    val color = if (active) com.akib.mycompanion.ui.theme.CompanionRed else MaterialTheme.colorScheme.onSurfaceVariant
     IconButton(onClick = onClick, colors = IconButtonDefaults.iconButtonColors(contentColor = color)) {
         Icon(painterResource(icon), contentDescription = description)
     }

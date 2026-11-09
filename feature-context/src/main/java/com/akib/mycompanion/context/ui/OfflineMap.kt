@@ -130,16 +130,16 @@ fun MapPicker(
                 holder[0] = map
                 map.setStyle(Style.Builder().fromJson(OfflineMap.style(OfflineMap.file(context)))) { style ->
                     style.addSource(GeoJsonSource(PLACES))
-                    style.addLayer(FillLayer(PLACES, PLACES).withProperties(PropertyFactory.fillColor("#331B8A5A")))
+                    style.addLayer(FillLayer(PLACES, PLACES).withProperties(PropertyFactory.fillColor("#33FF3B3B")))
                     style.addSource(GeoJsonSource(PICK))
-                    style.addLayer(FillLayer("$PICK-fill", PICK).withProperties(PropertyFactory.fillColor("#551B8A5A")))
-                    style.addLayer(LineLayer("$PICK-line", PICK).withProperties(PropertyFactory.lineColor("#1B8A5A")))
+                    style.addLayer(FillLayer("$PICK-fill", PICK).withProperties(PropertyFactory.fillColor("#55FF3B3B")))
+                    style.addLayer(LineLayer("$PICK-line", PICK).withProperties(PropertyFactory.lineColor("#FF3B3B")))
                     style.addSource(GeoJsonSource(PIN))
                     style.addLayer(
                         CircleLayer(
                             PIN,
                             PIN
-                        ).withProperties(PropertyFactory.circleColor("#1B8A5A"), PropertyFactory.circleRadius(6f))
+                        ).withProperties(PropertyFactory.circleColor("#FF3B3B"), PropertyFactory.circleRadius(6f))
                     )
                     draw(map, pin, radiusMeters, others)
                 }

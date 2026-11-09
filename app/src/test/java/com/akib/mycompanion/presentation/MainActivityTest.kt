@@ -10,9 +10,11 @@ import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -21,6 +23,7 @@ import com.akib.mycompanion.di.PlaybackModule
 import com.akib.mycompanion.domain.port.Playback
 import com.akib.mycompanion.fakes.FakePlayback
 import com.akib.mycompanion.presentation.onboarding.FirstRun
+import com.google.common.truth.Truth.assertThat
 import dagger.hilt.android.testing.BindValue
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
@@ -65,11 +68,13 @@ class MainActivityTest {
         compose.waitUntilAtLeastOneExists(hasText("Running"), timeoutMillis = 10_000)
         compose.onNodeWithText("My Companion").assertIsDisplayed()
 
-        compose.onNodeWithText("People").performClick()
+        compose.onNodeWithContentDescription("People").performClick()
         compose.waitUntilAtLeastOneExists(hasText("No one here yet"), timeoutMillis = 10_000)
 
-        compose.onNodeWithText("Reminders").performClick()
+        compose.onNodeWithContentDescription("Reminders").performClick()
+        compose.onNodeWithText("Create a reminder").performClick()
         compose.onNodeWithText("Send now").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription("Close reminder editor").performClick()
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Nothing scheduled"))
         compose.onNodeWithText("Nothing scheduled").assertIsDisplayed()
     }
@@ -89,7 +94,7 @@ class MainActivityTest {
     fun `player tab shows the link box`() {
         compose.waitUntilAtLeastOneExists(hasText("Running"), timeoutMillis = 10_000)
 
-        compose.onNodeWithText("Player").performClick()
+        compose.onNodeWithContentDescription("Player").performClick()
 
         compose.onNodeWithText("Open link").assertIsDisplayed()
         compose.onNodeWithText("Up next").assertIsDisplayed()
@@ -104,6 +109,24 @@ class MainActivityTest {
         compose.waitUntilAtLeastOneExists(hasText("Heartbeat gaps"), timeoutMillis = 10_000)
         compose.onNodeWithContentDescription("Back").performClick()
 
+        // Home restores its scroll position; branding is part of the list in the approved design.
+        compose.onNode(hasScrollToIndexAction()).performScrollToIndex(0)
         compose.waitUntilAtLeastOneExists(hasText("My Companion"), timeoutMillis = 10_000)
+    }
+
+    @Test
+    fun `navigation compacts while scrolled and expands at the top without losing tab actions`() {
+        compose.waitUntilAtLeastOneExists(hasText("Running"), timeoutMillis = 10_000)
+        val expanded = compose.onNodeWithTag("companion-navigation").fetchSemanticsNode().boundsInRoot.width
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Log"))
+        compose.waitForIdle()
+        val compact = compose.onNodeWithTag("companion-navigation").fetchSemanticsNode().boundsInRoot.width
+        assertThat(compact).isLessThan(expanded)
+        compose.onNode(hasScrollToIndexAction()).performScrollToIndex(0)
+        compose.waitForIdle()
+        val restored = compose.onNodeWithTag("companion-navigation").fetchSemanticsNode().boundsInRoot.width
+        assertThat(restored).isWithin(1f).of(expanded)
+        compose.onNodeWithContentDescription("People").performClick()
+        compose.waitUntilAtLeastOneExists(hasText("No one here yet"), timeoutMillis = 10_000)
     }
 }

@@ -278,6 +278,9 @@ class RemindersViewModel @Inject constructor(
         is WhenChoice.OnDateTime -> formatter.format(calculator.firstTrigger(choice.toReminderTime()))
     }
 
+    private val mutableSavedCount = MutableStateFlow(0)
+    val savedCount: StateFlow<Int> = mutableSavedCount
+
     fun onSubmit() {
         val current = form.value
         val repeat = current.toRepeat() ?: return
@@ -296,11 +299,13 @@ class RemindersViewModel @Inject constructor(
             val message = when (result) {
                 is ScheduleResult.Scheduled -> {
                     resetForm()
+                    mutableSavedCount.value++
                     val time = formatter.format(result.reminder.triggerAtMillis)
                     "Reminder set for $time" + then(result.reminder.repeat)
                 }
                 is ScheduleResult.Shown -> {
                     resetForm()
+                    mutableSavedCount.value++
                     "Notification sent" + then(result.reminder.repeat)
                 }
                 ScheduleResult.NotificationsBlocked -> "Notifications are turned off for My Companion"

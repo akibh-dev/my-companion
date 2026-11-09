@@ -9,7 +9,12 @@ enum class WhatsAppVariant(val packageName: String, val title: String) {
     BUSINESS("com.whatsapp.w4b", "WhatsApp Business"),
 }
 
+enum class WhatsAppCallKind { VOICE, VIDEO }
+
+enum class CallAccess { CONTACTS, PHONE }
+
 enum class WhatsAppCallFailure {
+    CALL_PERMISSION_REQUIRED,
     PERMISSION_REQUIRED,
     PROVIDER_DENIED,
     PROVIDER_ERROR,
@@ -65,6 +70,15 @@ interface WhatsAppGateway {
         VoiceCallLookup.Found(listOf(it))
     } ?: VoiceCallLookup.Unavailable(WhatsAppCallFailure.NO_VOICE_ROW)
 
+    suspend fun resolveCall(digits: String, kind: WhatsAppCallKind): VoiceCallLookup =
+        if (kind == WhatsAppCallKind.VOICE) {
+            resolveVoiceCall(digits)
+        } else {
+            VoiceCallLookup.Unavailable(WhatsAppCallFailure.NO_VOICE_ROW)
+        }
+
+    suspend fun launchCall(target: VoiceCallTarget): WhatsAppLaunchResult = launchVoiceCall(target)
+
     suspend fun launchVoiceCall(target: VoiceCallTarget): WhatsAppLaunchResult =
         if (startVoiceCall(target)) {
             WhatsAppLaunchResult.HandedOff
@@ -79,6 +93,8 @@ interface WhatsAppGateway {
             WhatsAppLaunchResult.Failed(WhatsAppCallFailure.NO_HANDLER)
         }
 
+    fun needsCallPermission(target: VoiceCallTarget): Boolean = false
+
     fun canHandle(target: VoiceCallTarget): Boolean = false
 }
 
@@ -89,6 +105,7 @@ data class VoiceCallTarget(
     val variant: WhatsAppVariant = WhatsAppVariant.STANDARD,
     val accountType: String = "com.whatsapp",
     val normalizedNumber: String = "",
+    val kind: WhatsAppCallKind = WhatsAppCallKind.VOICE,
 ) {
     val packageName: String get() = variant.packageName
 }

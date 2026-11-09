@@ -5,18 +5,22 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -165,33 +169,49 @@ fun ReminderSoundPicker(
     }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Sound", style = MaterialTheme.typography.labelLarge)
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            FilterChip(
-                selected == ReminderSound.Default,
-                { choose(ReminderSound.Default) },
-                label = { Text("System default") }
-            )
-            FilterChip(selected == ReminderSound.Silent, { choose(ReminderSound.Silent) }, label = { Text("Silent") })
-            SoundPreset.entries.forEach { preset ->
-                val sound = ReminderSound.Preset(preset.id)
-                FilterChip(selected == sound, { choose(sound) }, label = { Text(preset.title) })
-            }
+        var open by remember { mutableStateOf(false) }
+        val soundLabel = when (selected) {
+            ReminderSound.Default -> "System default"
+            ReminderSound.Silent -> "Silent"
+            is ReminderSound.Preset -> SoundPreset.entries.firstOrNull { it.id == selected.id }?.title ?: "Preset"
+            is ReminderSound.Imported -> sounds.firstOrNull { it.id == selected.id }?.name ?: "Missing audio"
         }
-        sounds.forEach { imported ->
-            val sound = ReminderSound.Imported(imported.id)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(selected == sound, { choose(sound) }, label = {
-                    Text(imported.name + if (imported.available) "" else " (missing — uses default)")
+        Box(Modifier.fillMaxWidth()) {
+            FilledTonalButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(soundLabel)
+            }
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                DropdownMenuItem(text = { Text("System default") }, onClick = {
+                    choose(ReminderSound.Default)
+                    open = false
                 })
-                if (selected != sound) FilledTonalButton(onClick = { viewModel.remove(imported.id) }) { Text("Remove") }
+                DropdownMenuItem(text = { Text("Silent") }, onClick = {
+                    choose(ReminderSound.Silent)
+                    open = false
+                })
+                SoundPreset.entries.forEach { preset ->
+                    DropdownMenuItem(text = { Text(preset.title) }, onClick = {
+                        choose(ReminderSound.Preset(preset.id))
+                        open = false
+                    })
+                }
+                sounds.forEach { imported ->
+                    DropdownMenuItem(
+                        text = { Text(imported.name + if (imported.available) "" else " (missing)") },
+                        onClick = {
+                            choose(ReminderSound.Imported(imported.id))
+                            open = false
+                        },
+                    )
+                }
             }
         }
         if (selected is ReminderSound.Imported && sounds.none { it.id == selected.id }) {
             Text("Selected audio is missing. The default notification sound will be used.")
         }
-        Text("MP3, OGG, WAV or AAC/M4A · up to 10 MB and 30 seconds", style = MaterialTheme.typography.bodySmall)
+        Text("Local audio: MP3, OGG, WAV or M4A · 10 MB / 30 seconds max.", style = MaterialTheme.typography.bodySmall)
         Text(
-            "Imported audio is copied to Notifications/My Companion and may remain after uninstall.",
+            "Imported sounds stay in your phone's Notifications folder, even after removing the app.",
             style = MaterialTheme.typography.bodySmall
         )
         FilledTonalButton(onClick = { picker.launch(arrayOf("audio/*", "application/ogg")) }, enabled = !busy) {
@@ -203,9 +223,13 @@ fun ReminderSoundPicker(
             }, enabled = selected != ReminderSound.Silent && !busy) { Text("Preview sound") }
             FilledTonalButton(onClick = viewModel::stop) { Text("Stop sound") }
         }
-        FilledTonalButton(onClick = {
-            viewModel.openSettings(context, selected)
-        }) { Text("Sound notification settings") }
+        if (selected is ReminderSound.Imported) {
+            TextButton(onClick = {
+                viewModel.remove(selected.id)
+                choose(ReminderSound.Default)
+            }) { Text("Remove selected audio") }
+        }
+        TextButton(onClick = { viewModel.openSettings(context, selected) }) { Text("Android sound settings") }
         Text("Your phone's notification sound settings take priority.", style = MaterialTheme.typography.bodySmall)
         status?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
     }

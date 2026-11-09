@@ -47,7 +47,7 @@ class FeatureDeviceTest {
     @Test
     fun peopleCanSaveNormalizedNumberAndRemovePerson() {
         val name = "Device person ${System.nanoTime()}"
-        compose.onNodeWithText("People").performClick()
+        compose.onNodeWithContentDescription("People").performClick()
         val addPerson = hasText("Add person") or hasContentDescription("Add person")
         compose.waitUntil(10_000) { compose.onAllNodes(addPerson).fetchSemanticsNodes().isNotEmpty() }
         compose.onNode(addPerson).performClick()
@@ -63,7 +63,8 @@ class FeatureDeviceTest {
 
     @Test
     fun reminderFieldsKeepRapidInputAfterFocusChanges() {
-        compose.onNodeWithText("Reminders").performClick()
+        compose.onNodeWithContentDescription("Reminders").performClick()
+        compose.onNodeWithText("Create a reminder").performClick()
         repeat(5) { attempt ->
             val title = "Typing replay $attempt"
             val message = "Stay hydrated $attempt"
@@ -76,7 +77,7 @@ class FeatureDeviceTest {
 
     @Test
     fun playerRejectsInvalidLink() {
-        compose.onNodeWithText("Player").performClick()
+        compose.onNodeWithContentDescription("Player").performClick()
         compose.onNodeWithText("YouTube link").performTextInput("not-a-video")
         compose.onNodeWithText("Open link").performClick()
         awaitText("That's not a YouTube video link")
@@ -85,7 +86,7 @@ class FeatureDeviceTest {
     @Test
     fun playlistCanBeCreatedOpenedAndDeleted() {
         val name = "Device playlist ${System.nanoTime()}"
-        compose.onNodeWithText("Player").performClick()
+        compose.onNodeWithContentDescription("Player").performClick()
         compose.onNodeWithText("Playlists").performClick()
         compose.onNodeWithText("New playlist").performClick()
         compose.onNodeWithText("Name").performTextInput(name)

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Quick actions widget: follows the wallpaper colours (system palette). -->
-    <color name="widget_background">@android:color/system_neutral1_50</color>
-    <color name="widget_action">@android:color/system_accent1_100</color>
-    <color name="widget_text">@android:color/system_neutral1_900</color>
+    <!-- Quick actions widget: uses the approved monochrome palette. -->
+    <color name="widget_background">#F7F7F7</color>
+    <color name="widget_action">#EDEDED</color>
+    <color name="widget_text">#0B0B0B</color>
 
     <style name="Widget.MyCompanion.Action" parent="">
         <item name="android:layout_width">0dp</item>
