@@ -62,6 +62,7 @@ class WhatsAppDiagnosticReportTest {
 
     @Test fun `all typed lookup failures preserve their diagnostic meaning`() {
         val expected = mapOf(
+            WhatsAppCallFailure.CALL_PERMISSION_REQUIRED to DiagnosticLookupStatus.PERMISSION_MISSING,
             WhatsAppCallFailure.PERMISSION_REQUIRED to DiagnosticLookupStatus.PERMISSION_MISSING,
             WhatsAppCallFailure.PROVIDER_DENIED to DiagnosticLookupStatus.PROVIDER_DENIED,
             WhatsAppCallFailure.PROVIDER_ERROR to DiagnosticLookupStatus.PROVIDER_ERROR,

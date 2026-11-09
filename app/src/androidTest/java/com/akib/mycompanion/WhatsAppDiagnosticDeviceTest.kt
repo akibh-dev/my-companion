@@ -21,6 +21,7 @@ import com.akib.mycompanion.debug.WhatsAppDiagnosticEntryPoint
 import com.akib.mycompanion.debug.WhatsAppDiagnosticsActivity
 import com.akib.mycompanion.domain.model.Contact
 import com.akib.mycompanion.domain.repository.ContactRepository
+import com.akib.mycompanion.domain.whatsapp.WhatsAppNumberMatcher
 import com.akib.mycompanion.presentation.call.CallFlowActivity
 import com.akib.mycompanion.presentation.call.CallFlowState
 import com.akib.mycompanion.presentation.call.CallFlowViewModel
@@ -115,5 +116,41 @@ class WhatsAppDiagnosticDeviceTest {
         assertThat(report).contains("handoff=not_attempted")
         assertThat(report).contains("call_outcome=not_observed")
         File(context.filesDir, "whatsapp-call-diagnostics.txt").writeText(report)
+    }
+
+    /** Read-only diagnosis for a user-specified number; never logs contact identity. */
+    @Test fun inspectChosenNumberWithoutLaunchingAnything() = runBlocking<Unit> {
+        val number = InstrumentationRegistry.getArguments().getString("diagnostic_phone")
+        assumeTrue("Choose a test phone explicitly", number != null)
+        val normalized = WhatsAppNumberMatcher.normalize(number)
+        requireNotNull(normalized)
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val entry = EntryPointAccessors.fromApplication(context, WhatsAppDiagnosticEntryPoint::class.java)
+        val chosen = entry.diagnosticContacts().observeAll().first().firstOrNull {
+            WhatsAppNumberMatcher.normalize(it.phone) == normalized
+        }
+        val output = if (chosen == null) {
+            val gateway = AndroidWhatsAppGateway(context)
+            buildString {
+                for (kind in com.akib.mycompanion.domain.port.WhatsAppCallKind.entries) {
+                    val check = gateway.inspect("+$normalized", kind)
+                    appendLine("kind=$kind")
+                    appendLine(
+                        "lookup_status=" + when (val result = check.result) {
+                            is com.akib.mycompanion.domain.port.VoiceCallLookup.Found -> "READY"
+                            is com.akib.mycompanion.domain.port.VoiceCallLookup.Unavailable -> result.reason.name
+                        }
+                    )
+                    appendLine("phonebook_matches=${check.phonebookMatches}")
+                    appendLine("candidate_rows=${check.candidateRows}")
+                    appendLine("matched_rows=${check.observations.count { it.numberMatches }}")
+                    appendLine("handler_available=${check.observations.any { it.handlerAvailable }}")
+                }
+                appendLine("handoff=not_attempted")
+            }
+        } else {
+            entry.whatsAppDiagnostics().inspect(chosen.id).text()
+        }
+        File(context.filesDir, "whatsapp-call-diagnostics.txt").writeText(output)
     }
 }

@@ -4,6 +4,7 @@ import com.akib.mycompanion.domain.model.Contact
 import com.akib.mycompanion.domain.port.VoiceCallLookup
 import com.akib.mycompanion.domain.port.VoiceCallTarget
 import com.akib.mycompanion.domain.port.WhatsAppCallFailure
+import com.akib.mycompanion.domain.port.WhatsAppCallKind
 import com.akib.mycompanion.domain.port.WhatsAppVariant
 import com.akib.mycompanion.domain.usecase.CallContactUseCase
 import com.akib.mycompanion.domain.usecase.CallPreparation
@@ -88,5 +89,26 @@ class CallContactUseCaseTest {
         assertThat(useCase(1L)).isEqualTo(CallResult.ChooseVariant(WhatsAppVariant.entries))
         assertThat(gateway.calls).isEmpty()
         assertThat(gateway.chats).isEmpty()
+    }
+
+    @Test fun `video requests only launch a video target and failed launch opens chat in the chosen app`() = runTest {
+        val video = target.copy(mimeType = "video.mime", kind = WhatsAppCallKind.VIDEO)
+        gateway.videoLookup = VoiceCallLookup.Found(listOf(video))
+        assertThat(
+            useCase.prepare(1, WhatsAppCallKind.VIDEO)
+        ).isEqualTo(CallPreparation.Ready(WhatsAppVariant.STANDARD))
+        assertThat(useCase(1L, WhatsAppCallKind.VIDEO)).isEqualTo(CallResult.CallStarted)
+        assertThat(gateway.calls).containsExactly(video)
+        gateway.callWorks = false
+        assertThat(useCase(1L, WhatsAppCallKind.VIDEO))
+            .isEqualTo(CallResult.ChatFallback(WhatsAppCallFailure.NO_HANDLER, WhatsAppVariant.STANDARD))
+        assertThat(gateway.chats).containsExactly("8801711123456")
+    }
+
+    @Test fun `missing or mismatched video target opens chat without making a voice call`() = runTest {
+        gateway.videoLookup = VoiceCallLookup.Found(listOf(target))
+        assertThat(useCase(1L, WhatsAppCallKind.VIDEO))
+            .isEqualTo(CallResult.ChatFallback(WhatsAppCallFailure.NO_VOICE_ROW, WhatsAppVariant.STANDARD))
+        assertThat(gateway.calls).isEmpty()
     }
 }

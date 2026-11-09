@@ -33,3 +33,31 @@ Build, regression and emulator results are recorded with the PR. The temporary b
 - `:app:ktlintCheck :feature-context:ktlintCheck`: passed.
 - Installed an update on the connected CMF Phone 1 without clearing data and visually inspected the dark Home screen. The subsequent automated multi-screen check was incomplete when the phone screen became unavailable; do not count that check as passed. Scheduled system theme mode was restored.
 - The user requested no PR while further updates are pending. Keep this work on the local `feat/nothing-inspired-ui` branch.
+
+## Enhanced navigation, reminders and calling
+
+The follow-up reference was the user's Nothing Photos screen recording. The bottom navigation now overlays the scrolling content instead of reserving a full-width strip. A Compose graphics layer records the destination content; a separate clipped layer draws and blurs the corresponding region behind the bar, with a neutral translucent tint and highlight. Only this background is blurred, so controls remain sharp. The bar contracts from 328 × 76 dp to 272 × 64 dp once its list leaves the top, and restores its size at the top. Compact tabs keep names and selected state in accessibility semantics. Each remains at least 48 dp high. Main lists include bottom scroll clearance, and the People add button stays above the bar. The bar is hidden while the keyboard is open.
+
+NavHost enter/exit/pop transitions are explicitly disabled for immediate destination changes. The bar's 180 ms sizing motion is independent of navigation. Source: [Compose graphics layers](https://developer.android.com/develop/ui/compose/graphics/draw/modifiers).
+
+Reminders starts with the upcoming list and a create action. Creation/editing uses a native expanded bottom sheet with a scrollable editor. Date, repeat and unit choices wrap onto lines instead of being clipped in horizontal rows. Sound selection is a dropdown. Dismissing a new draft keeps it; a successful save closes the editor, while an unsuccessful submission leaves it open. Source: [Compose bottom sheets](https://developer.android.com/develop/ui/compose/components/bottom-sheets).
+
+People provides distinct visible voice and video buttons. A call kind is passed through the use case, current Contacts-provider lookup, permission/account recovery, and saved state. Voice requests only accept voice MIME rows; video requests only accept video MIME rows. Matching still requires the full phone identity and an owned WhatsApp account. Provider row IDs are resolved and revalidated for each attempt, never saved in app contacts or shortcuts. Lookup/launch failures retain the chat fallback in the selected account. Existing pinned shortcuts and reminder call buttons remain voice actions.
+
+On the CMF Phone 1 with WhatsApp 2.26.42.74, the suggested `call_action="voice"` extra on a `wa.me` link opened chat only. The actual WhatsApp-owned Contacts data actions opened direct voice and video calls to the explicitly authorized test recipient, confirmed by the user. The production app uses these contact actions, not the failed extra. No private WhatsApp application code, phone numbers, or device-specific provider IDs are embedded in the implementation.
+
+A read-only device diagnostic accepts an explicitly supplied test number and reports only call-type readiness, counts and handler availability. The installed app reported one matching voice row and one matching video row, both ready. Hardware UI and in-app handoff results are recorded below.
+
+
+### Verified call-permission repair and final checks — 9 November 2026
+
+The installed WhatsApp manifest protects `com.whatsapp.accountsync.CallContactLandingActivity` with `android.permission.CALL_PHONE`. This explains the difference between the successful ADB test and the app's `SecurityException`/chat fallback. My Companion now declares that permission, checks whether the resolved installed handler requires it, and uses the visible permission recovery host before retrying the pending call. Contacts access and Phone access have separate persisted request state. Granting either resumes the chosen voice/video action once; settings and chat alternatives remain available. Telephony hardware is optional because the app's direct calls are WhatsApp handoffs.
+
+The light-mode bar now uses a neutral glass tint with a white selected pill and dark icons. A separate 240 ms position animation moves the highlight while the destination page changes immediately. The controlled-clock regression test waits for layout frames before checking the intermediate highlight position.
+
+- 356 app JVM/Robolectric/Compose tests passed; debug lint and ktlint passed.
+- The opt-in `WhatsAppLiveCallDeviceTest` passed on the CMF Phone 1. It clicked the actual app Voice call and Video call buttons for the explicitly authorized recipient, handled the Phone permission request, observed WhatsApp's outgoing-call controls for both, and ended both calls.
+- The same device test captured the light-mode People screen, reminder list/editor, and expanded/compact navigation. It sent no reminders or messages. The live test is skipped unless explicit recipient and real-call opt-in arguments are supplied.
+- The earlier shell-only call checks are distinct from this final in-app verification.
+
+The user requested a release APK/ZIP and a local branch commit, with no push or PR. Version 0.3.0 increments Android's version code to 3. The release variant preserves the repository's existing personal-app signing configuration for update compatibility; its certificate is the configured Android debug certificate, while the APK itself is a non-debuggable release build.

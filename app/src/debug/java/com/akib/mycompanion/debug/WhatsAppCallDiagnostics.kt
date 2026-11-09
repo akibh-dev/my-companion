@@ -94,6 +94,7 @@ interface WhatsAppDiagnosticEntryPoint {
 
 /** Exhaustive so a new production failure cannot silently become an unrelated diagnostic result. */
 internal fun WhatsAppCallFailure.diagnosticStatus(): DiagnosticLookupStatus = when (this) {
+    WhatsAppCallFailure.CALL_PERMISSION_REQUIRED -> DiagnosticLookupStatus.PERMISSION_MISSING
     WhatsAppCallFailure.PERMISSION_REQUIRED -> DiagnosticLookupStatus.PERMISSION_MISSING
     WhatsAppCallFailure.PROVIDER_DENIED -> DiagnosticLookupStatus.PROVIDER_DENIED
     WhatsAppCallFailure.PROVIDER_ERROR -> DiagnosticLookupStatus.PROVIDER_ERROR

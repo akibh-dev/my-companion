@@ -18,6 +18,7 @@ import com.akib.mycompanion.data.whatsapp.AndroidWhatsAppGateway
 import com.akib.mycompanion.domain.port.VoiceCallLookup
 import com.akib.mycompanion.domain.port.VoiceCallTarget
 import com.akib.mycompanion.domain.port.WhatsAppCallFailure
+import com.akib.mycompanion.domain.port.WhatsAppCallKind
 import com.akib.mycompanion.domain.port.WhatsAppLaunchResult
 import com.akib.mycompanion.domain.port.WhatsAppVariant
 import com.google.common.truth.Truth.assertThat
@@ -48,7 +49,7 @@ class AndroidWhatsAppGatewayTest {
         shadowOf(app.packageManager).addPackage("com.whatsapp")
     }
 
-    private fun handler(target: VoiceCallTarget) {
+    private fun handler(target: VoiceCallTarget, requiredPermission: String? = null) {
         val intent = Intent(Intent.ACTION_VIEW).setDataAndType(
             Uri.parse("content://com.android.contacts/data/${target.dataId}"),
             target.mimeType,
@@ -61,6 +62,7 @@ class AndroidWhatsAppGatewayTest {
                     packageName = target.packageName
                     name = "CallHandler"
                     exported = true
+                    permission = requiredPermission
                 }
             }
         )
@@ -196,6 +198,37 @@ class AndroidWhatsAppGatewayTest {
             .isEqualTo(WhatsAppLaunchResult.Failed(WhatsAppCallFailure.APP_NOT_INSTALLED))
         assertThat(gateway.openChat("")).isFalse()
         assertThat(shadowOf(app).nextStartedActivity).isNull()
+    }
+
+    @Test fun `video lookup and handoff use the video MIME row and never the sibling voice row`() = runTest {
+        row()
+        val videoMime = AndroidWhatsAppGateway.VIDEO_CALL_MIME
+        FakeContactsProvider.rows += Row(43, videoMime, "$number@s.whatsapp.net", "Video call +$number", 100, 243)
+        FakeContactsProvider.accounts[243] = "com.whatsapp"
+        val result = gateway.resolveCall("+$number", WhatsAppCallKind.VIDEO) as VoiceCallLookup.Found
+        val video = result.targets.single()
+        assertThat(video.dataId).isEqualTo(43)
+        assertThat(video.kind).isEqualTo(WhatsAppCallKind.VIDEO)
+        handler(video)
+        assertThat(gateway.launchCall(video)).isEqualTo(WhatsAppLaunchResult.HandedOff)
+        val intent = shadowOf(app).nextStartedActivity
+        assertThat(intent.data.toString()).isEqualTo("content://com.android.contacts/data/43")
+        assertThat(intent.type).isEqualTo(videoMime)
+        assertThat(intent.`package`).isEqualTo("com.whatsapp")
+    }
+
+    @Test fun `protected WhatsApp activity requires phone permission before either call handoff`() = runTest {
+        row()
+        val target = target()
+        handler(target, Manifest.permission.CALL_PHONE)
+        shadowOf(app).denyPermissions(Manifest.permission.CALL_PHONE)
+        assertThat(gateway.needsCallPermission(target)).isTrue()
+        assertThat(gateway.launchCall(target))
+            .isEqualTo(WhatsAppLaunchResult.Failed(WhatsAppCallFailure.CALL_PERMISSION_REQUIRED))
+        assertThat(shadowOf(app).nextStartedActivity).isNull()
+        shadowOf(app).grantPermissions(Manifest.permission.CALL_PHONE)
+        assertThat(gateway.needsCallPermission(target)).isFalse()
+        assertThat(gateway.launchCall(target)).isEqualTo(WhatsAppLaunchResult.HandedOff)
     }
 
     data class Row(

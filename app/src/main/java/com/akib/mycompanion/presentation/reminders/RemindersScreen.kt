@@ -1,12 +1,14 @@
 package com.akib.mycompanion.presentation.reminders
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -15,7 +17,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
@@ -30,19 +34,25 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,12 +60,16 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.akib.mycompanion.presentation.common.OutlinedStateTextField
+import com.akib.mycompanion.ui.components.DotIcon
+import com.akib.mycompanion.ui.components.DotSymbol
+import com.akib.mycompanion.ui.components.rememberChromeListState
 import java.time.DayOfWeek
 
 /**
  * Reminders screen: compose a notification on top, upcoming ones below. The typed [title] and [message]
  * are Compose text state (owned by the ViewModel); everything else comes in through [state].
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RemindersScreen(
     state: RemindersUiState,
@@ -79,10 +93,20 @@ fun RemindersScreen(
     onEditReminder: (Long) -> Unit = {},
     onCancelEdit: () -> Unit = {},
     preciseTimingAllowed: Boolean = true,
+    submissionCount: Int = 0,
 ) {
+    var creating by rememberSaveable { mutableStateOf(false) }
+    var handledSubmission by rememberSaveable { mutableIntStateOf(submissionCount) }
+    LaunchedEffect(submissionCount) {
+        if (submissionCount != handledSubmission) {
+            creating = false
+            handledSubmission = submissionCount
+        }
+    }
     LazyColumn(
+        state = rememberChromeListState(),
         modifier = modifier,
-        contentPadding = PaddingValues(24.dp),
+        contentPadding = PaddingValues(start = 24.dp, top = 20.dp, end = 24.dp, bottom = 144.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
@@ -99,23 +123,11 @@ fun RemindersScreen(
             item { Text("Precise timing is unavailable. Reminders may arrive later than the selected time.") }
         }
         item {
-            ComposerCard(
-                state = state,
-                title = title,
-                message = message,
-                onChoiceChange = onChoiceChange,
-                onPickTime = onPickTime,
-                onRepeatChange = onRepeatChange,
-                onDayToggle = onDayToggle,
-                onEveryChange = onEveryChange,
-                onContactChange = onContactChange,
-                onSubmit = onSubmit,
-                onPickDateTime = onPickDateTime,
-                onCustomNumberChange = onCustomNumberChange,
-                onCustomUnitChange = onCustomUnitChange,
-                soundContent = soundContent,
-                onCancelEdit = onCancelEdit,
-            )
+            Button(onClick = { creating = true }, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Filled.Add, contentDescription = null)
+                Spacer(Modifier.size(8.dp))
+                Text("Create a reminder")
+            }
         }
         item {
             Text(
@@ -126,11 +138,19 @@ fun RemindersScreen(
         }
         if (state.upcoming.isEmpty()) {
             item {
-                Text(
-                    "Nothing scheduled",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Column(
+                    Modifier.fillMaxWidth().padding(vertical = 36.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    DotIcon(DotSymbol.BELL, Modifier.size(48.dp))
+                    Text("Nothing scheduled", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        "Set a little nudge for later.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         } else {
             items(state.upcoming, key = { it.id }) { reminder ->
@@ -138,6 +158,43 @@ fun RemindersScreen(
                     reminder,
                     onCancel = { onCancelReminder(reminder.id) },
                     onEdit = { onEditReminder(reminder.id) }
+                )
+            }
+        }
+    }
+    if (creating || state.form.editingId != null) {
+        val dismiss = {
+            creating = false
+            if (state.form.editingId != null) onCancelEdit()
+        }
+        ModalBottomSheet(
+            onDismissRequest = dismiss,
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            modifier = Modifier.fillMaxHeight(.94f),
+            containerColor = MaterialTheme.colorScheme.background,
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp, bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    if (state.form.editingId != null) "Edit reminder" else "New reminder",
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = dismiss) { Icon(Icons.Filled.Close, "Close reminder editor") }
+            }
+            Column(
+                Modifier.verticalScroll(rememberScrollState()).padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
+            ) {
+                ComposerCard(
+                    state = state, title = title, message = message,
+                    onChoiceChange = onChoiceChange, onPickTime = onPickTime,
+                    onRepeatChange = onRepeatChange, onDayToggle = onDayToggle,
+                    onEveryChange = onEveryChange, onContactChange = onContactChange,
+                    onSubmit = onSubmit, onPickDateTime = onPickDateTime,
+                    onCustomNumberChange = onCustomNumberChange, onCustomUnitChange = onCustomUnitChange,
+                    soundContent = soundContent, onCancelEdit = onCancelEdit,
                 )
             }
         }
@@ -204,11 +261,9 @@ private fun ComposerCard(
                 Text("Editing reminder", style = MaterialTheme.typography.titleSmall)
                 TextButton(onClick = onCancelEdit) { Text("Cancel editing") }
             }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Text("When", style = MaterialTheme.typography.labelLarge)
-            Row(
-                Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+            ChipRow {
                 state.presets.forEach { chip ->
                     FilterChip(
                         selected = chip.selected,
@@ -268,6 +323,7 @@ private fun RepeatPicker(
     onCustomUnitChange: (RepeatUnit) -> Unit,
 ) {
     val form = state.form
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     Text("Repeat", style = MaterialTheme.typography.labelLarge)
     ChipRow {
         RepeatChoice.entries.forEach { choice ->
@@ -335,10 +391,11 @@ private fun RepeatPicker(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ChipRow(content: @Composable () -> Unit) {
-    Row(
-        Modifier.horizontalScroll(rememberScrollState()),
+    FlowRow(
+        Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) { content() }
 }

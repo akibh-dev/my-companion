@@ -15,6 +15,7 @@ import com.akib.mycompanion.domain.port.VoiceCallLookup
 import com.akib.mycompanion.domain.port.VoiceCallObservation
 import com.akib.mycompanion.domain.port.VoiceCallTarget
 import com.akib.mycompanion.domain.port.WhatsAppCallFailure
+import com.akib.mycompanion.domain.port.WhatsAppCallKind
 import com.akib.mycompanion.domain.port.WhatsAppGateway
 import com.akib.mycompanion.domain.port.WhatsAppLaunchResult
 import com.akib.mycompanion.domain.port.WhatsAppVariant
@@ -37,13 +38,19 @@ class AndroidWhatsAppGateway @Inject constructor(
 
     override suspend fun resolveVoiceCall(digits: String): VoiceCallLookup = inspect(digits).result
 
-    suspend fun inspect(digits: String): VoiceCallInspection = withContext(io) { inspectBlocking(digits) }
+    override suspend fun resolveCall(digits: String, kind: WhatsAppCallKind): VoiceCallLookup = inspect(
+        digits,
+        kind
+    ).result
+
+    suspend fun inspect(digits: String, kind: WhatsAppCallKind = WhatsAppCallKind.VOICE): VoiceCallInspection =
+        withContext(io) { inspectBlocking(digits, kind) }
 
     /** Compatibility bridge only. Production presentation uses the suspending scoped lookup. */
     override fun findVoiceCallTarget(digits: String): VoiceCallTarget? =
         (inspectBlocking(digits).result as? VoiceCallLookup.Found)?.targets?.singleOrNull()
 
-    private fun inspectBlocking(raw: String): VoiceCallInspection {
+    private fun inspectBlocking(raw: String, kind: WhatsAppCallKind = WhatsAppCallKind.VOICE): VoiceCallInspection {
         fun unavailable(
             reason: WhatsAppCallFailure,
             matches: Int = 0,
@@ -68,10 +75,11 @@ class AndroidWhatsAppGateway @Inject constructor(
                 ContactsContract.Data.RAW_CONTACT_ID
             )
             val placeholders = contactIds.joinToString(",") { "?" }
-            val mimePlaceholders = VOICE_CALL_MIME_TYPES.joinToString(",") { "?" }
+            val mimeTypes = if (kind == WhatsAppCallKind.VOICE) VOICE_CALL_MIME_TYPES else VIDEO_CALL_MIME_TYPES
+            val mimePlaceholders = mimeTypes.joinToString(",") { "?" }
             val selection = "${ContactsContract.Data.CONTACT_ID} IN ($placeholders) AND " +
                 "${ContactsContract.Data.MIMETYPE} IN ($mimePlaceholders)"
-            val args = contactIds.map(Long::toString) + VOICE_CALL_MIME_TYPES
+            val args = contactIds.map(Long::toString) + mimeTypes
             val targets = mutableListOf<VoiceCallTarget>()
             val accounts = mutableMapOf<Long, String?>()
             context.contentResolver.query(
@@ -89,12 +97,12 @@ class AndroidWhatsAppGateway @Inject constructor(
                             accounts[rawId] = it
                         }
                     }
-                    val variant = candidateVariant(account, mime)
+                    val variant = candidateVariant(account, mime, kind)
                     val numberMatches = WhatsAppNumberMatcher.matches(
                         "+$digits", cursor.getString(2), cursor.getString(3)
                     )
                     val target = variant?.let {
-                        VoiceCallTarget(cursor.getLong(0), mime, it, account.orEmpty(), "+$digits")
+                        VoiceCallTarget(cursor.getLong(0), mime, it, account.orEmpty(), "+$digits", kind)
                     }
                     val handler = target?.let(::canHandle) ?: false
                     observations += VoiceCallObservation(account.orEmpty(), mime, variant, numberMatches, handler)
@@ -150,6 +158,12 @@ class AndroidWhatsAppGateway @Inject constructor(
     }
 
     override suspend fun launchVoiceCall(target: VoiceCallTarget): WhatsAppLaunchResult {
+        if (needsCallPermission(
+                target
+            )
+        ) {
+            return WhatsAppLaunchResult.Failed(WhatsAppCallFailure.CALL_PERMISSION_REQUIRED)
+        }
         val validity = withContext(io) { validateCurrentTarget(target) }
         if (validity != null) return WhatsAppLaunchResult.Failed(validity)
         return launch(callIntent(target), target.variant)
@@ -176,7 +190,9 @@ class AndroidWhatsAppGateway @Inject constructor(
             cursor.use { cursor ->
                 if (!cursor.moveToFirst()) return@use WhatsAppCallFailure.STALE_TARGET
                 val valid = cursor.getLong(0) == target.dataId && cursor.getString(1) == target.mimeType &&
-                    candidateVariant(accountType(cursor.getLong(4)), cursor.getString(1)) == target.variant &&
+                    candidateVariant(
+                        accountType(cursor.getLong(4)), cursor.getString(1), target.kind
+                    ) == target.variant &&
                     WhatsAppNumberMatcher.matches(target.normalizedNumber, cursor.getString(2), cursor.getString(3))
                 if (valid && !cursor.moveToNext()) null else WhatsAppCallFailure.STALE_TARGET
             }
@@ -187,6 +203,12 @@ class AndroidWhatsAppGateway @Inject constructor(
         } catch (_: Exception) {
             WhatsAppCallFailure.PROVIDER_ERROR
         }
+    }
+
+    override fun needsCallPermission(target: VoiceCallTarget): Boolean {
+        val required = callIntent(target).resolveActivityInfo(context.packageManager, 0)?.permission
+        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE)
+        return required == Manifest.permission.CALL_PHONE && granted != PackageManager.PERMISSION_GRANTED
     }
 
     override fun canHandle(target: VoiceCallTarget): Boolean =
@@ -257,13 +279,22 @@ class AndroidWhatsAppGateway @Inject constructor(
         const val VOICE_CALL_MIME = "vnd.android.cursor.item/vnd.com.whatsapp.voip.call"
         const val BUSINESS_VOICE_CALL_MIME = "vnd.android.cursor.item/vnd.com.whatsapp.w4b.voip.call"
         val VOICE_CALL_MIME_TYPES = listOf(VOICE_CALL_MIME, BUSINESS_VOICE_CALL_MIME)
+        const val VIDEO_CALL_MIME = "vnd.android.cursor.item/vnd.com.whatsapp.video.call"
+        const val BUSINESS_VIDEO_CALL_MIME = "vnd.android.cursor.item/vnd.com.whatsapp.w4b.video.call"
+        val VIDEO_CALL_MIME_TYPES = listOf(VIDEO_CALL_MIME, BUSINESS_VIDEO_CALL_MIME)
 
         /** Candidate private schemas only. Real installed-client behavior still needs user-led verification. */
-        fun candidateVariant(accountType: String?, mime: String): WhatsAppVariant? =
-            when {
-                accountType == WHATSAPP && mime == VOICE_CALL_MIME -> WhatsAppVariant.STANDARD
-                accountType == WHATSAPP_BUSINESS && mime in VOICE_CALL_MIME_TYPES -> WhatsAppVariant.BUSINESS
+        fun candidateVariant(
+            accountType: String?,
+            mime: String,
+            kind: WhatsAppCallKind = WhatsAppCallKind.VOICE,
+        ): WhatsAppVariant? {
+            val mimeTypes = if (kind == WhatsAppCallKind.VOICE) VOICE_CALL_MIME_TYPES else VIDEO_CALL_MIME_TYPES
+            return when {
+                accountType == WHATSAPP && mime == mimeTypes.first() -> WhatsAppVariant.STANDARD
+                accountType == WHATSAPP_BUSINESS && mime in mimeTypes -> WhatsAppVariant.BUSINESS
                 else -> null
             }
+        }
     }
 }

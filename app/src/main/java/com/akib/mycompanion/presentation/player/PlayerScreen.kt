@@ -65,6 +65,7 @@ import com.akib.mycompanion.domain.model.Playlist
 import com.akib.mycompanion.domain.model.PlaylistItem
 import com.akib.mycompanion.domain.model.RepeatMode
 import com.akib.mycompanion.presentation.common.OutlinedStateTextField
+import com.akib.mycompanion.ui.components.rememberChromeListState
 
 /** Everything the Player screen can ask for; the route forwards these to the ViewModels. */
 interface PlayerActions {
@@ -138,8 +139,9 @@ fun PlayerScreen(
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
+        state = rememberChromeListState(),
         modifier = modifier,
-        contentPadding = PaddingValues(24.dp),
+        contentPadding = PaddingValues(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 144.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {

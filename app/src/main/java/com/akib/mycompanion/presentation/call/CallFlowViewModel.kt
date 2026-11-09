@@ -4,7 +4,9 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.akib.mycompanion.di.IoDispatcher
+import com.akib.mycompanion.domain.port.CallAccess
 import com.akib.mycompanion.domain.port.WhatsAppCallFailure
+import com.akib.mycompanion.domain.port.WhatsAppCallKind
 import com.akib.mycompanion.domain.port.WhatsAppVariant
 import com.akib.mycompanion.domain.usecase.CallContactUseCase
 import com.akib.mycompanion.domain.usecase.CallPreparation
@@ -22,7 +24,11 @@ import kotlinx.coroutines.withContext
 
 sealed interface CallFlowState {
     data object Loading : CallFlowState
-    data class Permission(val permanent: Boolean, val requesting: Boolean = false) : CallFlowState
+    data class Permission(
+        val permanent: Boolean,
+        val requesting: Boolean = false,
+        val access: CallAccess = CallAccess.CONTACTS
+    ) : CallFlowState
     data class Choose(val variants: List<WhatsAppVariant>) : CallFlowState
     data class Unavailable(val reason: WhatsAppCallFailure) : CallFlowState
     data class Ready(val variant: WhatsAppVariant?, val chatReason: WhatsAppCallFailure? = null) : CallFlowState
@@ -41,8 +47,11 @@ class CallFlowViewModel @Inject constructor(
     val state = mutableState.asStateFlow()
     private var work: Job? = null
 
-    fun start(contactId: Long) {
-        if (!saved.contains(CONTACT)) saved[CONTACT] = contactId
+    fun start(contactId: Long, kind: WhatsAppCallKind = WhatsAppCallKind.VOICE) {
+        if (!saved.contains(CONTACT)) {
+            saved[CONTACT] = contactId
+            saved[KIND] = kind.name
+        }
         if (saved.get<String>(STAGE) in listOf(null, "RESOLVING")) resolve()
     }
 
@@ -52,11 +61,12 @@ class CallFlowViewModel @Inject constructor(
         mutableState.value = CallFlowState.Loading
         work = viewModelScope.launch {
             try {
-                val preparation = withContext(io) { call.prepare(contactId()) }
+                val preparation = withContext(io) { call.prepare(contactId(), kind()) }
                 work = null
                 when (preparation) {
                     is CallPreparation.Ready -> ready(preparation.variant)
                     CallPreparation.PermissionRequired -> permission(false, false)
+                    CallPreparation.CallPermissionRequired -> permission(false, false, CallAccess.PHONE)
                     is CallPreparation.ChooseVariant -> choose(preparation.variants)
                     is CallPreparation.Unavailable -> unavailable(preparation.reason)
                     CallPreparation.ContactNotFound -> completed("This person was removed from My Companion")
@@ -74,20 +84,20 @@ class CallFlowViewModel @Inject constructor(
     fun onForeground(granted: Boolean, permanent: Boolean) {
         val current = state.value
         if (current is CallFlowState.Permission) {
-            if (granted) resolve() else if (!current.requesting) permission(permanent, false)
+            if (granted) resolve() else if (!current.requesting) permission(permanent, false, current.access)
         } else if (current is CallFlowState.Ready) execute(current)
     }
 
     fun permissionRequested(): Boolean {
         val current = state.value as? CallFlowState.Permission ?: return false
         if (current.requesting || current.permanent) return false
-        permission(false, true)
+        permission(false, true, current.access)
         return true
     }
 
     fun permissionReturned(granted: Boolean, permanent: Boolean) {
-        if (state.value !is CallFlowState.Permission) return
-        if (granted) resolve() else permission(permanent, false)
+        val current = state.value as? CallFlowState.Permission ?: return
+        if (granted) resolve() else permission(permanent, false, current.access)
     }
 
     fun select(variant: WhatsAppVariant) {
@@ -99,7 +109,15 @@ class CallFlowViewModel @Inject constructor(
 
     fun openChat() {
         val reason = when (val current = state.value) {
-            is CallFlowState.Permission -> if (!current.requesting) WhatsAppCallFailure.PERMISSION_REQUIRED else return
+            is CallFlowState.Permission -> if (!current.requesting) {
+                if (current.access == CallAccess.PHONE) {
+                    WhatsAppCallFailure.CALL_PERMISSION_REQUIRED
+                } else {
+                    WhatsAppCallFailure.PERMISSION_REQUIRED
+                }
+            } else {
+                return
+            }
             is CallFlowState.Unavailable -> current.reason
             else -> return
         }
@@ -115,7 +133,7 @@ class CallFlowViewModel @Inject constructor(
                 val result = if (request.chatReason != null) {
                     call.openChat(contactId(), request.chatReason, request.variant)
                 } else {
-                    call(contactId(), requireNotNull(request.variant))
+                    call(contactId(), requireNotNull(request.variant), kind())
                 }
                 when (result) {
                     CallResult.CallStarted -> {
@@ -126,6 +144,8 @@ class CallFlowViewModel @Inject constructor(
                     is CallResult.Failed -> {
                         if (result.reason == WhatsAppCallFailure.PERMISSION_REQUIRED) {
                             permission(false, false)
+                        } else if (result.reason == WhatsAppCallFailure.CALL_PERMISSION_REQUIRED) {
+                            permission(false, false, CallAccess.PHONE)
                         } else {
                             completed(CallMessages.forResult(result) ?: "WhatsApp couldn't open that action")
                         }
@@ -140,12 +160,16 @@ class CallFlowViewModel @Inject constructor(
         }
     }
 
+    private fun kind(): WhatsAppCallKind =
+        saved.get<String>(KIND)?.let(WhatsAppCallKind::valueOf) ?: WhatsAppCallKind.VOICE
+
     private fun contactId(): Long = checkNotNull(saved[CONTACT])
 
-    private fun permission(permanent: Boolean, requesting: Boolean) {
+    private fun permission(permanent: Boolean, requesting: Boolean, access: CallAccess = CallAccess.CONTACTS) {
         saved[STAGE] = if (requesting) "REQUESTING" else "PERMISSION"
         saved[PERMANENT] = permanent
-        mutableState.value = CallFlowState.Permission(permanent, requesting)
+        saved[ACCESS] = access.name
+        mutableState.value = CallFlowState.Permission(permanent, requesting, access)
     }
 
     private fun ready(variant: WhatsAppVariant?, reason: WhatsAppCallFailure? = null) {
@@ -177,7 +201,8 @@ class CallFlowViewModel @Inject constructor(
         when (saved.get<String>(STAGE)) {
             "PERMISSION", "REQUESTING" -> CallFlowState.Permission(
                 saved[PERMANENT] ?: false,
-                saved.get<String>(STAGE) == "REQUESTING"
+                saved.get<String>(STAGE) == "REQUESTING",
+                saved.get<String>(ACCESS)?.let(CallAccess::valueOf) ?: CallAccess.CONTACTS,
             )
             "CHOICE" -> CallFlowState.Choose(
                 saved.get<ArrayList<String>>(VARIANTS).orEmpty().map {
@@ -207,6 +232,8 @@ class CallFlowViewModel @Inject constructor(
     }
 
     companion object {
+        private const val ACCESS = "required_call_access"
+        private const val KIND = "call_kind"
         private const val CONTACT = "pending_contact"
         private const val STAGE = "call_stage"
         private const val PERMANENT = "permanent_denial"

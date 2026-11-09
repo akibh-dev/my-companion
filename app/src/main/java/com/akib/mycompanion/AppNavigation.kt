@@ -1,20 +1,15 @@
 package com.akib.mycompanion
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -24,21 +19,24 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -59,6 +57,8 @@ import com.akib.mycompanion.presentation.log.LogRoute
 import com.akib.mycompanion.presentation.player.PlayerRoute
 import com.akib.mycompanion.presentation.reminders.RemindersRoute
 import com.akib.mycompanion.ui.components.DotText
+import com.akib.mycompanion.ui.components.GlassNavigation
+import com.akib.mycompanion.ui.components.LocalNavigationScrolled
 
 /** What a screen gets: where to draw, the snackbar host, and how to move between screens. */
 class ScreenScope(
@@ -116,6 +116,12 @@ fun CompanionRoot(
     val tab = Tab.entries.firstOrNull { it.route == route }
     val screen = screens.firstOrNull { it.route == route }
     val settingsOpen = route == "settings"
+    val scrolled = remember { mutableStateMapOf<String, Boolean>() }
+    val backdrop = rememberGraphicsLayer()
+    var contentOrigin by remember { mutableStateOf(Offset.Zero) }
+    val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val showNavigation = screen == null && !settingsOpen && !keyboardVisible
+    val reportScroll = remember(route) { { value: Boolean -> scrolled[route.orEmpty()] = value } }
 
     LaunchedEffect(requestCount) {
         if (requestedTab != null) navController.openTab(requestedTab)
@@ -141,43 +147,73 @@ fun CompanionRoot(
             }
         },
         bottomBar = {
-            if (screen == null && !settingsOpen) {
-                CompanionNavigation(tab, onSelect = { navController.openTab(it) })
+            if (showNavigation) {
+                GlassNavigation(
+                    selected = tab,
+                    compact = scrolled[route] == true,
+                    backdrop = backdrop,
+                    contentOrigin = contentOrigin,
+                    onSelect = { navController.openTab(it) },
+                )
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         // Edge-to-edge: the window isn't resized for the keyboard, so shrink the content above it
         // (and let a focused field scroll into view). consumeWindowInsets stops it counting the bottom bar twice.
+        val contentPadding = if (showNavigation) {
+            PaddingValues(top = padding.calculateTopPadding())
+        } else {
+            padding
+        }
         val modifier = Modifier
-            .padding(padding)
+            .padding(contentPadding)
             .consumeWindowInsets(padding)
             .imePadding()
-        NavHost(navController, startDestination = Tab.HOME.route) {
-            composable(Tab.HOME.route) {
-                HomeRoute(
-                    featureRoute = { feature -> featureRoute(feature)?.takeIf { r -> screens.any { it.route == r } } },
-                    links = links,
-                    onOpen = { navController.navigate(it) },
-                    modifier = modifier,
-                )
-            }
-            composable(Tab.PEOPLE.route) { ContactsRoute(snackbarHostState, modifier) }
-            composable(Tab.REMINDERS.route) { RemindersRoute(snackbarHostState, modifier) }
-            composable(Tab.PLAYER.route) { PlayerRoute(snackbarHostState, modifier) }
-            composable("settings") {
-                SettingsScreen(links, onOpen = { navController.navigate(it) }, modifier = modifier)
-            }
-            screens.forEach { item ->
-                composable(item.route) {
-                    item.content(
-                        ScreenScope(
-                            modifier,
-                            snackbarHostState,
-                            { navController.navigate(it) },
-                            { navController.popBackStack() }
-                        )
+        CompositionLocalProvider(LocalNavigationScrolled provides reportScroll) {
+            NavHost(
+                navController,
+                startDestination = Tab.HOME.route,
+                modifier = Modifier.fillMaxSize()
+                    .onGloballyPositioned { contentOrigin = it.positionInRoot() }
+                    .drawWithContent {
+                        backdrop.record { this@drawWithContent.drawContent() }
+                        drawLayer(backdrop)
+                    },
+                enterTransition = { EnterTransition.None },
+                exitTransition = { ExitTransition.None },
+                popEnterTransition = { EnterTransition.None },
+                popExitTransition = { ExitTransition.None },
+            ) {
+                composable(Tab.HOME.route) {
+                    HomeRoute(
+                        featureRoute = { feature ->
+                            featureRoute(
+                                feature
+                            )?.takeIf { r -> screens.any { it.route == r } }
+                        },
+                        links = links,
+                        onOpen = { navController.navigate(it) },
+                        modifier = modifier,
                     )
+                }
+                composable(Tab.PEOPLE.route) { ContactsRoute(snackbarHostState, modifier) }
+                composable(Tab.REMINDERS.route) { RemindersRoute(snackbarHostState, modifier) }
+                composable(Tab.PLAYER.route) { PlayerRoute(snackbarHostState, modifier) }
+                composable("settings") {
+                    SettingsScreen(links, onOpen = { navController.navigate(it) }, modifier = modifier)
+                }
+                screens.forEach { item ->
+                    composable(item.route) {
+                        item.content(
+                            ScreenScope(
+                                modifier,
+                                snackbarHostState,
+                                { navController.navigate(it) },
+                                { navController.popBackStack() }
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -190,57 +226,5 @@ private fun NavHostController.openTab(tab: Tab) {
         popUpTo(graph.findStartDestination().id) { saveState = true }
         launchSingleTop = true
         restoreState = true
-    }
-}
-
-/** Translucent neutral surface, with an inverse pill for the active destination. */
-@Composable
-private fun CompanionNavigation(selected: Tab?, onSelect: (Tab) -> Unit) {
-    Box(Modifier.navigationBarsPadding().padding(horizontal = 20.dp, vertical = 10.dp)) {
-        Surface(
-            shape = RoundedCornerShape(30.dp),
-            color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = .96f),
-            tonalElevation = 0.dp,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Row(
-                Modifier.selectableGroup().padding(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Tab.entries.forEach { tab ->
-                    val active = selected == tab
-                    val background = if (active) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        Color.Transparent
-                    }
-                    val foreground = if (active) {
-                        MaterialTheme.colorScheme.onPrimary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    }
-                    Column(
-                        Modifier.weight(1f).height(54.dp).clip(RoundedCornerShape(25.dp))
-                            .background(background)
-                            .selectable(selected = active, role = Role.Tab, onClick = { onSelect(tab) }),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                    ) {
-                        Icon(
-                            painterResource(tab.icon),
-                            contentDescription = null,
-                            tint = foreground,
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Text(
-                            tab.label,
-                            color = foreground,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontSize = 10.sp
-                        )
-                    }
-                }
-            }
-        }
     }
 }

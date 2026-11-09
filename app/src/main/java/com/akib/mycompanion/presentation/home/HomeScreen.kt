@@ -44,6 +44,7 @@ import com.akib.mycompanion.core.settings.Feature
 import com.akib.mycompanion.ui.components.DotIcon
 import com.akib.mycompanion.ui.components.DotSymbol
 import com.akib.mycompanion.ui.components.DotText
+import com.akib.mycompanion.ui.components.rememberChromeListState
 import com.akib.mycompanion.ui.theme.CompanionRed
 import java.text.DateFormat
 import java.util.Date
@@ -91,8 +92,9 @@ fun HomeScreen(
         else -> "Good evening,"
     }
     LazyColumn(
+        state = rememberChromeListState(),
         modifier = modifier,
-        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 24.dp),
+        contentPadding = PaddingValues(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 144.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {

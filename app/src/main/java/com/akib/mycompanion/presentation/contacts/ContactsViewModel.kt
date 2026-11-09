@@ -9,6 +9,7 @@ import com.akib.mycompanion.di.IoDispatcher
 import com.akib.mycompanion.domain.model.Contact
 import com.akib.mycompanion.domain.port.PhonebookSource
 import com.akib.mycompanion.domain.port.WhatsAppCallFailure
+import com.akib.mycompanion.domain.port.WhatsAppCallKind
 import com.akib.mycompanion.domain.repository.ContactRepository
 import com.akib.mycompanion.domain.usecase.CallContactUseCase
 import com.akib.mycompanion.domain.usecase.CallPreparation
@@ -57,7 +58,7 @@ sealed interface ContactsEvent {
     data class Message(val text: String) : ContactsEvent
 
     /** Continue in a visible permission/variant-choice host; only the app contact ID crosses the boundary. */
-    data class CallRecovery(val contactId: Long) : ContactsEvent
+    data class CallRecovery(val contactId: Long, val kind: WhatsAppCallKind = WhatsAppCallKind.VOICE) : ContactsEvent
 
     /** Shown as a snackbar with Undo. */
     data class Removed(val contact: Contact) : ContactsEvent
@@ -151,19 +152,26 @@ class ContactsViewModel @Inject constructor(
         }
     }
 
-    fun onCall(contact: Contact) {
+    fun onVideoCall(contact: Contact) = onCall(contact, WhatsAppCallKind.VIDEO)
+
+    fun onCall(contact: Contact, kind: WhatsAppCallKind = WhatsAppCallKind.VOICE) {
         viewModelScope.launch {
-            val preparation = withContext(io) { callContact.prepare(contact.id) }
-            if (preparation is CallPreparation.PermissionRequired || preparation is CallPreparation.ChooseVariant) {
-                eventChannel.send(ContactsEvent.CallRecovery(contact.id))
+            val preparation = withContext(io) { callContact.prepare(contact.id, kind) }
+            if (preparation is CallPreparation.PermissionRequired ||
+                preparation is CallPreparation.CallPermissionRequired ||
+                preparation is CallPreparation.ChooseVariant
+            ) {
+                eventChannel.send(ContactsEvent.CallRecovery(contact.id, kind))
                 return@launch
             }
             // The gateway suspends provider queries on IO and hands off on this foreground/Main context.
-            val result = callContact(contact.id)
-            if (result is CallResult.ChooseVariant ||
-                result is CallResult.Failed && result.reason == WhatsAppCallFailure.PERMISSION_REQUIRED
-            ) {
-                eventChannel.send(ContactsEvent.CallRecovery(contact.id))
+            val result = callContact(contact.id, kind)
+            val permissionNeeded = result is CallResult.Failed && (
+                result.reason == WhatsAppCallFailure.PERMISSION_REQUIRED ||
+                    result.reason == WhatsAppCallFailure.CALL_PERMISSION_REQUIRED
+                )
+            if (result is CallResult.ChooseVariant || permissionNeeded) {
+                eventChannel.send(ContactsEvent.CallRecovery(contact.id, kind))
             } else {
                 CallMessages.forResult(result)?.let { eventChannel.send(ContactsEvent.Message(it)) }
             }
@@ -216,6 +224,8 @@ object CallMessages {
     }
 
     fun forFailure(reason: WhatsAppCallFailure): String = when (reason) {
+        WhatsAppCallFailure.CALL_PERMISSION_REQUIRED ->
+            "Phone permission is needed to open WhatsApp's direct call action. Allow it to try again."
         WhatsAppCallFailure.PERMISSION_REQUIRED ->
             "Contacts access is needed to find WhatsApp's call action. Allow it in app settings to try direct calling."
         WhatsAppCallFailure.PROVIDER_DENIED ->
@@ -224,7 +234,7 @@ object CallMessages {
         WhatsAppCallFailure.NO_PHONEBOOK_MATCH ->
             "This number wasn't matched in the phone book. Save it there and let WhatsApp sync its contact action."
         WhatsAppCallFailure.NO_VOICE_ROW ->
-            "No WhatsApp voice-call action was found for this number. Check its action in the phone's Contacts app."
+            "No WhatsApp call action was found for this number. Check its action in the phone's Contacts app."
         WhatsAppCallFailure.AMBIGUOUS ->
             "More than one contact action matched. " +
                 "No direct call was started; check the saved number and phone contacts."

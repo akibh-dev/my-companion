@@ -36,7 +36,9 @@ fun ContactsRoute(
 
     ObserveAsEvents(viewModel.events) { event ->
         when (event) {
-            is ContactsEvent.CallRecovery -> context.startActivity(CallFlowActivity.intent(context, event.contactId))
+            is ContactsEvent.CallRecovery -> context.startActivity(
+                CallFlowActivity.intent(context, event.contactId, kind = event.kind)
+            )
             is ContactsEvent.Message ->
                 snackbarHostState.showSnackbar(event.text, duration = SnackbarDuration.Long)
             is ContactsEvent.Removed -> {
@@ -58,7 +60,8 @@ fun ContactsRoute(
     ContactsScreen(
         state = state,
         onAddClick = viewModel::onAddClick,
-        onCall = viewModel::onCall,
+        onCall = { viewModel.onCall(it) },
+        onVideoCall = viewModel::onVideoCall,
         onEdit = viewModel::onEditClick,
         onDelete = viewModel::onDelete,
         onPinShortcut = viewModel::onPinShortcut,

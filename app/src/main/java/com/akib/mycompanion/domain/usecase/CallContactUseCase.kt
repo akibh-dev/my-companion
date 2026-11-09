@@ -3,6 +3,7 @@ package com.akib.mycompanion.domain.usecase
 import com.akib.mycompanion.domain.model.Contact
 import com.akib.mycompanion.domain.port.VoiceCallLookup
 import com.akib.mycompanion.domain.port.WhatsAppCallFailure
+import com.akib.mycompanion.domain.port.WhatsAppCallKind
 import com.akib.mycompanion.domain.port.WhatsAppGateway
 import com.akib.mycompanion.domain.port.WhatsAppLaunchResult
 import com.akib.mycompanion.domain.port.WhatsAppVariant
@@ -13,6 +14,7 @@ import javax.inject.Inject
 sealed interface CallPreparation {
     data class Ready(val variant: WhatsAppVariant) : CallPreparation
     data object PermissionRequired : CallPreparation
+    data object CallPermissionRequired : CallPreparation
     data class ChooseVariant(val variants: List<WhatsAppVariant>) : CallPreparation
     data class Unavailable(val reason: WhatsAppCallFailure) : CallPreparation
     data object ContactNotFound : CallPreparation
@@ -35,19 +37,22 @@ class CallContactUseCase @Inject constructor(
     private val whatsApp: WhatsAppGateway,
 ) {
     /** Non-calling check for permission recovery/variant choice; no Android launch occurs here. */
-    suspend fun prepare(contactId: Long): CallPreparation {
+    suspend fun prepare(contactId: Long, kind: WhatsAppCallKind = WhatsAppCallKind.VOICE): CallPreparation {
         val contact = contacts.get(contactId) ?: return CallPreparation.ContactNotFound
         if (whatsApp.installedVariants().isEmpty()) return CallPreparation.AppMissing
         val number = WhatsAppNumberMatcher.normalize(contact.phone)
             ?: return CallPreparation.Unavailable(WhatsAppCallFailure.INVALID_NUMBER)
-        return when (val result = whatsApp.resolveVoiceCall("+$number")) {
+        return when (val result = whatsApp.resolveCall("+$number", kind)) {
             is VoiceCallLookup.Unavailable -> if (result.reason == WhatsAppCallFailure.PERMISSION_REQUIRED) {
                 CallPreparation.PermissionRequired
             } else {
                 CallPreparation.Unavailable(result.reason)
             }
             is VoiceCallLookup.Found -> {
-                val variants = result.targets.map { it.variant }.distinct()
+                if (result.targets.any { it.kind == kind && whatsApp.needsCallPermission(it) }) {
+                    return CallPreparation.CallPermissionRequired
+                }
+                val variants = result.targets.filter { it.kind == kind }.map { it.variant }.distinct()
                 when (variants.size) {
                     0 -> CallPreparation.Unavailable(WhatsAppCallFailure.NO_VOICE_ROW)
                     1 -> CallPreparation.Ready(variants.single())
@@ -57,29 +62,45 @@ class CallContactUseCase @Inject constructor(
         }
     }
 
-    suspend operator fun invoke(contactId: Long): CallResult =
-        contacts.get(contactId)?.let { invoke(it) } ?: CallResult.ContactNotFound
+    suspend operator fun invoke(contactId: Long, kind: WhatsAppCallKind = WhatsAppCallKind.VOICE): CallResult =
+        contacts.get(contactId)?.let { invoke(it, kind = kind) } ?: CallResult.ContactNotFound
 
-    suspend operator fun invoke(contactId: Long, variant: WhatsAppVariant): CallResult =
-        contacts.get(contactId)?.let { invoke(it, variant) } ?: CallResult.ContactNotFound
+    suspend operator fun invoke(
+        contactId: Long,
+        variant: WhatsAppVariant,
+        kind: WhatsAppCallKind = WhatsAppCallKind.VOICE,
+    ): CallResult =
+        contacts.get(contactId)?.let { invoke(it, variant, kind) } ?: CallResult.ContactNotFound
 
-    suspend operator fun invoke(contact: Contact, variant: WhatsAppVariant? = null): CallResult {
+    suspend operator fun invoke(
+        contact: Contact,
+        variant: WhatsAppVariant? = null,
+        kind: WhatsAppCallKind = WhatsAppCallKind.VOICE,
+    ): CallResult {
         val installed = whatsApp.installedVariants()
         if (installed.isEmpty()) return CallResult.WhatsAppNotInstalled
         if (variant != null && variant !in installed) return CallResult.Failed(WhatsAppCallFailure.APP_NOT_INSTALLED)
         val number = WhatsAppNumberMatcher.normalize(contact.phone)
             ?: return CallResult.Failed(WhatsAppCallFailure.INVALID_NUMBER)
-        val lookup = whatsApp.resolveVoiceCall("+$number")
+        val lookup = whatsApp.resolveCall("+$number", kind)
         if (lookup is VoiceCallLookup.Found) {
-            val candidates = lookup.targets.filter { variant == null || it.variant == variant }
+            val candidates = lookup.targets.filter {
+                it.kind == kind && (variant == null || it.variant == variant)
+            }
             val variants = candidates.map { it.variant }.distinct()
             if (variants.size > 1) return CallResult.ChooseVariant(variants)
             if (candidates.size > 1) return fallback(contact, WhatsAppCallFailure.AMBIGUOUS, variant)
             val target = candidates.singleOrNull()
             if (target != null) {
-                return when (val launch = whatsApp.launchVoiceCall(target)) {
+                return when (val launch = whatsApp.launchCall(target)) {
                     WhatsAppLaunchResult.HandedOff -> CallResult.CallStarted
-                    is WhatsAppLaunchResult.Failed -> fallback(contact, launch.reason, target.variant)
+                    is WhatsAppLaunchResult.Failed -> {
+                        if (launch.reason == WhatsAppCallFailure.CALL_PERMISSION_REQUIRED) {
+                            CallResult.Failed(launch.reason)
+                        } else {
+                            fallback(contact, launch.reason, target.variant)
+                        }
+                    }
                 }
             }
         }

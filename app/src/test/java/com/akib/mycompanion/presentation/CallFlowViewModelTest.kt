@@ -2,9 +2,11 @@ package com.akib.mycompanion.presentation
 
 import androidx.lifecycle.SavedStateHandle
 import com.akib.mycompanion.domain.model.Contact
+import com.akib.mycompanion.domain.port.CallAccess
 import com.akib.mycompanion.domain.port.VoiceCallLookup
 import com.akib.mycompanion.domain.port.VoiceCallTarget
 import com.akib.mycompanion.domain.port.WhatsAppCallFailure
+import com.akib.mycompanion.domain.port.WhatsAppCallKind
 import com.akib.mycompanion.domain.port.WhatsAppGateway
 import com.akib.mycompanion.domain.port.WhatsAppLaunchResult
 import com.akib.mycompanion.domain.port.WhatsAppVariant
@@ -131,6 +133,36 @@ class CallFlowViewModelTest {
         assertThat(gateway.calls).isEmpty()
     }
 
+    @Test fun `video kind survives permission recovery and activity recreation`() = runTest {
+        val model = flow()
+        model.start(person.id, WhatsAppCallKind.VIDEO)
+        model.permissionRequested()
+        val recreated = flow(copy(saved))
+        recreated.start(person.id) // A default argument must not replace the saved video request.
+        gateway.lookup = VoiceCallLookup.Found(listOf(VoiceCallTarget(50, "video.mime", kind = WhatsAppCallKind.VIDEO)))
+        recreated.permissionReturned(true, false)
+        recreated.onForeground(true, false)
+        assertThat(gateway.calls.single().kind).isEqualTo(WhatsAppCallKind.VIDEO)
+    }
+
+    @Test fun `phone permission request survives recreation and resumes the same video call once`() = runTest {
+        gateway.lookup = VoiceCallLookup.Found(listOf(VoiceCallTarget(51, "video.mime", kind = WhatsAppCallKind.VIDEO)))
+        gateway.needsPhone = true
+        val model = flow()
+        model.start(person.id, WhatsAppCallKind.VIDEO)
+        assertThat(model.state.value).isEqualTo(CallFlowState.Permission(false, access = CallAccess.PHONE))
+        model.permissionRequested()
+        val recreated = flow(copy(saved))
+        recreated.start(person.id)
+        assertThat((recreated.state.value as CallFlowState.Permission).access).isEqualTo(CallAccess.PHONE)
+        gateway.needsPhone = false
+        recreated.permissionReturned(true, false)
+        recreated.onForeground(true, false)
+        recreated.onForeground(true, false)
+        assertThat(gateway.calls).hasSize(1)
+        assertThat(gateway.calls.single().kind).isEqualTo(WhatsAppCallKind.VIDEO)
+    }
+
     private fun found(vararg variants: WhatsAppVariant) = VoiceCallLookup.Found(
         variants.mapIndexed { index, variant ->
             VoiceCallTarget(index + 1L, "synthetic", variant)
@@ -141,6 +173,8 @@ class CallFlowViewModelTest {
         var variants: List<WhatsAppVariant> = listOf(WhatsAppVariant.STANDARD)
         var lookup: VoiceCallLookup = VoiceCallLookup.Unavailable(WhatsAppCallFailure.PERMISSION_REQUIRED)
         var lastNumber = ""
+        var needsPhone = false
+        override fun needsCallPermission(target: VoiceCallTarget) = needsPhone
         val calls = mutableListOf<VoiceCallTarget>()
         val chats = mutableListOf<WhatsAppVariant>()
         override fun isInstalled() = variants.isNotEmpty()
@@ -152,6 +186,10 @@ class CallFlowViewModelTest {
             lastNumber = digits
             return lookup
         }
+        override suspend fun resolveCall(
+            digits: String,
+            kind: WhatsAppCallKind
+        ): VoiceCallLookup = resolveVoiceCall(digits)
         override suspend fun launchVoiceCall(target: VoiceCallTarget): WhatsAppLaunchResult {
             calls += target
             return WhatsAppLaunchResult.HandedOff
