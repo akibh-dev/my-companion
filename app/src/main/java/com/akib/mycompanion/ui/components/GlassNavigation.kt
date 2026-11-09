@@ -7,6 +7,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -24,7 +25,6 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,7 +52,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.akib.mycompanion.Tab
 
 /** A real blurred copy of content beneath the bar, with a neutral tint and subtle highlight. */
@@ -117,7 +116,13 @@ fun GlassNavigation(
                     val active = tab == selected
                     Column(
                         Modifier.weight(1f).height(height - 12.dp).clip(RoundedCornerShape(30.dp))
-                            .selectable(active, role = Role.Tab, onClick = { onSelect(tab) })
+                            .selectable(
+                                selected = active,
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                role = Role.Tab,
+                                onClick = { onSelect(tab) },
+                            )
                             .semantics { contentDescription = tab.label },
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
@@ -128,14 +133,6 @@ fun GlassNavigation(
                             tint = foreground,
                             modifier = Modifier.size(24.dp),
                         )
-                        if (!compact) {
-                            Text(
-                                tab.label,
-                                color = foreground,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontSize = 10.sp,
-                            )
-                        }
                     }
                 }
             }

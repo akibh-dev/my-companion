@@ -61,3 +61,10 @@ The light-mode bar now uses a neutral glass tint with a white selected pill and 
 - The earlier shell-only call checks are distinct from this final in-app verification.
 
 The user requested a release APK/ZIP and a local branch commit, with no push or PR. Version 0.3.0 increments Android's version code to 3. The release variant preserves the repository's existing personal-app signing configuration for update compatibility; its certificate is the configured Android debug certificate, while the APK itself is a non-debuggable release build.
+
+
+### Navigation follow-up — 0.3.1
+
+Both expanded and compact navigation are icon-only. Accessibility names and selected-tab semantics remain. The selected pill retains its positional animation, while tab press ripple indication is disabled to remove the fade/pulse during switching. The glass tint, sizes, scroll contraction, and immediate page changes are unchanged.
+
+Home refreshes the local hour when visible, on lifecycle restart/resume, and once per minute while open. Greetings remain morning from 05:00, afternoon from 12:00, and evening from 17:00. The timer stops while Home is not started, and picks up time/time-zone changes on the next refresh.
