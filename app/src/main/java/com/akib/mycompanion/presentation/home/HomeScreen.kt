@@ -29,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,7 +40,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import com.akib.mycompanion.core.settings.Feature
 import com.akib.mycompanion.ui.components.DotIcon
 import com.akib.mycompanion.ui.components.DotSymbol
@@ -47,7 +50,10 @@ import com.akib.mycompanion.ui.components.DotText
 import com.akib.mycompanion.ui.components.rememberChromeListState
 import com.akib.mycompanion.ui.theme.CompanionRed
 import java.text.DateFormat
+import java.time.LocalTime
 import java.util.Date
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 /** Something Home can open: a feature screen or a tool. */
 data class HomeLink(val title: String, val description: String, val route: String)
@@ -85,7 +91,15 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
 ) {
     val tiles = listOf(Feature.VOICE_MODE, Feature.CONTEXT_RULES, Feature.AUTO_REPLY, Feature.KEEP_SCREEN_ON)
-    val hour = java.time.LocalTime.now().hour
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val hour by produceState(initialValue = LocalTime.now().hour, key1 = lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (isActive) {
+                value = LocalTime.now().hour
+                delay(60_000L)
+            }
+        }
+    }
     val greeting = when (hour) {
         in 5..11 -> "Good morning,"
         in 12..16 -> "Good afternoon,"
