@@ -23,7 +23,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.time.LocalDate
 
-/** Home → "Export & backup": connects [ExportScreen] to the system file picker. */
+/** Settings → "Export & backup": connects [ExportScreen] to the system file picker. */
 @Composable
 fun ExportRoute(modifier: Modifier = Modifier, viewModel: ExportViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()

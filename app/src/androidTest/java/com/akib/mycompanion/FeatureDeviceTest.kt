@@ -7,6 +7,7 @@ import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -39,9 +40,9 @@ class FeatureDeviceTest {
     fun masterPauseCanBeChangedAndRestored() {
         val paused = compose.onAllNodesWithText("Paused").fetchSemanticsNodes().isNotEmpty()
         compose.onAllNodes(isToggleable()).onFirst().performClick()
-        compose.onNodeWithText(if (paused) "Running" else "Paused").assertIsDisplayed()
+        compose.onNodeWithText(if (paused) "Active" else "Paused").assertIsDisplayed()
         compose.onAllNodes(isToggleable()).onFirst().performClick()
-        compose.onNodeWithText(if (paused) "Paused" else "Running").assertIsDisplayed()
+        compose.onNodeWithText(if (paused) "Paused" else "Active").assertIsDisplayed()
     }
 
     @Test
@@ -158,7 +159,7 @@ class FeatureDeviceTest {
 
     @Test
     fun exportAndSettingsBackupControlsAreAvailable() {
-        openHome("Export & backup")
+        openSettings("Export & backup")
         compose.onNodeWithText("Export my data…").assertExists()
         compose.onNodeWithText("Save settings…").assertExists()
         compose.onNodeWithText("Restore settings…").assertExists()
@@ -175,15 +176,32 @@ class FeatureDeviceTest {
 
     @Test
     fun permissionGuideAndHealthLogOpen() {
-        openHome("Permissions & health")
+        openSettings("Permissions & health")
         compose.onNodeWithText("Permissions & health").assertIsDisplayed()
         compose.onNodeWithContentDescription("Back").performClick()
-        openHome("Log")
+        // Back lands on Settings, where Log is listed too.
+        scrollTo("Log")
+        compose.onNodeWithText("Log").performClick()
         compose.onNodeWithText("Refresh").performClick()
         compose.onNodeWithText("Heartbeat gaps").assertExists()
     }
 
     private fun openHome(label: String) {
+        scrollTo(label)
+        // Feature tiles toggle when tapped; their arrow ("Open …") is what opens the screen.
+        val arrow = compose.onAllNodesWithContentDescription("Open $label").fetchSemanticsNodes()
+        if (arrow.isNotEmpty()) {
+            compose.onNodeWithContentDescription("Open $label").performClick()
+        } else {
+            compose.onNodeWithText(label).performClick()
+        }
+        compose.waitForIdle()
+    }
+
+    /** Tools (export, permissions, log) live in Settings, opened from Home's top-right control. */
+    private fun openSettings(label: String) {
+        compose.onNodeWithContentDescription("Settings").performClick()
+        compose.waitForIdle()
         scrollTo(label)
         compose.onNodeWithText(label).performClick()
         compose.waitForIdle()

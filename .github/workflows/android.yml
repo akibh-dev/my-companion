@@ -28,12 +28,22 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # Robolectric's Android jars (~150 MB) live in ~/.m2, which setup-gradle doesn't cache.
+      # Without this every run re-downloads them, and Maven Central answers HTTP 429.
+      - name: Cache Robolectric Android jars
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/robolectric
+          key: robolectric-${{ hashFiles('gradle/libs.versions.toml', 'app/src/test/resources/robolectric.properties') }}
+
       - name: Fetch pinned offline transliteration models
         run: python3 tools/banglish/fetch_models.py
 
       - name: Format check, unit + Robolectric tests, lint, build APK
         id: gradle
         shell: bash
+        env:
+          ROBOLECTRIC_REPO_URL: https://maven-central.storage-download.googleapis.com/maven2
         run: |
           set -o pipefail
           ./gradlew ktlintCheck testDebugUnitTest lintDebug assembleDebug \

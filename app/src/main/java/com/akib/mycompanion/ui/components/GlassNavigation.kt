@@ -1,5 +1,6 @@
 package com.akib.mycompanion.ui.components
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -53,6 +54,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.akib.mycompanion.Tab
+import com.akib.mycompanion.ui.theme.CompanionRed
 
 /** A real blurred copy of content beneath the bar, with a neutral tint and subtle highlight. */
 @Composable
@@ -127,10 +129,16 @@ fun GlassNavigation(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
                     ) {
+                        // The selected destination wears the brand red, like Home's active tiles.
+                        val iconTint by animateColorAsState(
+                            if (active) CompanionRed else foreground,
+                            tween(200),
+                            label = "Tab icon",
+                        )
                         Icon(
                             painterResource(tab.icon),
                             null,
-                            tint = foreground,
+                            tint = iconTint,
                             modifier = Modifier.size(24.dp),
                         )
                     }

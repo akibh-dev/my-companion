@@ -16,6 +16,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.akib.mycompanion.MainActivity
@@ -65,7 +67,7 @@ class MainActivityTest {
 
     @Test
     fun `opens on Home with the pause switch, and switches tabs`() {
-        compose.waitUntilAtLeastOneExists(hasText("Running"), timeoutMillis = 10_000)
+        compose.waitUntilAtLeastOneExists(hasText("Active"), timeoutMillis = 10_000)
         compose.onNodeWithText("My Companion").assertIsDisplayed()
 
         compose.onNodeWithContentDescription("People").performClick()
@@ -81,18 +83,18 @@ class MainActivityTest {
 
     @Test
     fun `the pause switch is labelled and pauses everything`() {
-        compose.waitUntilAtLeastOneExists(hasText("Running"), timeoutMillis = 10_000)
-        compose.onNodeWithText("Pause").assertIsDisplayed()
+        compose.waitUntilAtLeastOneExists(hasText("Active"), timeoutMillis = 10_000)
+        compose.onNodeWithContentDescription("Pause all automatic actions").assertIsDisplayed()
 
         compose.onNodeWithContentDescription("Pause all automatic actions").assertIsOff().performClick()
         compose.waitUntilAtLeastOneExists(hasText("Paused"), timeoutMillis = 10_000)
         compose.onNodeWithContentDescription("Pause all automatic actions").assertIsOn().performClick()
-        compose.waitUntilAtLeastOneExists(hasText("Running"), timeoutMillis = 10_000)
+        compose.waitUntilAtLeastOneExists(hasText("Active"), timeoutMillis = 10_000)
     }
 
     @Test
     fun `player tab shows the link box`() {
-        compose.waitUntilAtLeastOneExists(hasText("Running"), timeoutMillis = 10_000)
+        compose.waitUntilAtLeastOneExists(hasText("Active"), timeoutMillis = 10_000)
 
         compose.onNodeWithContentDescription("Player").performClick()
 
@@ -101,13 +103,17 @@ class MainActivityTest {
     }
 
     @Test
-    fun `home opens the log and comes back`() {
-        compose.waitUntilAtLeastOneExists(hasText("Running"), timeoutMillis = 10_000)
+    fun `settings opens the log and comes back home`() {
+        compose.waitUntilAtLeastOneExists(hasText("Active"), timeoutMillis = 10_000)
 
+        // Tools such as Log live in Settings (top right of Home), not in Home's list.
+        compose.onNodeWithContentDescription("Settings").performClick()
         compose.onNode(hasScrollAction()).performScrollToNode(hasText("Log"))
         compose.onNodeWithText("Log").performClick()
         compose.waitUntilAtLeastOneExists(hasText("Heartbeat gaps"), timeoutMillis = 10_000)
         compose.onNodeWithContentDescription("Back").performClick()
+        compose.onNodeWithContentDescription("Back").performClick()
+        compose.waitUntilAtLeastOneExists(hasText("Active"), timeoutMillis = 10_000)
 
         // Home restores its scroll position; branding is part of the list in the approved design.
         compose.onNode(hasScrollToIndexAction()).performScrollToIndex(0)
@@ -116,9 +122,9 @@ class MainActivityTest {
 
     @Test
     fun `navigation compacts while scrolled and expands at the top without losing tab actions`() {
-        compose.waitUntilAtLeastOneExists(hasText("Running"), timeoutMillis = 10_000)
+        compose.waitUntilAtLeastOneExists(hasText("Active"), timeoutMillis = 10_000)
         val expanded = compose.onNodeWithTag("companion-navigation").fetchSemanticsNode().boundsInRoot.width
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Log"))
+        compose.onNode(hasScrollAction()).performTouchInput { swipeUp() }
         compose.waitForIdle()
         val compact = compose.onNodeWithTag("companion-navigation").fetchSemanticsNode().boundsInRoot.width
         assertThat(compact).isLessThan(expanded)

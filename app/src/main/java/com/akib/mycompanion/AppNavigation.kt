@@ -49,6 +49,7 @@ import com.akib.mycompanion.core.settings.Feature
 import com.akib.mycompanion.presentation.ai.AiEnginesRoute
 import com.akib.mycompanion.presentation.contacts.ContactsRoute
 import com.akib.mycompanion.presentation.health.PermissionsScreen
+import com.akib.mycompanion.presentation.home.AI_ROUTE
 import com.akib.mycompanion.presentation.home.HomeLink
 import com.akib.mycompanion.presentation.home.HomeRoute
 import com.akib.mycompanion.presentation.home.PERMISSIONS_ROUTE
@@ -102,14 +103,14 @@ fun CompanionRoot(
             Screen(PERMISSIONS_ROUTE, "Permissions & health") {
                 PermissionsScreen(requirements, it.modifier, onReady = { navController.backToHome() })
             },
-            Screen("ai", "AI engines") { AiEnginesRoute(it.modifier) },
+            Screen(AI_ROUTE, "AI engines") { AiEnginesRoute(it.modifier) },
             Screen("log", "Log") { LogRoute(it.modifier) },
         ) + extraScreens
     }
     val links = remember(homeLinks) {
         homeLinks + listOf(
             HomeLink("Permissions & health", "What each feature needs, and what's missing", PERMISSIONS_ROUTE),
-            HomeLink("AI engines", "Switch each engine between fallback and model, and try it", "ai"),
+            HomeLink("AI engines", "Switch each engine between fallback and model, and try it", AI_ROUTE),
             HomeLink("Log", "What the app did, kept on this phone", "log"),
         )
     }
@@ -194,7 +195,6 @@ fun CompanionRoot(
                                 feature
                             )?.takeIf { r -> screens.any { it.route == r } }
                         },
-                        links = links,
                         onOpen = { navController.navigate(it) },
                         modifier = modifier,
                     )
