@@ -83,13 +83,13 @@ val guidePages: List<GuidePage>
         GuidePage(
             "Permissions are per feature",
             "Nothing is asked for up front. Each feature asks only for what it needs when you switch it on, " +
-                "and Permissions & health on Home shows what's missing and why.",
+                "and Settings → Permissions & health shows what's missing and why.",
             symbol = DotSymbol.LOCK,
         ),
         GuidePage(
             "Nothing leaves the phone",
             "Your people, reminders, playlists and rules stay on this phone. There are no accounts and " +
-                "no cloud. Home → Export & backup saves a copy of your data wherever you choose.",
+                "no cloud. Settings → Export & backup saves a copy of your data wherever you choose.",
             symbol = DotSymbol.SCREEN,
         ),
     )

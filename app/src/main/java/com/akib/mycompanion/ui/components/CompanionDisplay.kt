@@ -80,8 +80,10 @@ enum class DotSymbol(val path: String) {
     BELL("M18 8A6 6 0 0 0 6 8C6 15 3 15 3 17H21C21 15 18 15 18 8 M10 21H14"),
     TOOLS("M5 4V5 M12 4V5 M19 4V5 M5 11V12 M12 11V12 M19 11V12 M5 18V19 M12 18V19 M19 18V19"),
     PLAY("M7 4L19 12L7 20Z"),
-    PAUSE("M8 5V19 M16 5V19"),
+    PAUSE("M8 5V19 M10 5V19 M14 5V19 M16 5V19"),
     LOCK("M7 11V8A5 5 0 0 1 17 8V11 M5 11H19V21H5V11"),
+    MESSAGE("M4 4H20V16H11L6 20V16H4V4"),
+    SPARK("M12 3Q13 11 21 12Q13 13 12 21Q11 13 3 12Q11 11 12 3"),
 }
 
 @Composable
@@ -102,6 +104,33 @@ fun DotIcon(symbol: DotSymbol, modifier: Modifier = Modifier, color: Color = Loc
     Canvas(modifier) {
         val scale = min(size.width, size.height) / 24f
         points.forEach { point -> drawCircle(color, scale * .7f, point * scale) }
+    }
+}
+
+/**
+ * A dotted cog: a ring of dots with eight two-dot teeth, and an optional [accent] dot in the hub
+ * (the brand red on Home's settings control).
+ */
+@Composable
+fun DotGear(
+    modifier: Modifier = Modifier,
+    color: Color = LocalContentColor.current,
+    accent: Color? = null,
+) {
+    Canvas(modifier) {
+        val scale = min(size.width, size.height) / 24f
+        val centre = Offset(size.width / 2, size.height / 2)
+        fun at(radius: Float, degrees: Double) = centre + Offset(
+            (radius * kotlin.math.cos(Math.toRadians(degrees))).toFloat(),
+            (radius * kotlin.math.sin(Math.toRadians(degrees))).toFloat(),
+        ) * scale
+        repeat(16) { drawCircle(color, scale * .75f, at(6.2f, it * 22.5)) }
+        repeat(8) { tooth ->
+            val angle = tooth * 45.0 + 22.5
+            drawCircle(color, scale * .75f, at(9.3f, angle - 8))
+            drawCircle(color, scale * .75f, at(9.3f, angle + 8))
+        }
+        accent?.let { drawCircle(it, scale * 1.7f, centre) }
     }
 }
 

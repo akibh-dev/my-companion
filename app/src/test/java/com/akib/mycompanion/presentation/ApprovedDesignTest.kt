@@ -41,7 +41,7 @@ class ApprovedDesignTest {
     }
 
     @Test
-    fun `home cards open features and quick toggle is separate from navigation`() {
+    fun `tapping a home tile toggles it and its arrow opens the feature`() {
         val routes = mutableListOf<String>()
         val toggles = mutableListOf<Pair<Feature, Boolean>>()
         compose.setContent {
@@ -49,18 +49,21 @@ class ApprovedDesignTest {
                 HomeScreen(
                     state = HomeUiState(),
                     featureRoute = { it.name },
-                    links = emptyList(),
                     onPauseChange = {},
                     onFeatureChange = { feature, enabled -> toggles += feature to enabled },
                     onOpen = { routes += it },
                 )
             }
         }
-        compose.onNodeWithText("Voice mode").performClick()
-        compose.onNodeWithContentDescription("Enable Voice mode").assertIsOff().performClick()
-        compose.onNodeWithContentDescription("Settings").performClick()
+        compose.onNodeWithContentDescription("Open Voice mode").performClick()
+        compose.onNodeWithText("Voice mode").assertIsOff().performClick()
+        compose.onNodeWithText("AI engines").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Open Missed-call SMS").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Settings").performScrollTo().performClick()
         compose.onNodeWithContentDescription("Pause all automatic actions").performScrollTo().assertIsOff()
-        assertThat(routes).containsExactly(Feature.VOICE_MODE.name, "settings").inOrder()
+        assertThat(routes)
+            .containsExactly(Feature.VOICE_MODE.name, "ai", Feature.MISSED_CALL_SMS.name, "settings")
+            .inOrder()
         assertThat(toggles).containsExactly(Feature.VOICE_MODE to true)
     }
 
