@@ -68,3 +68,11 @@ The user requested a release APK/ZIP and a local branch commit, with no push or 
 Both expanded and compact navigation are icon-only. Accessibility names and selected-tab semantics remain. The selected pill retains its positional animation, while tab press ripple indication is disabled to remove the fade/pulse during switching. The glass tint, sizes, scroll contraction, and immediate page changes are unchanged.
 
 Home refreshes the local hour when visible, on lifecycle restart/resume, and once per minute while open. Greetings remain morning from 05:00, afternoon from 12:00, and evening from 17:00. The timer stops while Home is not started, and picks up time/time-zone changes on the next refresh.
+
+### First-run guide and permissions follow-up
+
+The first-run guide now uses the approved display language: each page has a dotted hero card (the dotted wordmark on page one, a dot icon on the others), a title with the red brand period, and muted body copy. Page one lists the five features with dot icons instead of one long sentence. Pages swipe with a Compose `HorizontalPager`; the buttons animate the same pager. Progress is shown once, by the page dots (the active dot stretches into a pill), so there is no numeric counter. Skip jumps to the last page instead of closing the guide, so Start / Open permissions stays one tap away. On the last page Back and Start share a row and Open permissions takes the full width below, so its label never wraps. The decorative red period is excluded from accessibility text; screen readers hear the plain title as a heading.
+
+When every requirement is granted, Permissions & health shows a "Ready to roll" card whose Let's go button returns to Home. It pops the back stack to Home rather than using the tab-switching helper, because that helper's saved state would restore the permissions screen. Source: [Compose pager](https://developer.android.com/develop/ui/compose/layouts/pager), [Navigation back stack](https://developer.android.com/guide/navigation/backstack).
+
+Verified on the CMF Phone 1 (light mode): all four guide pages, swipe and Skip, and Let's go from 12/12 granted landing on Home. 358 app unit tests, debug lint and ktlint passed.

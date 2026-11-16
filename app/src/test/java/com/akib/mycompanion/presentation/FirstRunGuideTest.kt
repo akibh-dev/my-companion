@@ -45,7 +45,7 @@ class FirstRunGuideTest {
     }
 
     @Test
-    fun `back goes to the previous page and skip finishes without permissions`() {
+    fun `back goes to the previous page and skip jumps to the last page`() {
         show()
 
         compose.onNodeWithText("Next").performClick()
@@ -53,6 +53,11 @@ class FirstRunGuideTest {
         compose.onNodeWithText(guidePages.first().title).assertIsDisplayed()
         compose.onNodeWithText("Skip").performClick()
 
+        compose.onNodeWithText(guidePages.last().title).assertIsDisplayed()
+        compose.onNodeWithText("Skip").assertDoesNotExist()
+        assertThat(finished).isEmpty()
+
+        compose.onNodeWithText("Start").performClick()
         assertThat(finished).containsExactly(false)
     }
 

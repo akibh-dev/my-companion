@@ -12,12 +12,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -31,18 +35,27 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.akib.mycompanion.core.permissions.Requirement
+import com.akib.mycompanion.ui.theme.CompanionRed
 
 /**
  * Every permission, the feature that needs it, granted or not, and a button to the right system
  * screen, with the "Allow restricted settings" steps for sideloaded apps (plan Phase 1, NFR-3, NFR-8).
+ * Once everything is granted, a "Let's go" button calls [onReady] (Home, from the app's navigation).
  */
 @Composable
-fun PermissionsScreen(requirements: List<Requirement>, modifier: Modifier = Modifier) {
+fun PermissionsScreen(
+    requirements: List<Requirement>,
+    modifier: Modifier = Modifier,
+    onReady: (() -> Unit)? = null,
+) {
     val context = LocalContext.current
     var checks by remember { mutableIntStateOf(0) }
     var asking by remember { mutableStateOf<Requirement?>(null) }
@@ -69,6 +82,9 @@ fun PermissionsScreen(requirements: List<Requirement>, modifier: Modifier = Modi
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
+        if (onReady != null && sorted.all { it.second }) {
+            item(key = "ready") { ReadyCard(onReady) }
+        }
         items(sorted, key = { it.first.id }) { (requirement, granted) ->
             RequirementCard(requirement, granted) {
                 val missing = requirement.runtimePermissions.filter { p ->
@@ -81,6 +97,36 @@ fun PermissionsScreen(requirements: List<Requirement>, modifier: Modifier = Modi
                     ask.launch(missing.toTypedArray())
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ReadyCard(onReady: () -> Unit) {
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+    ) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                buildAnnotatedString {
+                    append("Ready to roll")
+                    withStyle(SpanStyle(color = CompanionRed)) { append(".") }
+                },
+                style = MaterialTheme.typography.headlineSmall,
+            )
+            Text(
+                "Everything is granted, so every feature can do its job.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Button(
+                onClick = onReady,
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .fillMaxWidth()
+                    .height(56.dp),
+            ) { Text("Let's go") }
         }
     }
 }
