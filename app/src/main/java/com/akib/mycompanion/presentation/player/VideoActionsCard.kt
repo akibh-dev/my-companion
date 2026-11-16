@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -15,9 +16,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -32,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -43,6 +43,9 @@ import coil.compose.AsyncImage
 import com.akib.mycompanion.R
 import com.akib.mycompanion.domain.model.Playlist
 import com.akib.mycompanion.domain.model.Video
+import com.akib.mycompanion.ui.components.DotIcon
+import com.akib.mycompanion.ui.components.DotSymbol
+import com.akib.mycompanion.ui.theme.CompanionRed
 import java.util.Locale
 
 /** Video found from a link: Play now, Add to queue, or Add to a playlist (existing or new). */
@@ -66,18 +69,18 @@ fun VideoActionsCard(
         VideoRow(video)
 
         if (!choosingPlaylist) {
-            Button(onClick = onPlayNow, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Filled.PlayArrow, contentDescription = null)
+            Button(onClick = onPlayNow, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                DotIcon(DotSymbol.PLAY, Modifier.size(18.dp), color = CompanionRed)
                 Spacer(Modifier.width(8.dp))
                 Text("Play now")
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilledTonalButton(onClick = onAddToQueue, modifier = Modifier.weight(1f)) {
+                OutlinedButton(onClick = onAddToQueue, modifier = Modifier.weight(1f).height(48.dp)) {
                     Icon(painterResource(R.drawable.ic_queue_music), contentDescription = null)
                     Spacer(Modifier.width(6.dp))
                     Text("Add to queue")
                 }
-                FilledTonalButton(onClick = { choosingPlaylist = true }, modifier = Modifier.weight(1f)) {
+                OutlinedButton(onClick = { choosingPlaylist = true }, modifier = Modifier.weight(1f).height(48.dp)) {
                     Icon(painterResource(R.drawable.ic_playlist_add), contentDescription = null)
                     Spacer(Modifier.width(6.dp))
                     Text("Add to playlist")
@@ -126,7 +129,7 @@ fun VideoActionsCard(
 @Composable
 fun VideoRow(video: Video, modifier: Modifier = Modifier, highlighted: Boolean = false) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        Thumbnail(video.thumbnailUrl, Modifier.size(width = 88.dp, height = 50.dp))
+        Thumbnail(video.thumbnailUrl, Modifier.size(width = 96.dp, height = 54.dp))
         Column(
             Modifier
                 .weight(1f)
@@ -155,10 +158,10 @@ fun VideoRow(video: Video, modifier: Modifier = Modifier, highlighted: Boolean =
 }
 
 @Composable
-fun Thumbnail(url: String?, modifier: Modifier = Modifier) {
+fun Thumbnail(url: String?, modifier: Modifier = Modifier, shape: Shape = RoundedCornerShape(12.dp)) {
     Box(
         modifier
-            .clip(RoundedCornerShape(8.dp))
+            .clip(shape)
             .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
     ) {
