@@ -19,6 +19,8 @@ data class Reminder(
     val contactId: Long? = null,
     val delivered: Boolean = false,
     val sound: ReminderSound = ReminderSound.Default,
+    /** Paused reminders stay in the list but have no alarm until resumed. */
+    val paused: Boolean = false,
 ) {
     /** Notification ids are ints; reminder ids stay far below Int.MAX_VALUE on a personal device. */
     val notificationId: Int get() = id.toInt()

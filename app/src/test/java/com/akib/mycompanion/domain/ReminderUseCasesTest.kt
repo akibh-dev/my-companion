@@ -12,6 +12,7 @@ import com.akib.mycompanion.domain.usecase.FireReminderUseCase
 import com.akib.mycompanion.domain.usecase.RestoreRemindersUseCase
 import com.akib.mycompanion.domain.usecase.ScheduleReminderUseCase
 import com.akib.mycompanion.domain.usecase.ScheduleResult
+import com.akib.mycompanion.domain.usecase.SetReminderPausedUseCase
 import com.akib.mycompanion.domain.usecase.SnoozeReminderUseCase
 import com.akib.mycompanion.fakes.FakeAlarmScheduler
 import com.akib.mycompanion.fakes.FakeClock
@@ -42,6 +43,71 @@ class ReminderUseCasesTest {
     private val cancel = CancelReminderUseCase(reminders, scheduler, notifier)
     private val cleanUp = CleanUpRemindersUseCase(reminders, clock)
     private val restore = RestoreRemindersUseCase(reminders, scheduler, fire, cleanUp, clock)
+    private val setPaused = SetReminderPausedUseCase(reminders, scheduler, notifier, fire, clock)
+
+    // ---- Pause ----
+
+    @Test
+    fun `pausing drops the alarm but keeps the reminder`() = runTest {
+        val reminder = (schedule("Walk", "", ReminderTime.InMinutes(30)) as ScheduleResult.Scheduled).reminder
+
+        val paused = setPaused(reminder.id, paused = true)!!
+
+        assertThat(paused.paused).isTrue()
+        assertThat(reminders.all.single().paused).isTrue()
+        assertThat(scheduler.scheduled).isEmpty()
+    }
+
+    @Test
+    fun `resuming before its time arms the same alarm again`() = runTest {
+        val reminder = (schedule("Walk", "", ReminderTime.InMinutes(30)) as ScheduleResult.Scheduled).reminder
+        setPaused(reminder.id, paused = true)
+
+        val resumed = setPaused(reminder.id, paused = false)!!
+
+        assertThat(resumed.paused).isFalse()
+        assertThat(scheduler.scheduled).containsExactly(reminder.id, reminder.triggerAtMillis)
+    }
+
+    @Test
+    fun `a repeat resumed after its time moves to the next one, without ringing`() = runTest {
+        val reminder = (
+            schedule("Water", "", ReminderTime.InMinutes(30), Repeat.Every(60)) as ScheduleResult.Scheduled
+            ).reminder
+        setPaused(reminder.id, paused = true)
+        clock.now = millisAt(2026, 10, 23, 12, 0)
+
+        val resumed = setPaused(reminder.id, paused = false)!!
+
+        assertThat(resumed.triggerAtMillis).isEqualTo(millisAt(2026, 10, 23, 12, 30))
+        assertThat(scheduler.scheduled).containsExactly(reminder.id, millisAt(2026, 10, 23, 12, 30))
+        assertThat(notifier.shown).isEmpty()
+    }
+
+    @Test
+    fun `a paused reminder never fires and is not re-armed after a reboot`() = runTest {
+        val reminder = (schedule("Walk", "", ReminderTime.InMinutes(30)) as ScheduleResult.Scheduled).reminder
+        setPaused(reminder.id, paused = true)
+        clock.now = millisAt(2026, 10, 23, 11, 0)
+
+        assertThat(fire(reminder.id)).isFalse()
+        restore()
+
+        assertThat(notifier.shown).isEmpty()
+        assertThat(scheduler.scheduled).isEmpty()
+    }
+
+    @Test
+    fun `editing a paused reminder keeps it paused`() = runTest {
+        val reminder = (schedule("Walk", "", ReminderTime.InMinutes(30)) as ScheduleResult.Scheduled).reminder
+        setPaused(reminder.id, paused = true)
+
+        schedule("Long walk", "", ReminderTime.InMinutes(45), editingId = reminder.id)
+
+        assertThat(reminders.all.single().title).isEqualTo("Long walk")
+        assertThat(reminders.all.single().paused).isTrue()
+        assertThat(scheduler.scheduled).isEmpty()
+    }
 
     // ---- Scheduling ----
 

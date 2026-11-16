@@ -1,6 +1,7 @@
 package com.akib.mycompanion.presentation
 
 import android.content.Context
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
@@ -13,9 +14,9 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
 import androidx.test.core.app.ApplicationProvider
@@ -75,8 +76,8 @@ class MainActivityTest {
 
         compose.onNodeWithContentDescription("Reminders").performClick()
         compose.onNodeWithText("Create a reminder").performClick()
-        compose.onNodeWithText("Send now").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithContentDescription("Close reminder editor").performClick()
+        compose.onNodeWithText("Send now").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Drag handle").performSemanticsAction(SemanticsActions.Dismiss)
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Nothing scheduled"))
         compose.onNodeWithText("Nothing scheduled").assertIsDisplayed()
     }

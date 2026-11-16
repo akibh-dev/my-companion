@@ -72,7 +72,7 @@ class WhatsAppLiveCallDeviceTest {
                 waitNode { it.text?.toString() == "New reminder" }
                 SystemClock.sleep(300)
                 screenshot("reminder-editor")
-                click(waitNode { it.contentDescription?.toString() == "Close reminder editor" })
+                automation.executeShellCommand("input keyevent KEYCODE_BACK").close()
                 click(waitNode { it.contentDescription?.toString() == "Home" })
                 automation.executeShellCommand("input swipe 540 500 540 1900 300").close()
                 SystemClock.sleep(400)

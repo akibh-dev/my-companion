@@ -124,6 +124,7 @@ fun RemindersRoute(
         },
         onCancelReminder = viewModel::onCancel,
         onEditReminder = viewModel::onEdit,
+        onTogglePause = viewModel::onTogglePause,
         onCancelEdit = viewModel::onCancelEdit,
         soundContent = {
             ReminderSoundPicker(selected = state.form.sound, onSelected = viewModel::onSoundChange)

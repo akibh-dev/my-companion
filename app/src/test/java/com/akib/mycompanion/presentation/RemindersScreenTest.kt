@@ -2,6 +2,7 @@ package com.akib.mycompanion.presentation
 
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -10,6 +11,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.akib.mycompanion.domain.model.Contact
@@ -70,6 +72,8 @@ class RemindersScreenTest {
                     onContactChange = { events += "contact:$it" },
                     onSubmit = { events += "submit" },
                     onCancelReminder = { events += "cancel:$it" },
+                    onEditReminder = { events += "edit:$it" },
+                    onTogglePause = { events += "pause:$it" },
                 )
             }
         }
@@ -99,7 +103,7 @@ class RemindersScreenTest {
     fun `send now with content submits`() {
         show(RemindersUiState(presets = presets), titleText = "Hello")
 
-        compose.onNodeWithText("Send now").performScrollTo().assertIsEnabled().performClick()
+        compose.onNodeWithText("Send now").assertIsEnabled().performClick()
 
         assertThat(events).containsExactly("submit")
     }
@@ -109,7 +113,7 @@ class RemindersScreenTest {
         val form = ReminderForm(choice = WhenChoice.InMinutes(15))
         show(RemindersUiState(form = form, presets = presets), titleText = "Hi")
 
-        compose.onNodeWithText("Set reminder").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Set reminder").assertIsDisplayed()
     }
 
     @Test
@@ -184,7 +188,7 @@ class RemindersScreenTest {
     }
 
     @Test
-    fun `upcoming reminders show when and can be cancelled`() {
+    fun `upcoming reminders show when and can be paused`() {
         val upcoming = UpcomingReminder(
             id = 9,
             title = "Medicine",
@@ -195,10 +199,14 @@ class RemindersScreenTest {
         )
         show(RemindersUiState(presets = presets, upcoming = listOf(upcoming)), openEditor = false)
 
-        compose.onNodeWithText("Tomorrow, 8:00 AM · Every day · Call Mum").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithContentDescription("Cancel Medicine").performClick()
+        compose.onNodeWithText("TOMORROW").assertIsDisplayed()
+        compose.onNodeWithText("8:00 AM").assertIsDisplayed()
+        compose.onNodeWithText("Every day").assertIsDisplayed()
+        compose.onNodeWithText("Call Mum").assertIsDisplayed()
+        compose.onNodeWithText("Medicine").performClick()
+        compose.onNodeWithContentDescription("Pause Medicine").performClick()
 
-        assertThat(events).containsExactly("cancel:9")
+        assertThat(events).containsExactly("edit:9", "pause:9")
     }
 
     @Test
@@ -227,7 +235,7 @@ class RemindersScreenTest {
         assertThat(events).contains("custom:12")
         compose.onNodeWithText("months").performScrollTo().performClick()
         assertThat(events).contains("unit:${RepeatUnit.MONTHS}")
-        compose.onNodeWithText("Send now").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithText("Send now").assertIsNotEnabled()
     }
 
     @Test
@@ -237,7 +245,7 @@ class RemindersScreenTest {
         compose.onNodeWithText("Title").assertDoesNotExist()
         compose.onNodeWithText("Create a reminder").performClick()
         compose.onNodeWithText("Title").performTextInput("A little break")
-        compose.onNodeWithContentDescription("Close reminder editor").performClick()
+        compose.onNodeWithContentDescription("Drag handle").performSemanticsAction(SemanticsActions.Dismiss)
         compose.onNodeWithText("Title").assertDoesNotExist()
         compose.onNodeWithText("Create a reminder").performClick()
         compose.onNodeWithText("A little break").assertIsDisplayed()

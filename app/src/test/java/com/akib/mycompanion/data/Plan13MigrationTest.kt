@@ -11,6 +11,7 @@ import com.akib.mycompanion.data.local.AppDatabase
 import com.akib.mycompanion.data.local.MIGRATION_1_2
 import com.akib.mycompanion.data.local.MIGRATION_2_3
 import com.akib.mycompanion.data.local.MIGRATION_3_4
+import com.akib.mycompanion.data.local.MIGRATION_4_5
 import com.akib.mycompanion.domain.model.ReminderSound
 import com.google.common.truth.Truth.assertThat
 import java.util.UUID
@@ -79,7 +80,7 @@ class Plan13MigrationTest {
                 }).build()
             FrameworkSQLiteOpenHelperFactory().create(config).use { it.writableDatabase }
             val db = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                .addMigrations(MIGRATION_2_3, MIGRATION_3_4).build()
+                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build()
             try {
                 assertThat(db.contactDao().get(1)?.name).isEqualTo("Fixture")
                 val reminder = db.reminderDao().get(1)!!.toDomain()
