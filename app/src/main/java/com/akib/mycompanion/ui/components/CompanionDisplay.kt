@@ -72,23 +72,29 @@ fun DotText(
     }
 }
 
-enum class DotSymbol(val path: String) {
+/** [filled] symbols are drawn as a solid dot-matrix (dots on a grid inside the shape), the rest as dotted outlines. */
+enum class DotSymbol(val path: String, val filled: Boolean = false) {
     VOICE("M4 16V12A8 8 0 0 1 20 12V16 M4 12H7V20H3V12H4 M20 12H17V20H21V12H20"),
     RULES("M12 3V8 M5 21V16H19V21 M5 16V12H19V16 M12 8V12"),
     REPLY("M8 5L2 11L8 17 M2 11H13A7 7 0 0 1 20 18V20"),
     SCREEN("M9 2H15Q18 2 18 5V19Q18 22 15 22H9Q6 22 6 19V5Q6 2 9 2 M10 18H14"),
     BELL("M18 8A6 6 0 0 0 6 8C6 15 3 15 3 17H21C21 15 18 15 18 8 M10 21H14"),
     TOOLS("M5 4V5 M12 4V5 M19 4V5 M5 11V12 M12 11V12 M19 11V12 M5 18V19 M12 18V19 M19 18V19"),
-    PLAY("M7 4L19 12L7 20Z"),
-    PAUSE("M8 5V19 M10 5V19 M14 5V19 M16 5V19"),
+    PLAY("M6.5 3.5L20 12L6.5 20.5Z", filled = true),
+    PAUSE("M6 4H10.4V20H6Z M13.6 4H18V20H13.6Z", filled = true),
     LOCK("M7 11V8A5 5 0 0 1 17 8V11 M5 11H19V21H5V11"),
     MESSAGE("M4 4H20V16H11L6 20V16H4V4"),
     SPARK("M12 3Q13 11 21 12Q13 13 12 21Q11 13 3 12Q11 11 12 3"),
+    NEXT("M3.5 4.5L15 12L3.5 19.5Z M16.6 4.5H20V19.5H16.6Z", filled = true),
+    PREVIOUS("M20.5 4.5L9 12L20.5 19.5Z M4 4.5H7.4V19.5H4Z", filled = true),
+    NOTE("M9 18V5L20 3V16 M9 18A3 3 0 1 1 6 15A3 3 0 0 1 9 18 M20 16A3 3 0 1 1 17 13A3 3 0 0 1 20 16"),
+    PLUS("M12 4V20 M4 12H20"),
 }
 
 @Composable
 fun DotIcon(symbol: DotSymbol, modifier: Modifier = Modifier, color: Color = LocalContentColor.current) {
     val points = remember(symbol) {
+        if (symbol.filled) return@remember filledDots(symbol.path)
         val measure = PathMeasure(PathParser.createPathFromPathData(symbol.path), false)
         buildList {
             do {
@@ -103,9 +109,36 @@ fun DotIcon(symbol: DotSymbol, modifier: Modifier = Modifier, color: Color = Loc
     }
     Canvas(modifier) {
         val scale = min(size.width, size.height) / 24f
-        points.forEach { point -> drawCircle(color, scale * .7f, point * scale) }
+        // Filled glyphs use fatter dots so they read as a solid dot-matrix shape.
+        val radius = scale * if (symbol.filled) .8f else .7f
+        points.forEach { point -> drawCircle(color, radius, point * scale) }
     }
 }
+
+/** Grid points (every [FILL_STEP] units of the 24-unit box) that fall inside [pathData]. */
+private fun filledDots(pathData: String): List<Offset> {
+    // Region works in whole pixels, so test on a 100x finer copy of the 24-unit box to keep edges crisp.
+    val scaled = PathParser.createPathFromPathData(pathData).apply {
+        transform(android.graphics.Matrix().apply { setScale(100f, 100f) })
+    }
+    val fine = android.graphics.Region().apply {
+        setPath(scaled, android.graphics.Region(0, 0, FILL_GRID * 100, FILL_GRID * 100))
+    }
+    return buildList {
+        var y = FILL_STEP / 2
+        while (y < 24f) {
+            var x = FILL_STEP / 2
+            while (x < 24f) {
+                if (fine.contains((x * 100).roundToInt(), (y * 100).roundToInt())) add(Offset(x, y))
+                x += FILL_STEP
+            }
+            y += FILL_STEP
+        }
+    }
+}
+
+private const val FILL_STEP = 2.0f
+private const val FILL_GRID = 24
 
 /**
  * A dotted cog: a ring of dots with eight two-dot teeth, and an optional [accent] dot in the hub

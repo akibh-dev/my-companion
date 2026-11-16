@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.VisualTransformation
 
@@ -51,6 +52,7 @@ fun OutlinedStateTextField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     onImeAction: (() -> Unit)? = null,
     onUserEdit: (() -> Unit)? = null,
+    shape: Shape = OutlinedTextFieldDefaults.shape,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val colors = OutlinedTextFieldDefaults.colors()
@@ -108,6 +110,9 @@ fun OutlinedStateTextField(
                 trailingIcon = trailingIcon,
                 supportingText = supportingText?.let { { Text(it) } },
                 colors = colors,
+                container = {
+                    OutlinedTextFieldDefaults.ContainerBox(enabled, isError, interactionSource, colors, shape)
+                },
             )
         },
     )
