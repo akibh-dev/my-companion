@@ -106,7 +106,7 @@ fun RemindersScreen(
     LazyColumn(
         state = rememberChromeListState(),
         modifier = modifier,
-        contentPadding = PaddingValues(start = 24.dp, top = 20.dp, end = 24.dp, bottom = 144.dp),
+        contentPadding = PaddingValues(start = 24.dp, top = 12.dp, end = 24.dp, bottom = 144.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {

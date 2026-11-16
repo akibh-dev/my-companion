@@ -141,7 +141,7 @@ fun PlayerScreen(
     LazyColumn(
         state = rememberChromeListState(),
         modifier = modifier,
-        contentPadding = PaddingValues(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 144.dp),
+        contentPadding = PaddingValues(start = 24.dp, top = 12.dp, end = 24.dp, bottom = 144.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
