@@ -13,6 +13,7 @@ import com.akib.mycompanion.data.local.AppDatabase
 import com.akib.mycompanion.data.local.MIGRATION_1_2
 import com.akib.mycompanion.data.local.MIGRATION_2_3
 import com.akib.mycompanion.data.local.MIGRATION_3_4
+import com.akib.mycompanion.data.local.MIGRATION_4_5
 import com.akib.mycompanion.data.local.ReminderEntity
 import com.akib.mycompanion.domain.model.Reminder
 import com.akib.mycompanion.domain.model.ReminderSound
@@ -32,7 +33,7 @@ class Plan13DeviceTest {
         InstrumentationRegistry.getInstrumentation().uiAutomation
             .grantRuntimePermission(context.packageName, Manifest.permission.POST_NOTIFICATIONS)
         val db = Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build()
         val scheduler = AndroidAlarmScheduler(context)
         val manager = context.getSystemService(NotificationManager::class.java)
         val first = System.currentTimeMillis() + 3_000

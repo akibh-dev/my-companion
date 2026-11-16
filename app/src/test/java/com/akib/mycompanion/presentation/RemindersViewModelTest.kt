@@ -7,6 +7,7 @@ import com.akib.mycompanion.domain.time.ReminderTimeCalculator
 import com.akib.mycompanion.domain.usecase.CancelReminderUseCase
 import com.akib.mycompanion.domain.usecase.FireReminderUseCase
 import com.akib.mycompanion.domain.usecase.ScheduleReminderUseCase
+import com.akib.mycompanion.domain.usecase.SetReminderPausedUseCase
 import com.akib.mycompanion.fakes.FakeAlarmScheduler
 import com.akib.mycompanion.fakes.FakeClock
 import com.akib.mycompanion.fakes.FakeContactRepository
@@ -49,6 +50,7 @@ class RemindersViewModelTest {
             contacts = contacts,
             scheduleReminder = ScheduleReminderUseCase(reminders, scheduler, calculator, fire),
             cancelReminder = CancelReminderUseCase(reminders, scheduler, notifier),
+            setPaused = SetReminderPausedUseCase(reminders, scheduler, notifier, fire, clock),
             formatter = ReminderTimeFormatter(clock, Locale.US),
             calculator = calculator,
         )

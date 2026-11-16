@@ -61,12 +61,15 @@ class ScheduleReminderUseCase @Inject constructor(
                 repeat = repeat,
                 contactId = contactId,
                 sound = sound,
+                paused = existing?.paused == true,
             ),
         )
 
         if (existing != null) {
             scheduler.cancel(existing.id)
             fire.cancelNotification(existing.id)
+            // Editing a paused reminder saves the changes but keeps it paused.
+            if (existing.paused) return ScheduleResult.Scheduled(reminder)
         }
         if (time is ReminderTime.InMinutes && time.minutes == 0) {
             val shown = fire(reminder.id)
@@ -124,7 +127,7 @@ class FireReminderUseCase @Inject constructor(
 
     suspend operator fun invoke(reminderId: Long): Boolean {
         val reminder = reminders.get(reminderId) ?: return false
-        if (reminder.delivered || reminder.triggerAtMillis > calculator.inMinutes(0)) return false
+        if (reminder.delivered || reminder.paused || reminder.triggerAtMillis > calculator.inMinutes(0)) return false
         val contact = reminder.contactId?.let { contacts.get(it) }
         val shown = notifier.show(reminder, contact)
 
@@ -206,7 +209,7 @@ class RestoreRemindersUseCase @Inject constructor(
     suspend operator fun invoke() {
         cleanUp()
         val now = clock.nowMillis()
-        reminders.getPending().forEach { reminder ->
+        reminders.getPending().filterNot { it.paused }.forEach { reminder ->
             when {
                 reminder.repeat is Repeat.CalendarDays || reminder.repeat is Repeat.CalendarMonths ||
                     (reminder.repeat.isRepeating && reminder.triggerAtMillis <= now) -> {
@@ -240,5 +243,46 @@ class CleanUpRemindersUseCase @Inject constructor(
 
     companion object {
         const val KEEP_DELIVERED_MILLIS = 24 * 60 * 60 * 1000L
+    }
+}
+
+/**
+ * Pause or resume one reminder. Pausing drops its alarm but keeps it in the list. Resuming arms it
+ * again: a repeat whose time passed while paused moves to its next time, and a one-off that's
+ * overdue fires now (the same rules as after a reboot).
+ */
+class SetReminderPausedUseCase @Inject constructor(
+    private val reminders: ReminderRepository,
+    private val scheduler: AlarmScheduler,
+    private val notifier: ReminderNotifier,
+    private val fire: FireReminderUseCase,
+    private val clock: Clock,
+    private val calculator: ReminderTimeCalculator = ReminderTimeCalculator(clock),
+) {
+    suspend operator fun invoke(reminderId: Long, paused: Boolean): Reminder? {
+        val reminder = reminders.get(reminderId) ?: return null
+        if (reminder.paused == paused) return reminder
+        if (paused) {
+            scheduler.cancel(reminderId)
+            notifier.cancel(reminderId.toInt())
+            return reminders.save(reminder.copy(paused = true))
+        }
+        val now = clock.nowMillis()
+        val resumed = reminders.save(reminder.copy(paused = false))
+        when {
+            resumed.triggerAtMillis > now -> scheduler.schedule(resumed)
+            resumed.repeat.isRepeating -> {
+                val previous = if (resumed.repeat is Repeat.CalendarDays || resumed.repeat is Repeat.CalendarMonths) {
+                    now - 1
+                } else {
+                    resumed.triggerAtMillis
+                }
+                calculator.next(resumed.repeat, previous)?.let { next ->
+                    return reminders.save(resumed.copy(triggerAtMillis = next)).also(scheduler::schedule)
+                }
+            }
+            else -> fire(resumed.id)
+        }
+        return reminders.get(reminderId)
     }
 }

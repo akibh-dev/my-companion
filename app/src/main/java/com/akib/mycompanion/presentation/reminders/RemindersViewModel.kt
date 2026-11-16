@@ -16,6 +16,7 @@ import com.akib.mycompanion.domain.time.ReminderTimeCalculator
 import com.akib.mycompanion.domain.usecase.CancelReminderUseCase
 import com.akib.mycompanion.domain.usecase.ScheduleReminderUseCase
 import com.akib.mycompanion.domain.usecase.ScheduleResult
+import com.akib.mycompanion.domain.usecase.SetReminderPausedUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.DayOfWeek
 import java.time.LocalDateTime
@@ -114,6 +115,7 @@ data class UpcomingReminder(
     /** "Every day", "Every Sun, Thu"…; null for a one-off. */
     val repeatText: String?,
     val contactName: String?,
+    val paused: Boolean = false,
 )
 
 /** One "When" chip, ready to draw. */
@@ -150,6 +152,7 @@ class RemindersViewModel @Inject constructor(
     contacts: ContactRepository,
     private val scheduleReminder: ScheduleReminderUseCase,
     private val cancelReminder: CancelReminderUseCase,
+    private val setPaused: SetReminderPausedUseCase,
     private val formatter: ReminderTimeFormatter,
     private val calculator: ReminderTimeCalculator,
 ) : ViewModel() {
@@ -200,6 +203,7 @@ class RemindersViewModel @Inject constructor(
                         whenText = formatter.format(reminder.triggerAtMillis),
                         repeatText = formatter.repeat(reminder.repeat),
                         contactName = reminder.contactId?.let(names::get),
+                        paused = reminder.paused,
                     )
                 },
             )
@@ -374,6 +378,19 @@ class RemindersViewModel @Inject constructor(
             },
             monthlyDay = (repeat as? Repeat.Monthly)?.dayOfMonth,
         )
+    }
+
+    fun onTogglePause(reminderId: Long) {
+        viewModelScope.launch {
+            val reminder = reminders.get(reminderId) ?: return@launch
+            val updated = setPaused(reminderId, paused = !reminder.paused) ?: return@launch
+            val text = if (updated.paused) {
+                "Paused ${updated.title}"
+            } else {
+                "${updated.title} resumes ${formatter.format(updated.triggerAtMillis)}"
+            }
+            eventChannel.send(RemindersEvent.Message(text))
+        }
     }
 
     fun onCancel(reminderId: Long) {

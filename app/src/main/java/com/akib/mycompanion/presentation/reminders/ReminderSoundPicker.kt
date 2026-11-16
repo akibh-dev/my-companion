@@ -8,22 +8,38 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -32,6 +48,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import com.akib.mycompanion.R
 import com.akib.mycompanion.data.sound.AndroidReminderSounds
 import com.akib.mycompanion.data.sound.ReminderSoundChannels
 import com.akib.mycompanion.data.sound.ReminderSoundPreview
@@ -137,6 +154,7 @@ class ReminderSoundViewModel @Inject constructor(
 }
 
 /** Self-contained form section; the parent keeps the selected sound with its reminder draft. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ReminderSoundPicker(
     selected: ReminderSound,
@@ -167,70 +185,101 @@ fun ReminderSoundPicker(
         viewModel.stop()
         onSelected(it)
     }
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Sound", style = MaterialTheme.typography.labelLarge)
+    // One row to pick and hear the sound; file import and Android's channel settings are small links below.
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         var open by remember { mutableStateOf(false) }
+        var playing by remember { mutableStateOf(false) }
         val soundLabel = when (selected) {
             ReminderSound.Default -> "System default"
             ReminderSound.Silent -> "Silent"
             is ReminderSound.Preset -> SoundPreset.entries.firstOrNull { it.id == selected.id }?.title ?: "Preset"
             is ReminderSound.Imported -> sounds.firstOrNull { it.id == selected.id }?.name ?: "Missing audio"
         }
-        Box(Modifier.fillMaxWidth()) {
-            FilledTonalButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(soundLabel)
-            }
-            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-                DropdownMenuItem(text = { Text("System default") }, onClick = {
-                    choose(ReminderSound.Default)
-                    open = false
-                })
-                DropdownMenuItem(text = { Text("Silent") }, onClick = {
-                    choose(ReminderSound.Silent)
-                    open = false
-                })
-                SoundPreset.entries.forEach { preset ->
-                    DropdownMenuItem(text = { Text(preset.title) }, onClick = {
-                        choose(ReminderSound.Preset(preset.id))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(Modifier.weight(1f)) {
+                OutlinedButton(
+                    onClick = { open = true },
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Sound: $soundLabel" },
+                ) {
+                    Icon(painterResource(R.drawable.ic_music_note), contentDescription = null, Modifier.size(18.dp))
+                    Spacer(Modifier.size(8.dp))
+                    Text(soundLabel, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
+                }
+                DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                    DropdownMenuItem(text = { Text("System default") }, onClick = {
+                        choose(ReminderSound.Default)
                         open = false
                     })
-                }
-                sounds.forEach { imported ->
-                    DropdownMenuItem(
-                        text = { Text(imported.name + if (imported.available) "" else " (missing)") },
-                        onClick = {
-                            choose(ReminderSound.Imported(imported.id))
+                    DropdownMenuItem(text = { Text("Silent") }, onClick = {
+                        choose(ReminderSound.Silent)
+                        open = false
+                    })
+                    SoundPreset.entries.forEach { preset ->
+                        DropdownMenuItem(text = { Text(preset.title) }, onClick = {
+                            choose(ReminderSound.Preset(preset.id))
                             open = false
-                        },
-                    )
+                        })
+                    }
+                    sounds.forEach { imported ->
+                        DropdownMenuItem(
+                            text = { Text(imported.name + if (imported.available) "" else " (missing)") },
+                            onClick = {
+                                choose(ReminderSound.Imported(imported.id))
+                                open = false
+                            },
+                        )
+                    }
+                }
+            }
+            FilledTonalIconButton(
+                onClick = {
+                    if (playing) viewModel.stop() else viewModel.play(selected)
+                    playing = !playing
+                },
+                enabled = playing || (selected != ReminderSound.Silent && !busy),
+            ) {
+                if (playing) {
+                    Icon(painterResource(R.drawable.ic_stop), contentDescription = "Stop sound")
+                } else {
+                    Icon(Icons.Filled.PlayArrow, contentDescription = "Preview sound")
                 }
             }
         }
+        // A new choice stops any preview, so the button goes back to "play".
+        LaunchedEffect(selected) { playing = false }
         if (selected is ReminderSound.Imported && sounds.none { it.id == selected.id }) {
-            Text("Selected audio is missing. The default notification sound will be used.")
+            Text(
+                "Selected audio is missing. The default notification sound will be used.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
         }
-        Text("Local audio: MP3, OGG, WAV or M4A · 10 MB / 30 seconds max.", style = MaterialTheme.typography.bodySmall)
+        FlowRow {
+            TextButton(onClick = { picker.launch(arrayOf("audio/*", "application/ogg")) }, enabled = !busy) {
+                Text(if (busy) "Importing…" else "Import audio")
+            }
+            if (selected is ReminderSound.Imported) {
+                TextButton(onClick = {
+                    viewModel.remove(selected.id)
+                    choose(ReminderSound.Default)
+                }) { Text("Remove") }
+            }
+            TextButton(onClick = { viewModel.openSettings(context, selected) }) { Text("Sound settings") }
+        }
         Text(
-            "Imported sounds stay in your phone's Notifications folder, even after removing the app.",
-            style = MaterialTheme.typography.bodySmall
+            "MP3, OGG, WAV or M4A, up to 10 MB and 30 seconds. Imported sounds are kept in your Notifications " +
+                "folder. Your phone's notification settings take priority.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 4.dp),
         )
-        FilledTonalButton(onClick = { picker.launch(arrayOf("audio/*", "application/ogg")) }, enabled = !busy) {
-            Text(if (busy) "Importing…" else "Choose audio file")
+        status?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilledTonalButton(onClick = {
-                viewModel.play(selected)
-            }, enabled = selected != ReminderSound.Silent && !busy) { Text("Preview sound") }
-            FilledTonalButton(onClick = viewModel::stop) { Text("Stop sound") }
-        }
-        if (selected is ReminderSound.Imported) {
-            TextButton(onClick = {
-                viewModel.remove(selected.id)
-                choose(ReminderSound.Default)
-            }) { Text("Remove selected audio") }
-        }
-        TextButton(onClick = { viewModel.openSettings(context, selected) }) { Text("Android sound settings") }
-        Text("Your phone's notification sound settings take priority.", style = MaterialTheme.typography.bodySmall)
-        status?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
     }
 }

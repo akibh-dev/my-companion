@@ -4,6 +4,8 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.akib.mycompanion.domain.model.Contact
 import com.akib.mycompanion.domain.model.Reminder
 import com.akib.mycompanion.domain.model.ReminderSound
@@ -32,6 +34,7 @@ data class ReminderEntity(
     @ColumnInfo(name = "contact_id") val contactId: Long?,
     val delivered: Boolean,
     @ColumnInfo(defaultValue = "'DEFAULT'") val sound: String = "DEFAULT",
+    @ColumnInfo(defaultValue = "0") val paused: Boolean = false,
 ) {
     fun toDomain() = Reminder(
         id = id,
@@ -42,6 +45,7 @@ data class ReminderEntity(
         contactId = contactId,
         delivered = delivered,
         sound = ReminderSound.decode(sound),
+        paused = paused,
     )
 
     companion object {
@@ -54,6 +58,14 @@ data class ReminderEntity(
             contactId = reminder.contactId,
             delivered = reminder.delivered,
             sound = reminder.sound.encode(),
+            paused = reminder.paused,
         )
+    }
+}
+
+/** Version 5 adds per-reminder pause. Existing reminders start unpaused. */
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE reminders ADD COLUMN paused INTEGER NOT NULL DEFAULT 0")
     }
 }
