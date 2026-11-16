@@ -54,6 +54,9 @@ android {
                 )
                 // Robolectric keeps a copy of the Android framework per sandbox.
                 test.maxHeapSize = "3g"
+                // Robolectric downloads its Android jars at test time. On CI, Maven Central rate-limits
+                // the shared runners (HTTP 429), so fetch from Google's mirror of Maven Central instead.
+                System.getenv("ROBOLECTRIC_REPO_URL")?.let { test.systemProperty("robolectric.dependency.repo.url", it) }
                 test.testLogging {
                     events("failed")
                     exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
