@@ -1,6 +1,7 @@
 package com.akib.mycompanion.presentation.contacts
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,7 +11,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -32,10 +32,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,15 +47,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.akib.mycompanion.R
 import com.akib.mycompanion.domain.model.Contact
+import com.akib.mycompanion.ui.components.DotText
 import com.akib.mycompanion.ui.components.rememberChromeListState
+import com.akib.mycompanion.ui.theme.CompanionRed
 
 /** Stateless People screen: a list of big, obvious call buttons. */
 @Composable
@@ -77,7 +81,7 @@ fun ContactsScreen(
             state.contacts.isEmpty() -> EmptyContacts(onAddClick, Modifier.align(Alignment.Center))
             else -> LazyColumn(
                 state = rememberChromeListState(),
-                contentPadding = PaddingValues(start = 24.dp, top = 8.dp, end = 24.dp, bottom = 144.dp),
+                contentPadding = PaddingValues(start = 24.dp, top = 12.dp, end = 24.dp, bottom = 144.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item {
@@ -123,7 +127,7 @@ fun ContactsScreen(
                 text = { Text("Add person") },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 120.dp),
+                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 136.dp),
             )
         }
     }
@@ -171,44 +175,54 @@ private fun ContactCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(
+            Modifier.padding(start = 20.dp, top = 20.dp, end = 8.dp, bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Avatar(contact.name)
-                Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                Column(Modifier.weight(1f).padding(horizontal = 16.dp)) {
                     Text(
                         contact.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         contact.phone,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = MaterialTheme.typography.bodyMedium.copy(letterSpacing = 0.6.sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 2.dp),
                     )
                 }
                 ContactMenu(contact.name, canPinShortcut, onEdit, onDelete, onPinShortcut)
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                FilledTonalButton(onClick = onCall, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+            // Voice is the everyday action, so it gets the filled button; video sits beside it, outlined.
+            Row(
+                Modifier.fillMaxWidth().padding(end = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Button(onClick = onCall, modifier = Modifier.weight(1f).height(52.dp)) {
                     Icon(
                         Icons.Filled.Call,
                         contentDescription = "Call ${contact.name} on WhatsApp",
-                        modifier = Modifier.size(18.dp)
+                        tint = CompanionRed,
+                        modifier = Modifier.size(18.dp),
                     )
-                    Spacer(Modifier.size(6.dp))
+                    Spacer(Modifier.size(8.dp))
                     Text("Voice call", style = MaterialTheme.typography.labelLarge)
                 }
-                FilledTonalButton(onClick = onVideoCall, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                OutlinedButton(onClick = onVideoCall, modifier = Modifier.weight(1f).height(52.dp)) {
                     Icon(
                         painterResource(R.drawable.ic_video_call),
                         contentDescription = "Video call ${contact.name} on WhatsApp",
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
-                    Spacer(Modifier.size(6.dp))
+                    Spacer(Modifier.size(8.dp))
                     Text("Video call", style = MaterialTheme.typography.labelLarge)
                 }
             }
@@ -260,19 +274,18 @@ private fun ContactMenu(
     }
 }
 
+/** The person's initials in the dotted display face, on a ring that matches the page's outlines. */
 @Composable
 private fun Avatar(name: String) {
     Box(
         Modifier
-            .size(44.dp)
-            .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+            .size(52.dp)
+            .background(MaterialTheme.colorScheme.background, CircleShape)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+            .clearAndSetSemantics { },
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            initials(name),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
-        )
+        DotText(initials(name), fontSize = 24.sp)
     }
 }
 
