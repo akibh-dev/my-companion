@@ -99,7 +99,9 @@ fun CompanionRoot(
     val snackbarHostState = remember { SnackbarHostState() }
     val screens = remember(requirements, extraScreens) {
         listOf(
-            Screen(PERMISSIONS_ROUTE, "Permissions & health") { PermissionsScreen(requirements, it.modifier) },
+            Screen(PERMISSIONS_ROUTE, "Permissions & health") {
+                PermissionsScreen(requirements, it.modifier, onReady = { navController.backToHome() })
+            },
             Screen("ai", "AI engines") { AiEnginesRoute(it.modifier) },
             Screen("log", "Log") { LogRoute(it.modifier) },
         ) + extraScreens
@@ -218,6 +220,13 @@ fun CompanionRoot(
             }
         }
     }
+}
+
+/**
+ * Closes every screen above Home. Not [openTab]: its saved state would restore the screen being left.
+ */
+private fun NavHostController.backToHome() {
+    if (!popBackStack(Tab.HOME.route, inclusive = false)) openTab(Tab.HOME)
 }
 
 /** Switches tab like a bottom bar should: one copy of each, state kept, back goes to Home. */
