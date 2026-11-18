@@ -19,6 +19,13 @@ android {
         versionCode = 4
         versionName = "0.3.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Only the CPU the target phone has (CMF Phone 1: 64-bit ARM). Every other ABI's copy of the native
+        // libraries (ONNX Runtime and friends) just made the APK ~90 MB bigger. For an emulator, build with
+        // -Pabis=x86_64 (or a comma-separated list).
+        ndk {
+            abiFilters += providers.gradleProperty("abis").orNull?.split(",")?.map(String::trim) ?: listOf("arm64-v8a")
+        }
     }
 
     buildTypes {
