@@ -89,29 +89,48 @@ enum class DotSymbol(val path: String, val filled: Boolean = false) {
     PREVIOUS("M20.5 4.5L9 12L20.5 19.5Z M4 4.5H7.4V19.5H4Z", filled = true),
     NOTE("M9 18V5L20 3V16 M9 18A3 3 0 1 1 6 15A3 3 0 0 1 9 18 M20 16A3 3 0 1 1 17 13A3 3 0 0 1 20 16"),
     PLUS("M12 4V20 M4 12H20"),
+
+    /** An eight-tooth cog with a hollow centre (the hole winds the other way, so it stays empty). */
+    GEAR(
+        "M9.78 4.73L9.98 1.59L14.02 1.59L14.22 4.73L15.57 5.29L17.93 3.21L20.79 6.07L18.71 8.43L19.27 9.78" +
+            "L22.41 9.98L22.41 14.02L19.27 14.22L18.71 15.57L20.79 17.93L17.93 20.79L15.57 18.71L14.22 19.27" +
+            "L14.02 22.41L9.98 22.41L9.78 19.27L8.43 18.71L6.07 20.79L3.21 17.93L5.29 15.57L4.73 14.22" +
+            "L1.59 14.02L1.59 9.98L4.73 9.78L5.29 8.43L3.21 6.07L6.07 3.21L8.43 5.29Z " +
+            "M15.60 12.00L15.42 10.89L14.91 9.88L14.12 9.09L13.11 8.58L12.00 8.40L10.89 8.58L9.88 9.09" +
+            "L9.09 9.88L8.58 10.89L8.40 12.00L8.58 13.11L9.09 14.12L9.88 14.91L10.89 15.42L12.00 15.60" +
+            "L13.11 15.42L14.12 14.91L14.91 14.12L15.42 13.11Z",
+        filled = true,
+    ),
 }
 
 @Composable
 fun DotIcon(symbol: DotSymbol, modifier: Modifier = Modifier, color: Color = LocalContentColor.current) {
-    val points = remember(symbol) {
-        if (symbol.filled) return@remember filledDots(symbol.path)
-        val measure = PathMeasure(PathParser.createPathFromPathData(symbol.path), false)
-        buildList {
-            do {
-                val steps = (measure.length / 2.2f).roundToInt().coerceAtLeast(1)
-                val point = FloatArray(2)
-                repeat(steps) { index ->
-                    measure.getPosTan(index * measure.length / steps, point, null)
-                    add(Offset(point[0], point[1]))
-                }
-            } while (measure.nextContour())
-        }
-    }
+    // Computed once per symbol for the whole app: parsing and sampling a path on every appearance
+    // added to the first frame of each screen.
+    val points = dotPoints(symbol)
     Canvas(modifier) {
         val scale = min(size.width, size.height) / 24f
         // Filled glyphs use fatter dots so they read as a solid dot-matrix shape.
         val radius = scale * if (symbol.filled) .8f else .7f
         points.forEach { point -> drawCircle(color, radius, point * scale) }
+    }
+}
+
+private val dotPointCache = java.util.EnumMap<DotSymbol, List<Offset>>(DotSymbol::class.java)
+
+/** The dots that draw [symbol] in a 24-unit box: along its outline, or filling it for [DotSymbol.filled]. */
+private fun dotPoints(symbol: DotSymbol): List<Offset> = dotPointCache.getOrPut(symbol) {
+    if (symbol.filled) return@getOrPut filledDots(symbol.path)
+    val measure = PathMeasure(PathParser.createPathFromPathData(symbol.path), false)
+    buildList {
+        do {
+            val steps = (measure.length / 2.2f).roundToInt().coerceAtLeast(1)
+            val point = FloatArray(2)
+            repeat(steps) { index ->
+                measure.getPosTan(index * measure.length / steps, point, null)
+                add(Offset(point[0], point[1]))
+            }
+        } while (measure.nextContour())
     }
 }
 
@@ -139,33 +158,6 @@ private fun filledDots(pathData: String): List<Offset> {
 
 private const val FILL_STEP = 2.0f
 private const val FILL_GRID = 24
-
-/**
- * A dotted cog: a ring of dots with eight two-dot teeth, and an optional [accent] dot in the hub
- * (the brand red on Home's settings control).
- */
-@Composable
-fun DotGear(
-    modifier: Modifier = Modifier,
-    color: Color = LocalContentColor.current,
-    accent: Color? = null,
-) {
-    Canvas(modifier) {
-        val scale = min(size.width, size.height) / 24f
-        val centre = Offset(size.width / 2, size.height / 2)
-        fun at(radius: Float, degrees: Double) = centre + Offset(
-            (radius * kotlin.math.cos(Math.toRadians(degrees))).toFloat(),
-            (radius * kotlin.math.sin(Math.toRadians(degrees))).toFloat(),
-        ) * scale
-        repeat(16) { drawCircle(color, scale * .75f, at(6.2f, it * 22.5)) }
-        repeat(8) { tooth ->
-            val angle = tooth * 45.0 + 22.5
-            drawCircle(color, scale * .75f, at(9.3f, angle - 8))
-            drawCircle(color, scale * .75f, at(9.3f, angle + 8))
-        }
-        accent?.let { drawCircle(it, scale * 1.7f, centre) }
-    }
-}
 
 @Composable
 fun DotPattern(modifier: Modifier = Modifier, color: Color = LocalContentColor.current.copy(alpha = .22f)) {
