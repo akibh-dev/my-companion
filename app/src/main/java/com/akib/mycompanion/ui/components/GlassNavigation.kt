@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -104,10 +105,14 @@ fun GlassNavigation(
                 )
             )
             val slotWidth = (maxWidth - 12.dp - 9.dp) / Tab.entries.size
+            // A circle behind the selected icon, centred in its slot: the same round language as the
+            // app's other controls (and Nothing's own apps), rather than a wide pill.
+            val dot = height - 12.dp
             Box(
                 Modifier.offset {
-                    IntOffset((6.dp + (slotWidth + 3.dp) * selectedIndex).roundToPx(), 6.dp.roundToPx())
-                }.width(slotWidth).height(height - 12.dp).clip(RoundedCornerShape(30.dp))
+                    val x = 6.dp + (slotWidth + 3.dp) * selectedIndex + (slotWidth - dot) / 2
+                    IntOffset(x.roundToPx(), 6.dp.roundToPx())
+                }.size(dot).clip(CircleShape)
                     .background(selectionColor).testTag("navigation-selection"),
             )
             Row(

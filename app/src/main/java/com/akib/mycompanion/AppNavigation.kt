@@ -1,34 +1,49 @@
 package com.akib.mycompanion
 
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -47,6 +62,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -125,107 +141,177 @@ fun CompanionRoot(
     val entry by navController.currentBackStackEntryAsState()
     val route = entry?.destination?.route
     val tab = Tab.entries.firstOrNull { it.route == route }
-    val screen = screens.firstOrNull { it.route == route }
-    val settingsOpen = route == "settings"
+    // While the bar slides away (opening a screen), it keeps showing the tab you came from.
+    var lastTab by remember { mutableStateOf(Tab.HOME) }
+    SideEffect { if (tab != null) lastTab = tab }
     val scrolled = remember { mutableStateMapOf<String, Boolean>() }
     val backdrop = rememberGraphicsLayer()
     var contentOrigin by remember { mutableStateOf(Offset.Zero) }
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
-    val showNavigation = screen == null && !settingsOpen && !keyboardVisible
+    val showNavigation = tab != null && !keyboardVisible
     val reportScroll = remember(route) { { value: Boolean -> scrolled[route.orEmpty()] = value } }
+    val back: () -> Unit = { navController.popBackStack() }
 
     LaunchedEffect(requestCount) {
         if (requestedTab != null) navController.openTab(requestedTab)
     }
 
-    Scaffold(
-        topBar = {
-            if (screen != null || settingsOpen) {
-                TopAppBar(
-                    title = { DotText(screen?.title ?: "Settings", fontSize = 22.sp) },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
-                    navigationIcon = {
-                        IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
-                    },
-                )
-            } else if (tab != Tab.HOME) {
-                TabHeader(tab?.label ?: "")
-            }
-        },
-        bottomBar = {
-            if (showNavigation) {
-                GlassNavigation(
-                    selected = tab,
-                    compact = scrolled[route] == true,
-                    backdrop = backdrop,
-                    contentOrigin = contentOrigin,
-                    onSelect = { navController.openTab(it) },
-                )
-            }
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { padding ->
-        // Edge-to-edge: the window isn't resized for the keyboard, so shrink the content above it
-        // (and let a focused field scroll into view). consumeWindowInsets stops it counting the bottom bar twice.
-        val contentPadding = if (showNavigation) {
-            PaddingValues(top = padding.calculateTopPadding())
-        } else {
-            padding
-        }
-        val modifier = Modifier
-            .padding(contentPadding)
-            .consumeWindowInsets(padding)
-            .imePadding()
-        CompositionLocalProvider(LocalNavigationScrolled provides reportScroll) {
-            NavHost(
-                navController,
-                startDestination = Tab.HOME.route,
-                modifier = Modifier.fillMaxSize()
-                    .onGloballyPositioned { contentOrigin = it.positionInRoot() }
-                    .drawWithContent {
-                        backdrop.record { this@drawWithContent.drawContent() }
-                        drawLayer(backdrop)
-                    },
-                enterTransition = { EnterTransition.None },
-                exitTransition = { ExitTransition.None },
-                popEnterTransition = { EnterTransition.None },
-                popExitTransition = { ExitTransition.None },
-            ) {
-                composable(Tab.HOME.route) {
-                    HomeRoute(
-                        featureRoute = { feature ->
-                            featureRoute(
-                                feature
-                            )?.takeIf { r -> screens.any { it.route == r } }
+    // Each page draws its own header, so a title moves with its page during transitions instead of
+    // switching under it. The nav bar and snackbars float over the pages.
+    AppSurface {
+        Box(Modifier.fillMaxSize()) {
+            CompositionLocalProvider(LocalNavigationScrolled provides reportScroll) {
+                NavHost(
+                    navController,
+                    startDestination = Tab.HOME.route,
+                    modifier = Modifier.fillMaxSize()
+                        .onGloballyPositioned { contentOrigin = it.positionInRoot() }
+                        .drawWithContent {
+                            backdrop.record { this@drawWithContent.drawContent() }
+                            drawLayer(backdrop)
                         },
-                        onOpen = { navController.navigate(it) },
-                        modifier = modifier,
-                    )
-                }
-                composable(Tab.PEOPLE.route) { ContactsRoute(snackbarHostState, modifier) }
-                composable(Tab.REMINDERS.route) { RemindersRoute(snackbarHostState, modifier) }
-                composable(Tab.PLAYER.route) { PlayerRoute(snackbarHostState, modifier) }
-                composable("settings") {
-                    SettingsScreen(links, onOpen = { navController.navigate(it) }, modifier = modifier)
-                }
-                screens.forEach { item ->
-                    composable(item.route) {
-                        item.content(
-                            ScreenScope(
-                                modifier,
-                                snackbarHostState,
-                                { navController.navigate(it) },
-                                { navController.popBackStack() }
+                    enterTransition = { if (betweenTabs()) tabEnter else screenEnter },
+                    exitTransition = { if (betweenTabs()) tabExit else screenExit },
+                    popEnterTransition = { if (betweenTabs()) tabEnter else screenPopEnter },
+                    popExitTransition = { if (betweenTabs()) tabExit else screenPopExit },
+                ) {
+                    composable(Tab.HOME.route) {
+                        Page(header = { Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars)) }) {
+                            HomeRoute(
+                                featureRoute = { feature ->
+                                    featureRoute(feature)?.takeIf { r -> screens.any { it.route == r } }
+                                },
+                                onOpen = { navController.navigate(it) },
+                                modifier = it,
                             )
-                        )
+                        }
                     }
+                    composable(Tab.PEOPLE.route) {
+                        Page(header = { TabHeader(Tab.PEOPLE.label) }) { ContactsRoute(snackbarHostState, it) }
+                    }
+                    composable(Tab.REMINDERS.route) {
+                        Page(header = { TabHeader(Tab.REMINDERS.label) }) { RemindersRoute(snackbarHostState, it) }
+                    }
+                    composable(Tab.PLAYER.route) {
+                        Page(header = { TabHeader(Tab.PLAYER.label) }) { PlayerRoute(snackbarHostState, it) }
+                    }
+                    composable("settings") {
+                        Page(header = { ScreenHeader("Settings", back) }, overNavigationBar = false) {
+                            SettingsScreen(links, onOpen = { navController.navigate(it) }, modifier = it)
+                        }
+                    }
+                    screens.forEach { item ->
+                        composable(item.route) {
+                            Page(header = { ScreenHeader(item.title, back) }, overNavigationBar = false) {
+                                item.content(ScreenScope(it, snackbarHostState, { navController.navigate(it) }, back))
+                            }
+                        }
+                    }
+                }
+            }
+            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
+                SnackbarHost(
+                    snackbarHostState,
+                    Modifier.then(if (showNavigation) Modifier else Modifier.navigationBarsPadding().imePadding()),
+                )
+                AnimatedVisibility(
+                    visible = showNavigation,
+                    enter = slideInVertically(tween(260, easing = EmphasizedDecelerate)) { it } + fadeIn(tween(180)),
+                    exit = slideOutVertically(tween(200, easing = EmphasizedAccelerate)) { it } + fadeOut(tween(160)),
+                ) {
+                    GlassNavigation(
+                        selected = tab ?: lastTab,
+                        compact = scrolled[route] == true,
+                        backdrop = backdrop,
+                        contentOrigin = contentOrigin,
+                        onSelect = { navController.openTab(it) },
+                    )
                 }
             }
         }
     }
 }
+
+/**
+ * The app's backdrop. A Surface, not a bare Box, so text without its own colour gets onBackground.
+ * Default text is otherwise black, which vanished in dark mode (see AppSurfaceTest).
+ */
+@Composable
+internal fun AppSurface(content: @Composable () -> Unit) {
+    Surface(
+        color = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
+        content = content,
+    )
+}
+
+/**
+ * One destination: its [header] above its content, on an opaque background so pages don't show
+ * through each other mid-transition. Tabs draw under the floating nav bar ([overNavigationBar]);
+ * other screens stop above the system navigation bar. The content shrinks for the keyboard.
+ */
+@Composable
+private fun Page(
+    header: @Composable () -> Unit,
+    overNavigationBar: Boolean = true,
+    content: @Composable (Modifier) -> Unit,
+) {
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        header()
+        val bottom = if (overNavigationBar) {
+            Modifier
+        } else {
+            Modifier.windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
+        }
+        content(
+            Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .then(bottom)
+                .imePadding(),
+        )
+    }
+}
+
+/** A screen opened over the tabs: back arrow and dotted title. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ScreenHeader(title: String, onBack: () -> Unit) {
+    TopAppBar(
+        title = { DotText(title, fontSize = 22.sp) },
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+        navigationIcon = {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            }
+        },
+    )
+}
+
+// ---- Motion ----
+// Tabs fade through each other (a quick fade out, then the new tab fades and settles in): they're
+// siblings, so nothing slides. Screens opened from a tab move along the x axis, so going deeper
+// slides in from the right and Back (including the predictive back swipe) slides it away again.
+
+private val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
+private val EmphasizedAccelerate = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
+private val tabRoutes = Tab.entries.map { it.route }.toSet()
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.betweenTabs() =
+    initialState.destination.route in tabRoutes && targetState.destination.route in tabRoutes
+
+private val tabEnter = fadeIn(tween(210, delayMillis = 70, easing = EmphasizedDecelerate)) +
+    scaleIn(tween(210, delayMillis = 70, easing = EmphasizedDecelerate), initialScale = .97f)
+private val tabExit = fadeOut(tween(90))
+
+private val screenEnter = slideInHorizontally(tween(320, easing = EmphasizedDecelerate)) { it / 4 } +
+    fadeIn(tween(200, easing = EmphasizedDecelerate))
+private val screenExit = slideOutHorizontally(tween(320, easing = EmphasizedDecelerate)) { -it / 10 } +
+    fadeOut(tween(200))
+private val screenPopEnter = slideInHorizontally(tween(300, easing = EmphasizedDecelerate)) { -it / 10 } +
+    fadeIn(tween(200))
+private val screenPopExit = slideOutHorizontally(tween(260, easing = EmphasizedAccelerate)) { it / 4 } +
+    fadeOut(tween(200, easing = EmphasizedAccelerate))
 
 /**
  * Closes every screen above Home. Not [openTab]: its saved state would restore the screen being left.

@@ -1,11 +1,8 @@
 package com.akib.mycompanion.presentation.home
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -39,6 +36,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -61,7 +59,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.akib.mycompanion.core.settings.Feature
-import com.akib.mycompanion.ui.components.DotGear
 import com.akib.mycompanion.ui.components.DotIcon
 import com.akib.mycompanion.ui.components.DotSymbol
 import com.akib.mycompanion.ui.components.DotText
@@ -297,7 +294,7 @@ private fun HomeTile(tile: HomeTileSpec, paused: Boolean, modifier: Modifier = M
     }
 }
 
-/** Nothing-style settings control: a dotted gear on a quiet round chip, with a red centre dot. */
+/** Nothing-style settings control: a dot-matrix gear on a quiet round chip, with a red centre dot. */
 @Composable
 private fun SettingsButton(onClick: () -> Unit) {
     Box(
@@ -309,7 +306,9 @@ private fun SettingsButton(onClick: () -> Unit) {
             .semantics { contentDescription = "Settings" },
         contentAlignment = Alignment.Center,
     ) {
-        DotGear(Modifier.size(32.dp), accent = CompanionRed)
+        // A solid dot-matrix cog, like the player controls, with the brand-red hub in its hollow centre.
+        DotIcon(DotSymbol.GEAR, Modifier.size(32.dp))
+        Box(Modifier.size(5.dp).clip(CircleShape).background(CompanionRed))
     }
 }
 
@@ -325,13 +324,18 @@ private fun KillSwitch(paused: Boolean, lastHeartbeat: Long?, onPauseChange: (Bo
         tween(160),
         label = "Kill switch button",
     )
-    val pulse = rememberInfiniteTransition(label = "Live dot")
-    val live by pulse.animateFloat(
-        initialValue = 1f,
-        targetValue = .25f,
-        animationSpec = infiniteRepeatable(tween(1100), RepeatMode.Reverse),
-        label = "Live dot alpha",
-    )
+    // A heartbeat, not a constant pulse: one short beat every few seconds, then the dot rests.
+    // A never-ending animation kept Home (and the blurred nav bar behind it) redrawing every frame.
+    val live = remember { Animatable(1f) }
+    LaunchedEffect(paused) {
+        live.snapTo(1f)
+        if (paused) return@LaunchedEffect
+        while (true) {
+            delay(HEARTBEAT_REST_MILLIS)
+            live.animateTo(.25f, tween(380))
+            live.animateTo(1f, tween(420))
+        }
+    }
     val beat = lastHeartbeat?.let { DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it)) }
     Row(
         Modifier
@@ -355,8 +359,9 @@ private fun KillSwitch(paused: Boolean, lastHeartbeat: Long?, onPauseChange: (Bo
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // Alpha is read while drawing, so a beat redraws only this dot: no recomposition.
                 androidx.compose.foundation.Canvas(Modifier.size(8.dp)) {
-                    drawCircle(CompanionRed.copy(alpha = if (paused) 1f else live))
+                    drawCircle(CompanionRed.copy(alpha = if (paused) 1f else live.value))
                 }
                 Text(
                     if (paused) "Paused" else "Active",
@@ -418,3 +423,5 @@ const val AI_ROUTE = "ai"
 
 /** Dot columns "My Companion" spans in the dot alphabet (glyph widths plus one-dot gaps). */
 private const val WORDMARK_COLUMNS = 66f
+
+private const val HEARTBEAT_REST_MILLIS = 3_200L
