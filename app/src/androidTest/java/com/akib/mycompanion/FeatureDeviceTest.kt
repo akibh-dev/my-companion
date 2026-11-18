@@ -33,7 +33,8 @@ class FeatureDeviceTest {
         if (compose.onAllNodesWithText("Skip").fetchSemanticsNodes().isNotEmpty()) {
             compose.onNodeWithText("Skip").performClick()
         }
-        compose.onNodeWithText("Home").assertExists()
+        // The nav bar is icon-only: tabs are found by their content description, not visible text.
+        compose.onNodeWithContentDescription("Home").assertExists()
     }
 
     @Test

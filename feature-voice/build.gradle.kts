@@ -19,6 +19,8 @@ dependencies {
     api(project(":core"))
     implementation(project(":adapters-messaging"))
     api(project(":ai-api"))
+    // Tests check that every word Auto mode converts has an exact lexicon entry.
+    testImplementation(project(":ai-models"))
     implementation(libs.androidx.core.ktx)
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
