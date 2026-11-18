@@ -119,7 +119,6 @@ fun CompanionRoot(
     val links = remember(homeLinks) {
         homeLinks + listOf(
             HomeLink("Permissions & health", "What each feature needs, and what's missing", PERMISSIONS_ROUTE),
-            HomeLink("AI engines", "Switch each engine between fallback and model, and try it", AI_ROUTE),
             HomeLink("Log", "What the app did, kept on this phone", "log"),
         )
     }
