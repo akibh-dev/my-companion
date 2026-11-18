@@ -27,11 +27,11 @@ class VoiceBody(private val transliterator: Transliterator) {
         return WORD.replace(cleaned) { converted[it.value.lowercase()] ?: it.value }
     }
 
-    private companion object {
-        val WORD = Regex("[A-Za-z]+")
+    internal companion object {
+        private val WORD = Regex("[A-Za-z]+")
 
         // Deliberately excludes ambiguous English tokens such as am, to, or, a, me and na.
-        val BANGLISH_WORDS = setOf(
+        internal val BANGLISH_WORDS = setOf(
             "ami", "tumi", "apni", "amar", "tomar", "amader", "tomader", "amake", "tomake",
             "bhalo", "valo", "achi", "acho", "achen", "kemon", "kothay", "korcho", "koro",
             "kori", "korbo", "khaiso", "khabo", "jabo", "ashchi", "aschi", "asho", "aso",

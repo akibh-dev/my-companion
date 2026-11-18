@@ -61,21 +61,29 @@ class IndicXlitPrototype @Inject constructor(@ApplicationContext private val con
         }
         if (words.isEmpty()) return TransliterationPreview.Ready(text, emptyList(), 0, 0)
         val coroutine = currentCoroutineContext()
+        // Common words come from the lexicon, exactly; the model only sees the rest (names, rarer words).
+        val cache = mutableMapOf<String, List<String>>()
+        words.forEach { match ->
+            val key = match.value.lowercase(Locale.ROOT)
+            BanglishLexicon.lookup(key)?.let { cache[key] = listOf(it) }
+        }
+        fun ready(loadMillis: Long, inferenceMillis: Long): TransliterationPreview.Ready {
+            val previews = words.map { WordPreview(it.value, cache.getValue(it.value.lowercase(Locale.ROOT))) }
+            var index = 0
+            val converted = LATIN_WORD.replace(text) { previews[index++].candidates.first() }
+            return TransliterationPreview.Ready(converted, previews, loadMillis, inferenceMillis)
+        }
+        val unknown = words.map { it.value.lowercase(Locale.ROOT) }.distinct().filter { it !in cache }
+        if (unknown.isEmpty()) return ready(0, 0)
         return try {
             val start = System.nanoTime()
             sessions.use { model, cold ->
                 val loaded = System.nanoTime()
-                val cache = mutableMapOf<String, List<String>>()
-                val previews = words.map { match ->
+                unknown.forEach { key ->
                     coroutine.ensureActive()
-                    val key = match.value.lowercase(Locale.ROOT)
-                    WordPreview(match.value, cache.getOrPut(key) { model.candidates(key) { coroutine.ensureActive() } })
+                    cache[key] = model.candidates(key) { coroutine.ensureActive() }
                 }
-                var index = 0
-                val converted = LATIN_WORD.replace(text) { previews[index++].candidates.first() }
-                TransliterationPreview.Ready(
-                    converted,
-                    previews,
+                ready(
                     if (cold) (loaded - start) / NANOS_PER_MILLI else 0,
                     (System.nanoTime() - loaded) / NANOS_PER_MILLI,
                 )
