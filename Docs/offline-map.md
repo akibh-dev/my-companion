@@ -20,7 +20,7 @@ Bangladesh extract with Planetiler also works (OpenMapTiles schema); the app's s
 ## 2. Copy it to the phone
 
 ```bash
-adb push map.pmtiles /sdcard/Android/data/com.akib.mycompanion/files/maps/map.pmtiles
+adb push map.pmtiles /sdcard/Android/data/dev.akibh.mycompanion/files/maps/map.pmtiles
 ```
 
 Open **Home → Context rules → Saved places → Add place**: the map appears. Tap to drop the pin, set

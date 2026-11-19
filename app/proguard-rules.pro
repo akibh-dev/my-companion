@@ -52,4 +52,4 @@
 -keep class androidx.compose.** { *; }
 
 # KSP generated
--keep class com.akib.mycompanion.** { *; }
+-keep class dev.akibh.mycompanion.** { *; }

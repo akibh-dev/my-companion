@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.akib.mycompanion.context"
+    namespace = "dev.akibh.mycompanion.context"
     buildFeatures { compose = true }
 }
 

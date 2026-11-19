@@ -1,0 +1,60 @@
+package dev.akibh.mycompanion.system
+
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import dagger.hilt.android.AndroidEntryPoint
+import dev.akibh.mycompanion.core.host.ServiceHost
+import dev.akibh.mycompanion.core.settings.SettingsStore
+import dev.akibh.mycompanion.di.ApplicationScope
+import dev.akibh.mycompanion.presentation.shortcuts.RefreshHomeShortcuts
+import javax.inject.Inject
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+
+/**
+ * Android forgets every alarm on reboot (and on app update); this puts them back.
+ * After an update it also refreshes pinned call icons, so ones made by an older version keep working.
+ */
+@AndroidEntryPoint
+class BootReceiver : BroadcastReceiver() {
+
+    @Inject lateinit var events: ReminderEvents
+
+    @Inject lateinit var refreshHomeShortcuts: RefreshHomeShortcuts
+
+    @Inject lateinit var settingsStore: SettingsStore
+
+    @Inject lateinit var serviceHost: ServiceHost
+
+    @Inject
+    @ApplicationScope
+    lateinit var scope: CoroutineScope
+
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action !in HANDLED_ACTIONS) return
+        val pending: PendingResult? = goAsync()
+        scope.launch {
+            try {
+                events.restoreAll()
+                // Restart background features after a reboot (NFR-7). Allowed from BOOT_COMPLETED.
+                serviceHost.sync(settingsStore.settings.first())
+                if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) refreshHomeShortcuts()
+            } finally {
+                pending?.finish()
+            }
+        }
+    }
+
+    companion object {
+        val HANDLED_ACTIONS = setOf(
+            Intent.ACTION_BOOT_COMPLETED,
+            Intent.ACTION_MY_PACKAGE_REPLACED,
+            Intent.ACTION_TIME_CHANGED,
+            Intent.ACTION_TIMEZONE_CHANGED,
+            "android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED",
+            "android.intent.action.QUICKBOOT_POWERON",
+        )
+    }
+}

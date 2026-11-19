@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.akib.mycompanion.ai.models"
+    namespace = "dev.akibh.mycompanion.ai.models"
 }
 
 kapt {

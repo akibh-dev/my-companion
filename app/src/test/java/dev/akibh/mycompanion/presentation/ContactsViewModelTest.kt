@@ -1,0 +1,233 @@
+package dev.akibh.mycompanion.presentation
+
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import app.cash.turbine.test
+import com.google.common.truth.Truth.assertThat
+import dev.akibh.mycompanion.domain.model.Contact
+import dev.akibh.mycompanion.domain.port.PickedPhone
+import dev.akibh.mycompanion.domain.port.VoiceCallTarget
+import dev.akibh.mycompanion.domain.port.WhatsAppCallFailure
+import dev.akibh.mycompanion.domain.port.WhatsAppVariant
+import dev.akibh.mycompanion.domain.usecase.CallContactUseCase
+import dev.akibh.mycompanion.domain.usecase.CallResult
+import dev.akibh.mycompanion.domain.usecase.SaveContactUseCase
+import dev.akibh.mycompanion.fakes.FakeContactRepository
+import dev.akibh.mycompanion.fakes.FakeHomeShortcuts
+import dev.akibh.mycompanion.fakes.FakePhonebook
+import dev.akibh.mycompanion.fakes.FakeWhatsAppGateway
+import dev.akibh.mycompanion.fakes.MainDispatcherRule
+import dev.akibh.mycompanion.presentation.contacts.CallMessages
+import dev.akibh.mycompanion.presentation.contacts.ContactsEvent
+import dev.akibh.mycompanion.presentation.contacts.ContactsViewModel
+import kotlinx.coroutines.test.runTest
+import org.junit.Rule
+import org.junit.Test
+
+class ContactsViewModelTest {
+
+    @get:Rule
+    val mainDispatcher = MainDispatcherRule()
+
+    private val mum = Contact(id = 1, name = "Mum", phone = "+8801711123456")
+    private val repository = FakeContactRepository(listOf(mum))
+    private val whatsApp = FakeWhatsAppGateway()
+    private val phonebook = FakePhonebook()
+    private val shortcuts = FakeHomeShortcuts()
+
+    // Lazy: viewModelScope needs the test Main dispatcher, which the rule installs after field init.
+    private val viewModel by lazy {
+        ContactsViewModel(
+            repository = repository,
+            saveContact = SaveContactUseCase(repository),
+            callContact = CallContactUseCase(repository, whatsApp),
+            phonebook = phonebook,
+            shortcuts = shortcuts,
+            io = mainDispatcher.dispatcher,
+        )
+    }
+
+    @Test
+    fun `state lists saved people`() = runTest {
+        viewModel.uiState.test {
+            val state = expectMostRecentItem()
+            assertThat(state.loading).isFalse()
+            assertThat(state.contacts).containsExactly(mum)
+            assertThat(state.canPinShortcuts).isTrue()
+        }
+    }
+
+    @Test
+    fun `adding a person normalises the number and closes the dialog`() = runTest {
+        viewModel.uiState.test {
+            viewModel.onAddClick()
+            assertThat(expectMostRecentItem().editor!!.isNew).isTrue()
+
+            viewModel.name.setTextAndPlaceCursorAtEnd("Akib")
+            viewModel.phone.setTextAndPlaceCursorAtEnd("01811-123456")
+            viewModel.onSaveEditor()
+
+            val state = expectMostRecentItem()
+            assertThat(state.editor).isNull()
+            assertThat(state.contacts.map { it.name to it.phone })
+                .containsExactly("Akib" to "+8801811123456", "Mum" to "+8801711123456")
+                .inOrder()
+        }
+    }
+
+    @Test
+    fun `an invalid number keeps the dialog open with an error`() = runTest {
+        viewModel.uiState.test {
+            viewModel.onAddClick()
+            viewModel.name.setTextAndPlaceCursorAtEnd("Akib")
+            viewModel.phone.setTextAndPlaceCursorAtEnd("12")
+            viewModel.onSaveEditor()
+
+            val editor = expectMostRecentItem().editor!!
+            assertThat(editor.phoneError).contains("valid number")
+
+            viewModel.phone.setTextAndPlaceCursorAtEnd("01811123456")
+            viewModel.onPhoneEdited()
+            assertThat(expectMostRecentItem().editor!!.phoneError).isNull()
+        }
+    }
+
+    @Test
+    fun `opening the dialog starts empty for a new person and filled for an edit`() = runTest {
+        viewModel.onEditClick(mum)
+        assertThat(viewModel.name.text.toString()).isEqualTo("Mum")
+        assertThat(viewModel.phone.text.toString()).isEqualTo("+8801711123456")
+
+        viewModel.onAddClick()
+        assertThat(viewModel.name.text.toString()).isEmpty()
+        assertThat(viewModel.phone.text.toString()).isEmpty()
+    }
+
+    @Test
+    fun `a duplicate number names who already has it`() = runTest {
+        viewModel.uiState.test {
+            viewModel.onAddClick()
+            viewModel.name.setTextAndPlaceCursorAtEnd("Someone")
+            viewModel.phone.setTextAndPlaceCursorAtEnd("01711123456")
+            viewModel.onSaveEditor()
+
+            assertThat(expectMostRecentItem().editor!!.phoneError).isEqualTo("Already saved as Mum")
+        }
+    }
+
+    @Test
+    fun `editing updates the person and their home-screen shortcut`() = runTest {
+        viewModel.uiState.test {
+            viewModel.onEditClick(mum)
+            assertThat(expectMostRecentItem().editor!!.isNew).isFalse()
+
+            viewModel.name.setTextAndPlaceCursorAtEnd("Mom")
+            viewModel.onSaveEditor()
+
+            assertThat(expectMostRecentItem().contacts).containsExactly(mum.copy(name = "Mom"))
+            assertThat(shortcuts.updated).containsExactly(mum.copy(name = "Mom"))
+        }
+    }
+
+    @Test
+    fun `picking from the phone book fills the number and an empty name`() = runTest {
+        phonebook.result = PickedPhone(name = "Dad", number = "+880 1911 123456")
+
+        viewModel.uiState.test {
+            viewModel.onAddClick()
+            viewModel.onPhonebookPicked("content://contacts/1")
+
+            assertThat(expectMostRecentItem().editor).isNotNull()
+            assertThat(viewModel.name.text.toString()).isEqualTo("Dad")
+            assertThat(viewModel.phone.text.toString()).isEqualTo("+880 1911 123456")
+
+            viewModel.name.setTextAndPlaceCursorAtEnd("Abba")
+            viewModel.onPhonebookPicked("content://contacts/1")
+            assertThat(viewModel.name.text.toString()).isEqualTo("Abba")
+        }
+    }
+
+    @Test
+    fun `an unreadable phone book entry shows a message`() = runTest {
+        viewModel.events.test {
+            viewModel.onPhonebookPicked("content://contacts/404")
+            assertThat(awaitItem()).isEqualTo(ContactsEvent.Message("Couldn't read that contact"))
+        }
+    }
+
+    @Test
+    fun `a direct call shows no message`() = runTest {
+        whatsApp.target = VoiceCallTarget(42, "mime")
+
+        viewModel.events.test {
+            viewModel.onCall(mum)
+            expectNoEvents()
+        }
+        assertThat(whatsApp.calls).hasSize(1)
+    }
+
+    @Test
+    fun `falling back to the chat explains why`() = runTest {
+        whatsApp.target = null
+
+        viewModel.events.test {
+            viewModel.onCall(mum)
+            assertThat(
+                awaitItem()
+            ).isEqualTo(
+                ContactsEvent.Message(
+                    CallMessages.forResult(
+                        CallResult.ChatFallback(WhatsAppCallFailure.NO_VOICE_ROW, WhatsAppVariant.STANDARD)
+                    )!!
+                )
+            )
+        }
+        assertThat(whatsApp.chats).containsExactly(mum.digits)
+    }
+
+    @Test
+    fun `removing can be undone with the same id`() = runTest {
+        viewModel.events.test {
+            viewModel.onDelete(mum)
+            assertThat(awaitItem()).isEqualTo(ContactsEvent.Removed(mum))
+        }
+        assertThat(repository.all).isEmpty()
+
+        viewModel.onUndoDelete(mum)
+        assertThat(repository.all).containsExactly(mum)
+    }
+
+    @Test
+    fun `removing greys out the home-screen icon and undo brings it back`() = runTest {
+        viewModel.onDelete(mum)
+        assertThat(shortcuts.disabled).containsExactly(mum.id)
+
+        viewModel.onUndoDelete(mum)
+        assertThat(shortcuts.enabled).containsExactly(mum)
+    }
+
+    @Test
+    fun `pinning a shortcut asks the launcher`() = runTest {
+        viewModel.events.test {
+            viewModel.onPinShortcut(mum)
+            assertThat((awaitItem() as ContactsEvent.Message).text).contains("home screen")
+        }
+        assertThat(shortcuts.pinned).containsExactly(mum)
+    }
+
+    @Test
+    fun `pinning explains when the launcher can't`() = runTest {
+        shortcuts.isSupported = false
+
+        viewModel.events.test {
+            viewModel.onPinShortcut(mum)
+            assertThat((awaitItem() as ContactsEvent.Message).text).contains("doesn't support")
+        }
+    }
+
+    @Test
+    fun `call messages cover every outcome`() {
+        assertThat(CallMessages.forResult(CallResult.CallStarted)).isNull()
+        assertThat(CallMessages.forResult(CallResult.WhatsAppNotInstalled)).contains("isn't installed")
+        assertThat(CallMessages.forResult(CallResult.ContactNotFound)).contains("removed")
+    }
+}

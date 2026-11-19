@@ -92,7 +92,7 @@ python3 tools/banglish/fetch_models.py
 
 ```
 app/
-├── src/main/java/com/akib/mycompanion/
+├── src/main/java/dev/akibh/mycompanion/
 │   ├── di/                 # Hilt modules
 │   ├── domain/             # Pure Kotlin: entities, repositories, usecases
 │   ├── data/               # Repository impl, Room, DataStore, Media3

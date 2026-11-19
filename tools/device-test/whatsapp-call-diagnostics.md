@@ -9,10 +9,10 @@ installing the current debug and test APKs:
 
 ```bash
 adb -s DEVICE shell am instrument -w \
-  -e class 'com.akib.mycompanion.WhatsAppDiagnosticDeviceTest#inspectChosenContactWithoutLaunchingAnything' \
+  -e class 'dev.akibh.mycompanion.WhatsAppDiagnosticDeviceTest#inspectChosenContactWithoutLaunchingAnything' \
   -e diagnostic_contact_id APP_CONTACT_ID \
-  com.akib.mycompanion.test/androidx.test.runner.AndroidJUnitRunner
-adb -s DEVICE exec-out run-as com.akib.mycompanion cat files/whatsapp-call-diagnostics.txt
+  dev.akibh.mycompanion.test/androidx.test.runner.AndroidJUnitRunner
+adb -s DEVICE exec-out run-as dev.akibh.mycompanion cat files/whatsapp-call-diagnostics.txt
 ```
 
 The ID refers to My Companion's saved contact, not a phone number or Contacts provider row.

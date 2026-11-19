@@ -126,11 +126,11 @@ in Material 3 all work this way — that's why `Switch` needs both `checked` and
 
 ### 2.1 Create the Home screen file
 
-Create `app/src/main/java/com/akib/mycompanion/presentation/home/HomeScreen.kt`
+Create `app/src/main/java/dev/akibh/mycompanion/presentation/home/HomeScreen.kt`
 (this matches the planned `presentation/` layer from `AGENTS.md`):
 
 ```kotlin
-package com.akib.mycompanion.presentation.home
+package dev.akibh.mycompanion.presentation.home
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -155,7 +155,7 @@ fun HomeScreen(modifier: Modifier = Modifier) {
 ```
 
 In `MainActivity.kt`, replace `Greeting("Hello World!")` inside `MyApp()` with `HomeScreen()`
-(add `import com.akib.mycompanion.presentation.home.HomeScreen`). Delete the now-unused `Greeting`.
+(add `import dev.akibh.mycompanion.presentation.home.HomeScreen`). Delete the now-unused `Greeting`.
 
 Run: `./gradlew :app:installDebug` (or ▶ in the IDE).
 
@@ -237,7 +237,7 @@ Try it yourself before opening the solution.
 <summary>Solution (open only after trying)</summary>
 
 ```kotlin
-package com.akib.mycompanion.presentation.home
+package dev.akibh.mycompanion.presentation.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -360,7 +360,7 @@ Do each experiment, observe, then undo it. Write what you saw in your learning n
 3. **Ignore the event**: pass `onCheckedChange = {}` to one toggle. Tap it. Why doesn't the switch move,
    even though you tapped it? *(Hint: who owns `checked`?)*
 4. **Process death**: set the counter to 7, press Home, then run
-   `adb shell am kill com.akib.mycompanion` and reopen the app from Recents. Is the 7 still there?
+   `adb shell am kill dev.akibh.mycompanion` and reopen the app from Recents. Is the 7 still there?
    Now swipe the app away from Recents and reopen. What's different, and why? (See the table in 1.5.)
 5. **Modifier order**: in `HomeScreen`, swap to `modifier.padding(16.dp).fillMaxSize()`. Any visible
    difference here? *(Keep the question in mind — Step 02 explains when order matters.)*
@@ -404,7 +404,7 @@ Answer from memory, then check.
 
 ```bash
 git switch -c feat/step-01-compose-state
-git add app/src/main/java/com/akib/mycompanion Docs/learning/01-compose-state.md
+git add app/src/main/java/dev/akibh/mycompanion Docs/learning/01-compose-state.md
 git commit -m "feat: add stateful home screen with counter and feature toggles"
 git push -u origin feat/step-01-compose-state
 # open a PR to main, review your own diff, merge

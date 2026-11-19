@@ -83,7 +83,7 @@ This project is also a learning vehicle. Document decisions in `Docs/`:
 ## Project Structure (Planned)
 ```
 app/
-├── src/main/java/com/akib/mycompanion/
+├── src/main/java/dev/akibh/mycompanion/
 │   ├── di/                 # Hilt/Koin modules
 │   ├── domain/             # Pure Kotlin: entities, repositories, usecases
 │   ├── data/               # Repository impl, Room, Retrofit, DataStore

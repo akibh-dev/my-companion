@@ -13,7 +13,7 @@ my-companion/
 │   ├── proguard-rules.pro        # Code obfuscation rules (empty for now)
 │   └── src/main/
 │       ├── AndroidManifest.xml   # App permissions, activities, metadata
-│       ├── java/com/akib/mycompanion/
+│       ├── java/dev/akibh/mycompanion/
 │       │   └── MainActivity.kt   # Your main screen code
 │       └── res/
 │           └── values/
@@ -94,11 +94,11 @@ plugins {
 }
 
 android {
-    namespace = "com.akib.mycompanion"  // Unique package name
+    namespace = "dev.akibh.mycompanion"  // Unique package name
     compileSdk = 34                     // Build against Android 34 APIs
 
     defaultConfig {
-        applicationId = "com.akib.mycompanion"  // Play Store ID
+        applicationId = "dev.akibh.mycompanion"  // Play Store ID
         minSdk = 24                     // Minimum Android 7.0
         targetSdk = 34                  // Target Android 14
         versionCode = 1                 // Internal version number
@@ -241,7 +241,7 @@ sdk.dir=/home/akib/Android/Sdk  # Path to Android SDK
 ### 8. `MainActivity.kt` - Your App's Code
 
 ```kotlin
-package com.akib.mycompanion
+package dev.akibh.mycompanion
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -356,7 +356,7 @@ export JAVA_HOME=/home/akib/.jdks/corretto-17.0.20.1
 ~/Android/Sdk/platform-tools/adb install app/build/outputs/apk/debug/app-debug.apk
 
 # Launch app
-~/Android/Sdk/platform-tools/adb shell am start -n com.akib.mycompanion/.MainActivity
+~/Android/Sdk/platform-tools/adb shell am start -n dev.akibh.mycompanion/.MainActivity
 
 # Clean build
 ./gradlew clean :app:assembleDebug

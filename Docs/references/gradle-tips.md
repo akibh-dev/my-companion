@@ -115,11 +115,11 @@ plugins {
 }
 
 android {
-    namespace = "com.akib.mycompanion"
+    namespace = "dev.akibh.mycompanion"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.akib.mycompanion"
+        applicationId = "dev.akibh.mycompanion"
         minSdk = 24
         targetSdk = 34
         versionCode = 1

@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.akib.mycompanion.voice"
+    namespace = "dev.akibh.mycompanion.voice"
     buildFeatures { compose = true }
 }
 

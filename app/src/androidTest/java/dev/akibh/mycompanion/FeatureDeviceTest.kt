@@ -1,0 +1,218 @@
+package dev.akibh.mycompanion
+
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasScrollToIndexAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isToggleable
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.Before
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+
+/** Real activity, Hilt graph, Room and DataStore on a device; no fake repositories or models. */
+@RunWith(AndroidJUnit4::class)
+class FeatureDeviceTest {
+    @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+
+    @Before
+    fun enterApp() {
+        if (compose.onAllNodesWithText("Skip").fetchSemanticsNodes().isNotEmpty()) {
+            compose.onNodeWithText("Skip").performClick()
+        }
+        // The nav bar is icon-only: tabs are found by their content description, not visible text.
+        compose.onNodeWithContentDescription("Home").assertExists()
+    }
+
+    @Test
+    fun masterPauseCanBeChangedAndRestored() {
+        val paused = compose.onAllNodesWithText("Paused").fetchSemanticsNodes().isNotEmpty()
+        compose.onAllNodes(isToggleable()).onFirst().performClick()
+        compose.onNodeWithText(if (paused) "Active" else "Paused").assertIsDisplayed()
+        compose.onAllNodes(isToggleable()).onFirst().performClick()
+        compose.onNodeWithText(if (paused) "Paused" else "Active").assertIsDisplayed()
+    }
+
+    @Test
+    fun peopleCanSaveNormalizedNumberAndRemovePerson() {
+        val name = "Device person ${System.nanoTime()}"
+        compose.onNodeWithContentDescription("People").performClick()
+        val addPerson = hasText("Add person") or hasContentDescription("Add person")
+        compose.waitUntil(10_000) { compose.onAllNodes(addPerson).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNode(addPerson).performClick()
+        compose.onNodeWithText("Name").performTextInput(name)
+        compose.onNodeWithText("WhatsApp number").performTextInput("01711987654")
+        compose.onNodeWithText("Save").performClick()
+        awaitText(name)
+        compose.onNodeWithText("+8801711987654").assertExists()
+        compose.onNodeWithContentDescription("More options for $name").performClick()
+        compose.onNodeWithText("Remove").performClick()
+        compose.waitUntil(10_000) { compose.onAllNodesWithText(name).fetchSemanticsNodes().isEmpty() }
+    }
+
+    @Test
+    fun reminderFieldsKeepRapidInputAfterFocusChanges() {
+        compose.onNodeWithContentDescription("Reminders").performClick()
+        compose.onNodeWithText("Create a reminder").performClick()
+        repeat(5) { attempt ->
+            val title = "Typing replay $attempt"
+            val message = "Stay hydrated $attempt"
+            compose.onNodeWithText("Title").performTextReplacement(title)
+            compose.onNodeWithText("Message").performTextReplacement(message)
+            compose.onNodeWithText("Title").assertTextContains(title)
+            compose.onNodeWithText("Message").assertTextContains(message)
+        }
+    }
+
+    @Test
+    fun playerRejectsInvalidLink() {
+        compose.onNodeWithContentDescription("Player").performClick()
+        compose.onNodeWithText("YouTube link").performTextInput("not-a-video")
+        compose.onNodeWithText("Open link").performClick()
+        awaitText("That's not a YouTube video link")
+    }
+
+    @Test
+    fun playlistCanBeCreatedOpenedAndDeleted() {
+        val name = "Device playlist ${System.nanoTime()}"
+        compose.onNodeWithContentDescription("Player").performClick()
+        compose.onNodeWithText("Playlists").performClick()
+        compose.onNodeWithText("New playlist").performClick()
+        compose.onNodeWithText("Name").performTextInput(name)
+        compose.onNodeWithText("Create").performClick()
+        awaitText(name)
+        compose.onNodeWithText(name).performClick()
+        compose.onNodeWithText("Play all").assertExists()
+        compose.onNodeWithContentDescription("Playlist options").performClick()
+        compose.onNodeWithText("Delete playlist").performClick()
+        compose.onNodeWithText("Delete").performClick()
+        awaitText("New playlist")
+    }
+
+    @Test
+    fun contextRulesPlacesAndHistoryAreReachable() {
+        openHome("Context rules")
+        compose.onNodeWithText("Saved places").performClick()
+        compose.onNodeWithContentDescription("Add place").assertExists()
+        compose.onNodeWithContentDescription("Back").performClick()
+        compose.onNodeWithText("History").performClick()
+        compose.onNodeWithText("Rule history").assertIsDisplayed()
+    }
+
+    @Test
+    fun autoReplyHasBusyControlsAndTemplateEditor() {
+        openHome("Auto-reply")
+        compose.onNodeWithText("Auto-reply to chats").assertExists()
+        compose.onNodeWithText("30 min").performClick()
+        compose.onNodeWithText("Busy until", substring = true).assertExists()
+        compose.onNodeWithText("Off").performClick()
+        compose.onNodeWithText("Not busy").assertExists()
+        scrollTo("Add reply")
+        compose.onNodeWithText("Add reply").performClick()
+        compose.onNodeWithText("Reply text").assertExists()
+        compose.onNodeWithText("Cancel").performClick()
+    }
+
+    @Test
+    fun missedCallSmsAndChatDiagnosticsAreReachable() {
+        openHome("Missed-call SMS")
+        compose.onNodeWithText("Text back after a missed call").assertExists()
+        scrollTo("Chat app self-test")
+        compose.onNodeWithText("Chat app self-test").performClick()
+        compose.onNodeWithText("WhatsApp").assertExists()
+        compose.onNodeWithText("Signal").assertExists()
+        compose.onNodeWithText("Telegram").assertExists()
+    }
+
+    @Test
+    fun voiceModeShowsPrivacyAndTestControls() {
+        openHome("Voice mode")
+        compose.onNodeWithText("Read messages aloud").assertExists()
+        compose.onNodeWithText("Where").assertExists()
+        scrollTo("Read a test message")
+        compose.onNodeWithText("Read a test message").performClick()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText("Rahim", substring = true).fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    @Test
+    fun screenOnHasSensitivityChoices() {
+        openHome("Keep screen on")
+        compose.onNodeWithText("Keep screen on outdoors").assertExists()
+        compose.onNodeWithText("Sensitivity").assertExists()
+        compose.onNodeWithText("Strict").performScrollTo().performClick()
+        compose.onNodeWithText("Normal").performScrollTo().performClick()
+    }
+
+    @Test
+    fun exportAndSettingsBackupControlsAreAvailable() {
+        openSettings("Export & backup")
+        compose.onNodeWithText("Export my data…").assertExists()
+        compose.onNodeWithText("Save settings…").assertExists()
+        compose.onNodeWithText("Restore settings…").assertExists()
+    }
+
+    @Test
+    fun aiEnginesExposeAllFourModelSwitches() {
+        openHome("AI engines")
+        listOf("Banglish to Bangla", "Speech (voice)", "Speech to text", "Summaries").forEach {
+            scrollTo(it)
+            compose.onNodeWithText(it).assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun permissionGuideAndHealthLogOpen() {
+        openSettings("Permissions & health")
+        compose.onNodeWithText("Permissions & health").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Back").performClick()
+        // Back lands on Settings, where Log is listed too.
+        scrollTo("Log")
+        compose.onNodeWithText("Log").performClick()
+        compose.onNodeWithText("Refresh").performClick()
+        compose.onNodeWithText("Heartbeat gaps").assertExists()
+    }
+
+    private fun openHome(label: String) {
+        scrollTo(label)
+        // Feature tiles toggle when tapped; their arrow ("Open …") is what opens the screen.
+        val arrow = compose.onAllNodesWithContentDescription("Open $label").fetchSemanticsNodes()
+        if (arrow.isNotEmpty()) {
+            compose.onNodeWithContentDescription("Open $label").performClick()
+        } else {
+            compose.onNodeWithText(label).performClick()
+        }
+        compose.waitForIdle()
+    }
+
+    /** Tools (export, permissions, log) live in Settings, opened from Home's top-right control. */
+    private fun openSettings(label: String) {
+        compose.onNodeWithContentDescription("Settings").performClick()
+        compose.waitForIdle()
+        scrollTo(label)
+        compose.onNodeWithText(label).performClick()
+        compose.waitForIdle()
+    }
+
+    private fun scrollTo(label: String) {
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(label))
+    }
+
+    private fun awaitText(text: String) {
+        compose.waitUntil(10_000) { compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() }
+    }
+}

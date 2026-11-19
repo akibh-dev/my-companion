@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.akib.mycompanion.messaging"
+    namespace = "dev.akibh.mycompanion.messaging"
 }
 
 kapt {
