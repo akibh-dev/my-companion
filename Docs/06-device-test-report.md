@@ -116,14 +116,14 @@ First run of the whole app on a real Android system instead of only JVM tests.
   `Channel` until you return.
 
 ### #4 Any app can make the phone call your saved people — security
-- **Evidence:** `adb shell am start -n com.akib.mycompanion/.presentation.call.CallActivity --el contact_id 2`
+- **Evidence:** `adb shell am start -n dev.akibh.mycompanion/.presentation.call.CallActivity --el contact_id 2`
   opened WhatsApp for Dad with no tap (for Mom it would start a voice call). Ids are small and sequential.
 - **Cause:** `CallActivity` is `exported="true"` (pinned shortcuts on Android 7.x need that) and trusts
   any intent.
 - **Fix (planned):** a per-install secret token (random, stored privately) added to shortcut and
   notification intents and checked in `CallActivity`; refresh existing pinned shortcuts at startup
   with `ShortcutManagerCompat.updateShortcuts` so they keep working. (Note: on Android 8+ the launcher
-  starts shortcuts *as our app* — the log showed `from uid 10230 (com.akib.mycompanion)`.)
+  starts shortcuts *as our app* — the log showed `from uid 10230 (dev.akibh.mycompanion)`.)
 
 ### #5 Fast typing right after focusing a field can drop or reorder letters
 - **Evidence:** "Stay hydrated" → "Stay atedh"; in a controlled replay (title → message, typed

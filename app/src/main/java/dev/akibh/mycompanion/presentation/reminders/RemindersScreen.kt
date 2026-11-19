@@ -1,0 +1,684 @@
+package dev.akibh.mycompanion.presentation.reminders
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import dev.akibh.mycompanion.R
+import dev.akibh.mycompanion.presentation.common.OutlinedStateTextField
+import dev.akibh.mycompanion.ui.components.DotIcon
+import dev.akibh.mycompanion.ui.components.DotSymbol
+import dev.akibh.mycompanion.ui.components.rememberChromeListState
+import dev.akibh.mycompanion.ui.theme.CompanionRed
+import java.time.DayOfWeek
+
+/**
+ * Reminders screen: compose a notification on top, upcoming ones below. The typed [title] and [message]
+ * are Compose text state (owned by the ViewModel); everything else comes in through [state].
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RemindersScreen(
+    state: RemindersUiState,
+    title: TextFieldState,
+    message: TextFieldState,
+    notificationsAllowed: Boolean,
+    onAllowNotifications: () -> Unit,
+    onChoiceChange: (WhenChoice) -> Unit,
+    onPickTime: () -> Unit,
+    onRepeatChange: (RepeatChoice) -> Unit,
+    onDayToggle: (DayOfWeek) -> Unit,
+    onEveryChange: (Int) -> Unit,
+    onContactChange: (Long?) -> Unit,
+    onSubmit: () -> Unit,
+    onCancelReminder: (Long) -> Unit,
+    modifier: Modifier = Modifier,
+    onPickDateTime: () -> Unit = {},
+    onCustomNumberChange: (String) -> Unit = {},
+    onCustomUnitChange: (RepeatUnit) -> Unit = {},
+    soundContent: @Composable () -> Unit = {},
+    onEditReminder: (Long) -> Unit = {},
+    onTogglePause: (Long) -> Unit = {},
+    onCancelEdit: () -> Unit = {},
+    preciseTimingAllowed: Boolean = true,
+    submissionCount: Int = 0,
+) {
+    var creating by rememberSaveable { mutableStateOf(false) }
+    var handledSubmission by rememberSaveable { mutableIntStateOf(submissionCount) }
+    LaunchedEffect(submissionCount) {
+        if (submissionCount != handledSubmission) {
+            creating = false
+            handledSubmission = submissionCount
+        }
+    }
+    LazyColumn(
+        state = rememberChromeListState(),
+        modifier = modifier,
+        contentPadding = PaddingValues(start = 24.dp, top = 12.dp, end = 24.dp, bottom = 144.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        item {
+            Text(
+                "For the things worth coming back to.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (!notificationsAllowed) {
+            item { NotificationsOffBanner(onAllowNotifications) }
+        }
+        if (!preciseTimingAllowed) {
+            item { Text("Precise timing is unavailable. Reminders may arrive later than the selected time.") }
+        }
+        item {
+            Button(onClick = { creating = true }, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Filled.Add, contentDescription = null)
+                Spacer(Modifier.size(8.dp))
+                Text("Create a reminder")
+            }
+        }
+        item {
+            Text(
+                "Upcoming",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
+        if (state.upcoming.isEmpty()) {
+            item {
+                Column(
+                    Modifier.fillMaxWidth().padding(vertical = 36.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    DotIcon(DotSymbol.BELL, Modifier.size(48.dp))
+                    Text("Nothing scheduled", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        "Set a little nudge for later.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        } else {
+            // The soonest reminder that will actually ring is the one highlighted.
+            val nextId = state.upcoming.firstOrNull { !it.paused }?.id
+            items(state.upcoming, key = { it.id }) { reminder ->
+                UpcomingRow(
+                    reminder,
+                    next = reminder.id == nextId,
+                    onTogglePause = { onTogglePause(reminder.id) },
+                    onEdit = { onEditReminder(reminder.id) }
+                )
+            }
+        }
+    }
+    if (creating || state.form.editingId != null) {
+        val dismiss = {
+            creating = false
+            if (state.form.editingId != null) onCancelEdit()
+        }
+        ModalBottomSheet(
+            onDismissRequest = dismiss,
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            // Even fully open, the sheet stops under the status bar with a gap, so its rounded top still shows.
+            modifier = Modifier.statusBarsPadding().padding(top = 12.dp),
+            containerColor = MaterialTheme.colorScheme.background,
+        ) {
+            // The sheet is as tall as its content (up to the screen). The fields scroll; the header and the
+            // main button stay put, so "Set reminder" is always one tap away.
+            Column(Modifier.fillMaxWidth()) {
+                // No close button: swipe the sheet down, tap outside it, or go back.
+                Text(
+                    if (state.form.editingId != null) "Edit reminder" else "New reminder",
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 16.dp).semantics { heading() },
+                )
+                Column(
+                    Modifier
+                        .weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState())
+                        .padding(start = 16.dp, end = 16.dp, bottom = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                ) {
+                    ComposerSections(
+                        state = state, title = title, message = message,
+                        onChoiceChange = onChoiceChange, onPickTime = onPickTime,
+                        onRepeatChange = onRepeatChange, onDayToggle = onDayToggle,
+                        onEveryChange = onEveryChange, onContactChange = onContactChange,
+                        onPickDateTime = onPickDateTime,
+                        onCustomNumberChange = onCustomNumberChange, onCustomUnitChange = onCustomUnitChange,
+                        soundContent = soundContent,
+                    )
+                    state.form.editingId?.let { id ->
+                        val paused = state.upcoming.firstOrNull { it.id == id }?.paused == true
+                        ManageSection(
+                            paused = paused,
+                            onTogglePause = { onTogglePause(id) },
+                            onDelete = {
+                                onCancelReminder(id)
+                                dismiss()
+                            },
+                        )
+                    }
+                }
+                SubmitBar(state, title, message, onSubmit)
+            }
+        }
+    }
+}
+
+@Composable
+private fun NotificationsOffBanner(onAllow: () -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.Warning, contentDescription = null)
+            Text(
+                "Notifications are off, so reminders can't show.",
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp),
+            )
+            TextButton(onClick = onAllow) { Text("Allow") }
+        }
+    }
+}
+
+/** A labelled group of the reminder form, on its own rounded surface. */
+@Composable
+private fun FormSection(label: String, content: @Composable ColumnScope.() -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 8.dp).semantics { heading() },
+        )
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.extraLarge)
+                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            content = content,
+        )
+    }
+}
+
+@Composable
+private fun ComposerSections(
+    state: RemindersUiState,
+    title: TextFieldState,
+    message: TextFieldState,
+    onChoiceChange: (WhenChoice) -> Unit,
+    onPickTime: () -> Unit,
+    onRepeatChange: (RepeatChoice) -> Unit,
+    onDayToggle: (DayOfWeek) -> Unit,
+    onEveryChange: (Int) -> Unit,
+    onContactChange: (Long?) -> Unit,
+    onPickDateTime: () -> Unit,
+    onCustomNumberChange: (String) -> Unit,
+    onCustomUnitChange: (RepeatUnit) -> Unit,
+    soundContent: @Composable () -> Unit,
+) {
+    val form = state.form
+    FormSection("What") {
+        OutlinedStateTextField(
+            state = title,
+            label = "Title",
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedStateTextField(
+            state = message,
+            label = "Message",
+            singleLine = false,
+            minLines = 2,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+    FormSection("When") {
+        ChipRow {
+            state.presets.forEach { chip ->
+                FilterChip(
+                    colors = choiceChipColors(),
+                    selected = chip.selected,
+                    onClick = { onChoiceChange(chip.choice) },
+                    label = { Text(chip.label) },
+                )
+            }
+            FilterChip(
+                colors = choiceChipColors(),
+                selected = form.choice is WhenChoice.At,
+                onClick = onPickTime,
+                label = { Text(if (form.choice is WhenChoice.At) state.pickedTimeLabel else "Pick time") },
+                leadingIcon = {
+                    Icon(
+                        painterResource(R.drawable.ic_schedule),
+                        contentDescription = null,
+                        Modifier.size(18.dp)
+                    )
+                },
+            )
+            FilterChip(
+                colors = choiceChipColors(),
+                selected = form.choice is WhenChoice.OnDateTime,
+                onClick = onPickDateTime,
+                label = { Text(if (form.choice is WhenChoice.OnDateTime) state.pickedTimeLabel else "Pick date") },
+                leadingIcon = { Icon(Icons.Filled.DateRange, contentDescription = null, Modifier.size(18.dp)) },
+            )
+        }
+        if (state.nextOccurrences.isNotEmpty()) {
+            Text(
+                "Next: " + state.nextOccurrences.joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+    FormSection("Repeat") {
+        RepeatPicker(state, onRepeatChange, onDayToggle, onEveryChange, onCustomNumberChange, onCustomUnitChange)
+    }
+    FormSection(if (state.contacts.isNotEmpty()) "Sound & call" else "Sound") {
+        soundContent()
+        if (state.contacts.isNotEmpty()) CallButtonPicker(state, onContactChange)
+    }
+    state.validationMessage?.let {
+        Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 8.dp))
+    }
+}
+
+/** The main action, pinned under the scrolling form. */
+@Composable
+private fun SubmitBar(state: RemindersUiState, title: TextFieldState, message: TextFieldState, onSubmit: () -> Unit) {
+    val form = state.form
+    // Reading the text here recomposes only when it changes; nothing is sent back anywhere.
+    val canSubmit = form.canSubmit(title.text, message.text) && state.validationMessage == null
+    Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background)) {
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Button(
+            onClick = onSubmit,
+            enabled = canSubmit,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 16.dp)
+                .height(56.dp),
+        ) {
+            Icon(
+                Icons.Filled.Notifications,
+                contentDescription = null,
+                tint = if (canSubmit) CompanionRed else LocalContentColor.current
+            )
+            Spacer(Modifier.size(8.dp))
+            Text(
+                when {
+                    form.editingId != null -> "Save changes"
+                    form.choice == WhenChoice.Now -> "Send now"
+                    else -> "Set reminder"
+                },
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
+    }
+}
+
+/** Never / every day / on chosen days / every month / every few hours, plus the details for the choice. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RepeatPicker(
+    state: RemindersUiState,
+    onRepeatChange: (RepeatChoice) -> Unit,
+    onDayToggle: (DayOfWeek) -> Unit,
+    onEveryChange: (Int) -> Unit,
+    onCustomNumberChange: (String) -> Unit,
+    onCustomUnitChange: (RepeatUnit) -> Unit,
+) {
+    val form = state.form
+    ChipRow {
+        RepeatChoice.entries.forEach { choice ->
+            FilterChip(
+                colors = choiceChipColors(),
+                selected = form.repeat == choice,
+                onClick = { onRepeatChange(choice) },
+                label = { Text(choice.label) },
+                leadingIcon = if (choice == RepeatChoice.NEVER) {
+                    null
+                } else {
+                    { Icon(Icons.Filled.Refresh, contentDescription = null, Modifier.size(18.dp)) }
+                },
+            )
+        }
+    }
+    when (form.repeat) {
+        RepeatChoice.DAYS -> ChipRow {
+            state.dayChips.forEach { chip ->
+                FilterChip(
+                    colors = choiceChipColors(),
+                    selected = chip.selected,
+                    onClick = { onDayToggle(chip.day) },
+                    label = { Text(chip.label) },
+                )
+            }
+        }
+        RepeatChoice.EVERY -> ChipRow {
+            state.everyChips.forEach { chip ->
+                FilterChip(
+                    colors = choiceChipColors(),
+                    selected = chip.selected,
+                    onClick = { onEveryChange(chip.minutes) },
+                    label = { Text(chip.label) }
+                )
+            }
+        }
+        RepeatChoice.CUSTOM -> {
+            OutlinedTextField(
+                value = form.customNumber,
+                onValueChange = onCustomNumberChange,
+                label = { Text("Repeat every") },
+                singleLine = true,
+                isError = form.customCount == null,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            ChipRow {
+                RepeatUnit.entries.forEach { unit ->
+                    FilterChip(
+                        colors = choiceChipColors(),
+                        selected = unit == form.customUnit,
+                        onClick = { onCustomUnitChange(unit) },
+                        label = { Text(unit.title) }
+                    )
+                }
+            }
+            if (form.customUnit == RepeatUnit.MINUTES && (form.customCount ?: 15) < 15) {
+                Text(
+                    "Short intervals may be delayed while the phone sleeps.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+        else -> Unit
+    }
+    val summary = when {
+        form.repeat == RepeatChoice.DAYS && form.days.isEmpty() -> "Pick at least one day"
+        else -> state.repeatSummary
+    }
+    if (summary != null && form.repeat != RepeatChoice.NEVER) {
+        Text(summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ChipRow(content: @Composable () -> Unit) {
+    FlowRow(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) { content() }
+}
+
+/** Optionally attach a "Call <person>" button to the notification. */
+@Composable
+private fun CallButtonPicker(state: RemindersUiState, onContactChange: (Long?) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val selected = state.contacts.firstOrNull { it.id == state.form.contactId }
+    Box {
+        OutlinedButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth()) {
+            Icon(Icons.Filled.Call, contentDescription = null)
+            Spacer(Modifier.size(8.dp))
+            Text(selected?.let { "Call button: ${it.name}" } ?: "Add a call button (optional)")
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = { Text("No call button") },
+                onClick = {
+                    open = false
+                    onContactChange(null)
+                },
+            )
+            state.contacts.forEach { contact ->
+                DropdownMenuItem(
+                    text = { Text(contact.name) },
+                    onClick = {
+                        open = false
+                        onContactChange(contact.id)
+                    },
+                )
+            }
+        }
+    }
+}
+
+/**
+ * One scheduled reminder: the time large on the left, what it's about on the right, and the repeat and
+ * call button as small pills. Tapping the card edits it; the soonest one is filled, like an active tile.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun UpcomingRow(reminder: UpcomingReminder, next: Boolean, onTogglePause: () -> Unit, onEdit: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val container = if (next) colors.primary else colors.surfaceContainer
+    val content = if (next) colors.onPrimary else colors.onSurface
+    val muted = content.copy(alpha = .68f)
+    // "Today, 14:58" → "Today" over "14:58". Dates like "Mon 28 Oct" have no comma of their own.
+    val day = reminder.whenText.substringBeforeLast(", ", "")
+    val time = reminder.whenText.substringAfterLast(", ")
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.extraLarge)
+            .background(container)
+            .clickable(onClickLabel = "Edit ${reminder.title}", onClick = onEdit)
+            // Paused reminders fade back; they're still there, just not ringing.
+            .graphicsLayer { alpha = if (reminder.paused) .45f else 1f }
+            .padding(start = 20.dp, top = 18.dp, bottom = 18.dp, end = 14.dp),
+    ) {
+        Column(Modifier.width(78.dp)) {
+            Text(
+                day.uppercase(),
+                style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.8.sp),
+                color = if (next) CompanionRed else muted,
+            )
+            Text(time, style = MaterialTheme.typography.headlineSmall, color = content, maxLines = 1)
+        }
+        Column(Modifier.weight(1f).padding(start = 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                reminder.title,
+                style = MaterialTheme.typography.titleMedium,
+                color = content,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (reminder.message.isNotBlank()) {
+                Text(
+                    reminder.message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = muted,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (reminder.paused || reminder.repeatText != null || reminder.contactName != null) {
+                FlowRow(
+                    Modifier.padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    if (reminder.paused) InfoPill(painterResource(R.drawable.ic_pause), "Paused", content)
+                    reminder.repeatText?.let { InfoPill(painterResource(R.drawable.ic_repeat), it, content) }
+                    reminder.contactName?.let {
+                        InfoPill(
+                            rememberVectorPainter(Icons.Filled.Call),
+                            "Call $it",
+                            content
+                        )
+                    }
+                }
+            }
+        }
+        // A round dotted play/pause control, centred on the card's height.
+        Box(
+            Modifier
+                .padding(start = 8.dp)
+                .align(Alignment.CenterVertically)
+                .size(46.dp)
+                .clip(CircleShape)
+                .border(1.dp, content.copy(alpha = .22f), CircleShape)
+                .clickable(onClick = onTogglePause)
+                .semantics {
+                    contentDescription = if (reminder.paused) "Resume ${reminder.title}" else "Pause ${reminder.title}"
+                    role = Role.Button
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            DotIcon(
+                if (reminder.paused) DotSymbol.PLAY else DotSymbol.PAUSE,
+                Modifier.size(22.dp),
+                color = if (reminder.paused) CompanionRed else content,
+            )
+        }
+    }
+}
+
+/** A small outlined label on a reminder card, e.g. the repeat or the call button. */
+@Composable
+private fun InfoPill(icon: Painter, text: String, color: Color) {
+    Row(
+        Modifier
+            .border(1.dp, color.copy(alpha = .28f), CircleShape)
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(text, style = MaterialTheme.typography.labelMedium, color = color)
+    }
+}
+
+/** Shown when editing an existing reminder: pause or resume it, or delete it for good. */
+@Composable
+private fun ManageSection(paused: Boolean, onTogglePause: () -> Unit, onDelete: () -> Unit) {
+    var confirming by remember { mutableStateOf(false) }
+    FormSection("Manage") {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            OutlinedButton(onClick = onTogglePause, modifier = Modifier.weight(1f).height(52.dp)) {
+                DotIcon(if (paused) DotSymbol.PLAY else DotSymbol.PAUSE, Modifier.size(18.dp))
+                Spacer(Modifier.size(8.dp))
+                Text(if (paused) "Resume" else "Pause")
+            }
+            OutlinedButton(
+                onClick = { confirming = true },
+                modifier = Modifier.weight(1f).height(52.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = .5f)),
+            ) {
+                Icon(Icons.Filled.Delete, contentDescription = null, Modifier.size(18.dp))
+                Spacer(Modifier.size(8.dp))
+                Text("Delete")
+            }
+        }
+    }
+    if (confirming) {
+        AlertDialog(
+            onDismissRequest = { confirming = false },
+            title = { Text("Delete this reminder?") },
+            text = { Text("It won't ring again. This can't be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirming = false
+                    onDelete()
+                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { confirming = false }) { Text("Keep") } },
+        )
+    }
+}
+
+/** Selected choices are filled with the primary colour (black, white in dark mode), like Home's active tiles. */
+@Composable
+private fun choiceChipColors() = FilterChipDefaults.filterChipColors(
+    selectedContainerColor = MaterialTheme.colorScheme.primary,
+    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+)

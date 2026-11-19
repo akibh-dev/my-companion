@@ -83,9 +83,9 @@ export PATH="$HOME/Android/Sdk/platform-tools:$PATH"
 # Then use:
 adb devices                    # List connected devices
 adb install app-debug.apk      # Install APK
-adb shell am start -n com.akib.mycompanion/.MainActivity  # Launch app
+adb shell am start -n dev.akibh.mycompanion/.MainActivity  # Launch app
 adb logcat                     # View logs
-adb uninstall com.akib.mycompanion  # Remove app
+adb uninstall dev.akibh.mycompanion  # Remove app
 ```
 
 ---

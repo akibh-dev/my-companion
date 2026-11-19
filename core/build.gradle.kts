@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.akib.mycompanion.core"
+    namespace = "dev.akibh.mycompanion.core"
 }
 
 kapt {

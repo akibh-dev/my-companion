@@ -1,0 +1,288 @@
+package dev.akibh.mycompanion.domain.usecase
+
+import dev.akibh.mycompanion.domain.model.Reminder
+import dev.akibh.mycompanion.domain.model.ReminderSound
+import dev.akibh.mycompanion.domain.model.ReminderTime
+import dev.akibh.mycompanion.domain.model.Repeat
+import dev.akibh.mycompanion.domain.port.AlarmScheduler
+import dev.akibh.mycompanion.domain.port.ReminderNotifier
+import dev.akibh.mycompanion.domain.repository.ContactRepository
+import dev.akibh.mycompanion.domain.repository.ReminderRepository
+import dev.akibh.mycompanion.domain.time.Clock
+import dev.akibh.mycompanion.domain.time.ReminderTimeCalculator
+import javax.inject.Inject
+
+sealed interface ScheduleResult {
+    /** Will fire at [Reminder.triggerAtMillis]. */
+    data class Scheduled(val reminder: Reminder) : ScheduleResult
+
+    /** "Now" was chosen and the notification was posted. */
+    data class Shown(val reminder: Reminder) : ScheduleResult
+
+    /** "Now" was chosen but notifications are blocked. */
+    data object NotificationsBlocked : ScheduleResult
+
+    data object EmptyContent : ScheduleResult
+
+    data object InvalidTime : ScheduleResult
+}
+
+class ScheduleReminderUseCase @Inject constructor(
+    private val reminders: ReminderRepository,
+    private val scheduler: AlarmScheduler,
+    private val calculator: ReminderTimeCalculator,
+    private val fire: FireReminderUseCase,
+) {
+    suspend operator fun invoke(
+        title: String,
+        message: String,
+        time: ReminderTime,
+        repeat: Repeat = Repeat.Never,
+        contactId: Long? = null,
+        sound: ReminderSound = ReminderSound.Default,
+        editingId: Long? = null,
+    ): ScheduleResult {
+        if (title.isBlank() && message.isBlank()) return ScheduleResult.EmptyContent
+        if (!time.isValid() || !repeat.isValid()) return ScheduleResult.InvalidTime
+
+        val existing = editingId?.let { reminders.get(it) ?: return ScheduleResult.InvalidTime }
+        val trigger = runCatching {
+            calculator.firstTrigger(
+                time,
+                repeat
+            )
+        }.getOrElse { return ScheduleResult.InvalidTime }
+        val reminder = reminders.save(
+            Reminder(
+                id = existing?.id ?: 0,
+                title = title.trim().ifEmpty { DEFAULT_TITLE },
+                message = message.trim(),
+                triggerAtMillis = trigger,
+                repeat = repeat,
+                contactId = contactId,
+                sound = sound,
+                paused = existing?.paused == true,
+            ),
+        )
+
+        if (existing != null) {
+            scheduler.cancel(existing.id)
+            fire.cancelNotification(existing.id)
+            // Editing a paused reminder saves the changes but keeps it paused.
+            if (existing.paused) return ScheduleResult.Scheduled(reminder)
+        }
+        if (time is ReminderTime.InMinutes && time.minutes == 0) {
+            val shown = fire(reminder.id)
+            return if (shown) ScheduleResult.Shown(reminder) else ScheduleResult.NotificationsBlocked
+        }
+        scheduler.schedule(reminder)
+        return ScheduleResult.Scheduled(reminder)
+    }
+
+    /**
+     * A one-off reminder at an exact moment.
+     * A moment that has already passed is [ScheduleResult.InvalidTime].
+     */
+    suspend fun at(title: String, message: String, atMillis: Long): ScheduleResult {
+        if (title.isBlank() && message.isBlank()) return ScheduleResult.EmptyContent
+        if (atMillis <= calculator.inMinutes(0)) return ScheduleResult.InvalidTime
+
+        val reminder = reminders.save(
+            Reminder(
+                title = title.trim().ifEmpty { DEFAULT_TITLE },
+                message = message.trim(),
+                triggerAtMillis = atMillis,
+            ),
+        )
+        scheduler.schedule(reminder)
+        return ScheduleResult.Scheduled(reminder)
+    }
+
+    private fun ReminderTime.isValid(): Boolean = when (this) {
+        is ReminderTime.InMinutes -> minutes in 0..MAX_MINUTES
+        is ReminderTime.AtTime -> hour in 0..23 && minute in 0..59
+        is ReminderTime.AtDateTime -> runCatching {
+            calculator.firstTrigger(this) > calculator.inMinutes(0)
+        }.getOrDefault(false)
+    }
+
+    companion object {
+        const val DEFAULT_TITLE = "Reminder"
+        const val MAX_MINUTES = 7 * 24 * 60
+    }
+}
+
+/**
+ * The alarm went off: post the notification, then either queue the next time (repeating)
+ * or mark it delivered (one-off). Returns whether the notification was posted.
+ */
+class FireReminderUseCase @Inject constructor(
+    private val reminders: ReminderRepository,
+    private val contacts: ContactRepository,
+    private val notifier: ReminderNotifier,
+    private val scheduler: AlarmScheduler,
+    private val calculator: ReminderTimeCalculator,
+) {
+    fun cancelNotification(reminderId: Long) = notifier.cancel(reminderId.toInt())
+
+    suspend operator fun invoke(reminderId: Long): Boolean {
+        val reminder = reminders.get(reminderId) ?: return false
+        if (reminder.delivered || reminder.paused || reminder.triggerAtMillis > calculator.inMinutes(0)) return false
+        val contact = reminder.contactId?.let { contacts.get(it) }
+        val shown = notifier.show(reminder, contact)
+
+        when (val nextTrigger = calculator.next(reminder.repeat, reminder.triggerAtMillis)) {
+            null -> reminders.save(reminder.copy(delivered = true))
+            else -> scheduler.schedule(reminders.save(reminder.copy(triggerAtMillis = nextTrigger)))
+        }
+        return shown
+    }
+}
+
+/** "Snooze" on a notification: a one-off copy fires again in [minutes]. Repeating schedules are left untouched. */
+class SnoozeReminderUseCase @Inject constructor(
+    private val reminders: ReminderRepository,
+    private val notifier: ReminderNotifier,
+    private val scheduler: AlarmScheduler,
+    private val calculator: ReminderTimeCalculator,
+) {
+    suspend operator fun invoke(reminderId: Long, minutes: Int = DEFAULT_SNOOZE_MINUTES): Reminder? {
+        val original = reminders.get(reminderId) ?: return null
+        notifier.cancel(original.notificationId)
+
+        val snoozed = reminders.save(
+            original.copy(
+                id = 0,
+                triggerAtMillis = calculator.inMinutes(minutes),
+                repeat = Repeat.Never,
+                delivered = false,
+            ),
+        )
+        scheduler.schedule(snoozed)
+        if (!original.repeat.isRepeating) reminders.delete(original.id)
+        return snoozed
+    }
+
+    companion object {
+        const val DEFAULT_SNOOZE_MINUTES = 10
+    }
+}
+
+/** "Done" on a notification. */
+class DismissReminderUseCase @Inject constructor(
+    private val reminders: ReminderRepository,
+    private val notifier: ReminderNotifier,
+) {
+    suspend operator fun invoke(reminderId: Long) {
+        notifier.cancel(reminderId.toInt())
+        val reminder = reminders.get(reminderId) ?: return
+        if (reminder.delivered) reminders.delete(reminderId)
+    }
+}
+
+/** User removed an upcoming reminder. */
+class CancelReminderUseCase @Inject constructor(
+    private val reminders: ReminderRepository,
+    private val scheduler: AlarmScheduler,
+    private val notifier: ReminderNotifier,
+) {
+    suspend operator fun invoke(reminderId: Long) {
+        scheduler.cancel(reminderId)
+        notifier.cancel(reminderId.toInt())
+        reminders.delete(reminderId)
+    }
+}
+
+/**
+ * Alarms are wiped on reboot. Re-arm pending reminders, skip missed repeat occurrences,
+ * deliver overdue one-offs, and clean up old delivered reminders. Calendar anchors are also
+ * reinterpreted in the current timezone after clock/timezone changes.
+ */
+class RestoreRemindersUseCase @Inject constructor(
+    private val reminders: ReminderRepository,
+    private val scheduler: AlarmScheduler,
+    private val fire: FireReminderUseCase,
+    private val cleanUp: CleanUpRemindersUseCase,
+    private val clock: Clock,
+    private val calculator: ReminderTimeCalculator = ReminderTimeCalculator(clock),
+) {
+    suspend operator fun invoke() {
+        cleanUp()
+        val now = clock.nowMillis()
+        reminders.getPending().filterNot { it.paused }.forEach { reminder ->
+            when {
+                reminder.repeat is Repeat.CalendarDays || reminder.repeat is Repeat.CalendarMonths ||
+                    (reminder.repeat.isRepeating && reminder.triggerAtMillis <= now) -> {
+                    val previous = if (
+                        reminder.repeat is Repeat.CalendarDays || reminder.repeat is Repeat.CalendarMonths
+                    ) {
+                        now - 1
+                    } else {
+                        reminder.triggerAtMillis
+                    }
+                    calculator.next(reminder.repeat, previous)?.let { next ->
+                        scheduler.schedule(reminders.save(reminder.copy(triggerAtMillis = next)))
+                    }
+                }
+                reminder.triggerAtMillis > now -> scheduler.schedule(reminder)
+                else -> fire(reminder.id)
+            }
+        }
+    }
+}
+
+/**
+ * Delivered one-off reminders are kept for a day, so Snooze / Done / Call on a notification still
+ * left in the shade find them. After that they're deleted. Runs at boot and at app start.
+ */
+class CleanUpRemindersUseCase @Inject constructor(
+    private val reminders: ReminderRepository,
+    private val clock: Clock,
+) {
+    suspend operator fun invoke() = reminders.deleteDeliveredBefore(clock.nowMillis() - KEEP_DELIVERED_MILLIS)
+
+    companion object {
+        const val KEEP_DELIVERED_MILLIS = 24 * 60 * 60 * 1000L
+    }
+}
+
+/**
+ * Pause or resume one reminder. Pausing drops its alarm but keeps it in the list. Resuming arms it
+ * again: a repeat whose time passed while paused moves to its next time, and a one-off that's
+ * overdue fires now (the same rules as after a reboot).
+ */
+class SetReminderPausedUseCase @Inject constructor(
+    private val reminders: ReminderRepository,
+    private val scheduler: AlarmScheduler,
+    private val notifier: ReminderNotifier,
+    private val fire: FireReminderUseCase,
+    private val clock: Clock,
+    private val calculator: ReminderTimeCalculator = ReminderTimeCalculator(clock),
+) {
+    suspend operator fun invoke(reminderId: Long, paused: Boolean): Reminder? {
+        val reminder = reminders.get(reminderId) ?: return null
+        if (reminder.paused == paused) return reminder
+        if (paused) {
+            scheduler.cancel(reminderId)
+            notifier.cancel(reminderId.toInt())
+            return reminders.save(reminder.copy(paused = true))
+        }
+        val now = clock.nowMillis()
+        val resumed = reminders.save(reminder.copy(paused = false))
+        when {
+            resumed.triggerAtMillis > now -> scheduler.schedule(resumed)
+            resumed.repeat.isRepeating -> {
+                val previous = if (resumed.repeat is Repeat.CalendarDays || resumed.repeat is Repeat.CalendarMonths) {
+                    now - 1
+                } else {
+                    resumed.triggerAtMillis
+                }
+                calculator.next(resumed.repeat, previous)?.let { next ->
+                    return reminders.save(resumed.copy(triggerAtMillis = next)).also(scheduler::schedule)
+                }
+            }
+            else -> fire(resumed.id)
+        }
+        return reminders.get(reminderId)
+    }
+}

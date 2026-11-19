@@ -1,0 +1,159 @@
+package dev.akibh.mycompanion.system
+
+import android.app.Application
+import android.app.NotificationManager
+import android.content.Intent
+import androidx.core.app.NotificationCompat
+import androidx.test.core.app.ApplicationProvider
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.google.common.truth.Truth.assertThat
+import dagger.hilt.android.testing.BindValue
+import dagger.hilt.android.testing.HiltAndroidRule
+import dagger.hilt.android.testing.HiltAndroidTest
+import dagger.hilt.android.testing.HiltTestApplication
+import dagger.hilt.android.testing.UninstallModules
+import dev.akibh.mycompanion.di.ApplicationScope
+import dev.akibh.mycompanion.di.CoroutinesModule
+import dev.akibh.mycompanion.di.IoDispatcher
+import dev.akibh.mycompanion.domain.port.WhatsAppVariant
+import dev.akibh.mycompanion.domain.usecase.CallContactUseCase
+import dev.akibh.mycompanion.domain.usecase.CallPreparation
+import dev.akibh.mycompanion.domain.usecase.CallResult
+import dev.akibh.mycompanion.presentation.call.CallActivity
+import dev.akibh.mycompanion.presentation.call.CallFlowActivity
+import dev.akibh.mycompanion.presentation.contacts.CallMessages
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.mockk
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.Robolectric
+import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowLooper
+import org.robolectric.shadows.ShadowToast
+
+/** The invisible activity behind home-screen shortcuts and the notification "Call" button. */
+@HiltAndroidTest
+@UninstallModules(CoroutinesModule::class)
+@Config(application = HiltTestApplication::class)
+@RunWith(AndroidJUnit4::class)
+class CallActivityTest {
+
+    @get:Rule
+    val hiltRule = HiltAndroidRule(this)
+
+    @BindValue
+    @JvmField
+    val callContact: CallContactUseCase = mockk()
+
+    /** The real IO dispatcher would finish the call on another thread, after the test has looked. */
+    @BindValue
+    @JvmField
+    @IoDispatcher
+    val io: CoroutineDispatcher = Dispatchers.Main.immediate
+
+    @BindValue
+    @JvmField
+    @ApplicationScope
+    val appScope: CoroutineScope = CoroutineScope(Dispatchers.Main.immediate)
+
+    private val app: Application get() = ApplicationProvider.getApplicationContext()
+
+    @Test
+    fun `calls the person and closes`() {
+        coEvery { callContact.prepare(5L) } returns CallPreparation.Ready(WhatsAppVariant.STANDARD)
+        coEvery { callContact(5L, WhatsAppVariant.STANDARD) } returns CallResult.CallStarted
+
+        val activity = launch(CallActivity.intent(app, 5L))
+
+        coVerify { callContact(5L, WhatsAppVariant.STANDARD) }
+        assertThat(activity.isFinishing).isTrue()
+        assertThat(ShadowToast.getLatestToast()).isNull()
+    }
+
+    @Test
+    fun `explains a chat fallback`() {
+        coEvery { callContact.prepare(5L) } returns CallPreparation.Ready(WhatsAppVariant.STANDARD)
+        coEvery { callContact(5L, WhatsAppVariant.STANDARD) } returns CallResult.ChatOpened
+
+        launch(CallActivity.intent(app, 5L))
+
+        assertThat(ShadowToast.getTextOfLatestToast()).isEqualTo(CallMessages.forResult(CallResult.ChatOpened))
+    }
+
+    @Test
+    fun `clears the reminder notification it came from`() {
+        coEvery { callContact.prepare(5L) } returns CallPreparation.Ready(WhatsAppVariant.STANDARD)
+        coEvery { callContact(5L, WhatsAppVariant.STANDARD) } returns CallResult.CallStarted
+        val manager = app.getSystemService(NotificationManager::class.java)
+        val notification = NotificationCompat.Builder(app, "reminders")
+            .setSmallIcon(android.R.drawable.ic_popup_reminder)
+            .setContentTitle("Call Mum")
+            .build()
+        manager.notify(9, notification)
+
+        launch(CallActivity.intent(app, 5L, notificationId = 9))
+
+        assertThat(shadowOf(manager).getNotification(9)).isNull()
+    }
+
+    @Test
+    fun `without a contact it just closes`() {
+        val activity = launch(Intent(app, CallActivity::class.java))
+
+        coVerify(exactly = 0) { callContact(any<Long>()) }
+        assertThat(activity.isFinishing).isTrue()
+    }
+
+    @Test
+    fun `another app can't make it call someone`() {
+        // What device test finding #4 did: `am start -n …/CallActivity --el contact_id 2`.
+        val forged = Intent(app, CallActivity::class.java).putExtra(CallActivity.EXTRA_CONTACT_ID, 5L)
+
+        val activity = launch(forged)
+
+        coVerify(exactly = 0) { callContact(any<Long>()) }
+        assertThat(activity.isFinishing).isTrue()
+        assertThat(ShadowToast.getTextOfLatestToast()).isEqualTo(CallActivity.OUTDATED_SHORTCUT)
+    }
+
+    @Test
+    fun `a guessed token is refused too`() {
+        val guessed = CallActivity.intent(app, 5L).putExtra(CallActivity.EXTRA_TOKEN, "not-the-token")
+
+        launch(guessed)
+
+        coVerify(exactly = 0) { callContact(any<Long>()) }
+    }
+
+    @Test
+    fun `permission recovery is delegated to a visible host without starting a call`() {
+        coEvery { callContact.prepare(5L) } returns CallPreparation.PermissionRequired
+        val activity = launch(CallActivity.intent(app, 5L))
+        val recovery = shadowOf(activity).nextStartedActivity
+        assertThat(recovery.component!!.className).isEqualTo(CallFlowActivity::class.java.name)
+        assertThat(recovery.getLongExtra(CallActivity.EXTRA_CONTACT_ID, -1)).isEqualTo(5L)
+        coVerify(exactly = 0) { callContact(any<Long>(), any<WhatsAppVariant>()) }
+        assertThat(activity.isFinishing).isTrue()
+    }
+
+    @Test
+    fun `two valid variants are chosen in the visible host without a silent call`() {
+        coEvery { callContact.prepare(5L) } returns CallPreparation.ChooseVariant(WhatsAppVariant.entries)
+        val activity = launch(CallActivity.intent(app, 5L))
+        assertThat(shadowOf(activity).nextStartedActivity.component!!.className)
+            .isEqualTo(CallFlowActivity::class.java.name)
+        coVerify(exactly = 0) { callContact(any<Long>(), any<WhatsAppVariant>()) }
+    }
+
+    private fun launch(intent: Intent): CallActivity {
+        val activity = Robolectric.buildActivity(CallActivity::class.java, intent).create().get()
+        ShadowLooper.idleMainLooper()
+        return activity
+    }
+}

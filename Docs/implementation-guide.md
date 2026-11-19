@@ -56,8 +56,8 @@ coroutines-test, compose ui-test).
 | Permissions guide | `core.permissions.Requirement` | `@Provides @IntoSet fun x() = Requirement(id, title, why, feature, isGranted, settingsIntent, steps, runtimePermissions)` |
 | Background work | `core.host.HostedComponent` | `@Binds @IntoSet`; `isWanted(settings)`, `start(scope)`; runs in core's foreground service |
 | Chat messages | `messaging.MessageConsumer` | `@Binds @IntoSet` |
-| Screens | `com.akib.mycompanion.Screen(route, title) { s -> … }` in the **app** | Each workstream adds its own file `app/src/main/java/com/akib/mycompanion/di/<Name>ScreensModule.kt` (`@Module @InstallIn(SingletonComponent::class) object …`, `@Provides @IntoSet`). `s.modifier`, `s.navigate(route)`, `s.back()`, `s.snackbars`. Route args: `"thing/{id}"`, read via `SavedStateHandle.get<String>("id")` |
-| Home links | `com.akib.mycompanion.presentation.home.HomeLink(title, description, route)` | `@Provides @IntoSet` in the same screens module |
+| Screens | `dev.akibh.mycompanion.Screen(route, title) { s -> … }` in the **app** | Each workstream adds its own file `app/src/main/java/dev/akibh/mycompanion/di/<Name>ScreensModule.kt` (`@Module @InstallIn(SingletonComponent::class) object …`, `@Provides @IntoSet`). `s.modifier`, `s.navigate(route)`, `s.back()`, `s.snackbars`. Route args: `"thing/{id}"`, read via `SavedStateHandle.get<String>("id")` |
+| Home links | `dev.akibh.mycompanion.presentation.home.HomeLink(title, description, route)` | `@Provides @IntoSet` in the same screens module |
 | Logging | `core.log.AppLog` | `log.i(TAG, "…")` — never log message text or vault content |
 | Shared state | `core.context.ContextStatus` | active context-rule names |
 | AI | `ai.Transliterator`, `SpeechSynth`, `SpeechRecognizer`, `Summarizer` | inject the interface; on `AiResult.NotReady` use the fallback behaviour (models are dummies today) |
@@ -69,7 +69,7 @@ coroutines-test, compose ui-test).
 
 ### W1 — Quick capture (Phase 4: FR-4.1–4.9) · module `feature-capture`
 
-Owns: everything under `feature-capture/`, and `app/src/main/java/com/akib/mycompanion/di/CaptureScreensModule.kt`.
+Owns: everything under `feature-capture/`, and `app/src/main/java/dev/akibh/mycompanion/di/CaptureScreensModule.kt`.
 
 1. **Volume-key trigger (FR-4.1, spike S2):** `CaptureAccessibilityService` (accessibility service
    with `canRequestFilterKeyEvents`, `flagRequestFilterKeyEvents`) — when **both** volume keys are
@@ -111,10 +111,10 @@ Owns: everything under `feature-capture/`, and `app/src/main/java/com/akib/mycom
 
 ### W2 — Keep the screen on outdoors (Phase 4: FR-3.5, FR-3.10) · module `feature-context`
 
-Owns: new package `feature-context/src/main/java/com/akib/mycompanion/context/screenon/` (all new
+Owns: new package `feature-context/src/main/java/dev/akibh/mycompanion/context/screenon/` (all new
 files), new test files under `feature-context/src/test/.../screenon/`, a **new** manifest snippet is
 not possible per file — so add your manifest entries to `feature-context/src/main/AndroidManifest.xml`
-(you own edits to that file), and `app/src/main/java/com/akib/mycompanion/di/ScreenOnScreensModule.kt`.
+(you own edits to that file), and `app/src/main/java/dev/akibh/mycompanion/di/ScreenOnScreensModule.kt`.
 
 1. **Posture detector:** pure-Kotlin `PostureDetector` fed accelerometer + gravity samples: "raised
    and facing you" = device pitch between ~25° and ~80° (screen tilted up toward the face), roll
@@ -138,12 +138,12 @@ not possible per file — so add your manifest entries to `feature-context/src/m
 
 ### W3 — Polish (Phase 5) + the leftover typing bug · module `app` (+ vault item screen)
 
-Owns: `app/src/main/java/com/akib/mycompanion/presentation/**` except `home/HomeScreen.kt` &
-`home/HomeViewModel.kt` (you may edit those two too), `app/src/main/java/com/akib/mycompanion/system/**`,
-`app/src/main/java/com/akib/mycompanion/widget/**` (new), `app/src/main/java/com/akib/mycompanion/export/**`
-(new), `app/src/main/java/com/akib/mycompanion/di/PolishModule.kt` (new),
+Owns: `app/src/main/java/dev/akibh/mycompanion/presentation/**` except `home/HomeScreen.kt` &
+`home/HomeViewModel.kt` (you may edit those two too), `app/src/main/java/dev/akibh/mycompanion/system/**`,
+`app/src/main/java/dev/akibh/mycompanion/widget/**` (new), `app/src/main/java/dev/akibh/mycompanion/export/**`
+(new), `app/src/main/java/dev/akibh/mycompanion/di/PolishModule.kt` (new),
 `app/src/main/res/**`, `app/src/main/AndroidManifest.xml`,
-`feature-vault/src/main/java/com/akib/mycompanion/vault/ui/VaultItemScreen.kt` and
+`feature-vault/src/main/java/dev/akibh/mycompanion/vault/ui/VaultItemScreen.kt` and
 `VaultViewModels.kt` (only to add the reminder button), app tests.
 
 1. **Reminders on vault items (FR-2.16):** implement `ReminderSink` in the app
@@ -153,7 +153,7 @@ Owns: `app/src/main/java/com/akib/mycompanion/presentation/**` except `home/Home
    Don't put vault content in the reminder text beyond the title.
 2. **Home-screen widget (Phase 5):** `QuickActionsWidget` (`AppWidgetProvider`, RemoteViews, no new
    library) with buttons: pause/resume all, voice mode on/off, capture panel (intent action
-   `com.akib.mycompanion.action.CAPTURE` — W1's panel activity listens for it), open vault. Layout
+   `dev.akibh.mycompanion.action.CAPTURE` — W1's panel activity listens for it), open vault. Layout
    in `res/layout/widget_quick_actions.xml`, info in `res/xml/quick_actions_widget.xml`. Updates
    when settings change (from `CompanionApp` collect → `AppWidgetManager.updateAppWidget`).
 3. **Export all data (NFR-11):** Home → "Export my data": writes a ZIP (SAF `CreateDocument`) with

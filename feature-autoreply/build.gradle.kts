@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.akib.mycompanion.autoreply"
+    namespace = "dev.akibh.mycompanion.autoreply"
     buildFeatures { compose = true }
 }
 

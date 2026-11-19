@@ -53,12 +53,12 @@ tools/device-test/ui.py tap "Call Mum Test on WhatsApp"
 - **`KEYCODE_BACK` closes the keyboard first; a second BACK closes the dialog or leaves the app.**
 - Elements behind the keyboard still appear in `ui.py dump` with their old coordinates — tapping them
   hits the keyboard instead. Close the keyboard first.
-- `adb shell monkey -p com.akib.mycompanion -s 42 --pct-syskeys 0 --throttle 40 -v 5000` is a cheap crash hunt.
+- `adb shell monkey -p dev.akibh.mycompanion -s 42 --pct-syskeys 0 --throttle 40 -v 5000` is a cheap crash hunt.
 - With nothing playing, volume keys change the ring stream: `adb shell cmd media_session volume --stream 2 --get`.
 - Ringer mode for rule checks: `adb shell dumpsys audio | grep 'mode (external)'`.
 - Useful system views: `adb shell dumpsys alarm | grep -A3 mycompanion`,
   `adb shell dumpsys notification --noredact`, `adb shell dumpsys media_session`,
-  `adb shell dumpsys activity services com.akib.mycompanion`.
+  `adb shell dumpsys activity services dev.akibh.mycompanion`.
 
 ## Automated feature suites
 

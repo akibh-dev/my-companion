@@ -9,7 +9,7 @@ OUT="${OUT:-$DIR/out}/db"
 ADB="${ADB:-${ANDROID_HOME:-$HOME/Android/Sdk}/platform-tools/adb}"
 mkdir -p "$OUT" && rm -f "$OUT"/companion.db*
 for f in companion.db companion.db-wal companion.db-shm; do
-    "$ADB" exec-out run-as com.akib.mycompanion cat "databases/$f" > "$OUT/$f" 2>/dev/null || rm -f "$OUT/$f"
+    "$ADB" exec-out run-as dev.akibh.mycompanion cat "databases/$f" > "$OUT/$f" 2>/dev/null || rm -f "$OUT/$f"
 done
 python3 -I - "$OUT/companion.db" "$1" <<'PY'
 import datetime, sqlite3, sys

@@ -17,7 +17,7 @@ mkdir -p "$RESULTS"
 "$ADB_BIN" -s "$ADB_SERIAL" install -r app/build/outputs/apk/debug/app-debug.apk
 "$ADB_BIN" -s "$ADB_SERIAL" install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 "$ADB_BIN" -s "$ADB_SERIAL" shell am instrument -w -r \
-    com.akib.mycompanion.test/androidx.test.runner.AndroidJUnitRunner \
+    dev.akibh.mycompanion.test/androidx.test.runner.AndroidJUnitRunner \
     2>&1 | tee "$RESULTS/instrumentation.txt"
 
 # `am instrument` may exit zero even when a test fails; require JUnit's success footer.

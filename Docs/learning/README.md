@@ -26,7 +26,7 @@ If `adb` is not found, see the ADB section of [`../02-quick-reference.md`](../02
 
 ```bash
 ./gradlew :app:installDebug
-adb shell am start -n com.akib.mycompanion/.MainActivity
+adb shell am start -n dev.akibh.mycompanion/.MainActivity
 ```
 
 You should see "Hello World!" on your phone. If the build fails, check the version table in

@@ -8,12 +8,12 @@ plugins {
 }
 
 android {
-    namespace = "com.akib.mycompanion"
+    namespace = "dev.akibh.mycompanion"
     // One phone (CMF Phone 1, Android 16), so no code for older versions. Docs/decisions.md
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.akib.mycompanion"
+        applicationId = "dev.akibh.mycompanion"
         minSdk = 36
         targetSdk = 36
         versionCode = 4

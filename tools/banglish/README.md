@@ -14,8 +14,8 @@ python3 tools/banglish/fetch_models.py --check
 JAVA_HOME=/home/akib/.jdks/corretto-17.0.20.1 ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest --max-workers=3
 adb -s emulator-5554 install -r app/build/outputs/apk/debug/app-debug.apk
 adb -s emulator-5554 install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-adb -s emulator-5554 shell am instrument -w -e class com.akib.mycompanion.BanglishModelDeviceTest com.akib.mycompanion.test/androidx.test.runner.AndroidJUnitRunner
-adb -s emulator-5554 exec-out run-as com.akib.mycompanion cat files/banglish-evaluation.tsv > /tmp/banglish-evaluation.tsv
+adb -s emulator-5554 shell am instrument -w -e class dev.akibh.mycompanion.BanglishModelDeviceTest dev.akibh.mycompanion.test/androidx.test.runner.AndroidJUnitRunner
+adb -s emulator-5554 exec-out run-as dev.akibh.mycompanion cat files/banglish-evaluation.tsv > /tmp/banglish-evaluation.tsv
 python3 tools/banglish/summarize.py /tmp/banglish-evaluation.tsv
 ```
 
@@ -70,7 +70,7 @@ The first measured run and its limitations are recorded in
 The debug build additionally supports explicitly invoked, fixed-message spoken tests:
 
 ```bash
-adb -s PHONE_SERIAL shell am instrument -w -e class com.akib.mycompanion.BanglishNotificationSpeechDeviceTest com.akib.mycompanion.test/androidx.test.runner.AndroidJUnitRunner
+adb -s PHONE_SERIAL shell am instrument -w -e class dev.akibh.mycompanion.BanglishNotificationSpeechDeviceTest dev.akibh.mycompanion.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
 Install both current APKs first. Notification access for My Companion must be enabled,
@@ -88,7 +88,7 @@ linked above. This test plays audio aloud, so run it deliberately.
 For the explicitly annotated mixed-language fixture, run only its test method:
 
 ```bash
-adb -s PHONE_SERIAL shell am instrument -w -e class 'com.akib.mycompanion.BanglishNotificationSpeechDeviceTest#mixedNotificationIsReadWithOneVoice' com.akib.mycompanion.test/androidx.test.runner.AndroidJUnitRunner
+adb -s PHONE_SERIAL shell am instrument -w -e class 'dev.akibh.mycompanion.BanglishNotificationSpeechDeviceTest#mixedNotificationIsReadWithOneVoice' dev.akibh.mycompanion.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
 It posts `আমি এখন বাসায়। kal dekha hobe. Please call me later.`. Only the known Banglish
@@ -111,9 +111,9 @@ compare voice style; they do not install or integrate an Android TTS backend.
 After building/installing the current test APK, copy each WAV into the debug app's files:
 
 ```bash
-adb -s PHONE_SERIAL shell "run-as com.akib.mycompanion sh -c 'cat > files/robotic-c.wav'" < out/robotic-voice/robotic-c.wav
-adb -s PHONE_SERIAL shell "run-as com.akib.mycompanion sh -c 'cat > files/robotic-d.wav'" < out/robotic-voice/robotic-d.wav
-adb -s PHONE_SERIAL shell am instrument -w -e class com.akib.mycompanion.RoboticVoiceAuditionDeviceTest com.akib.mycompanion.test/androidx.test.runner.AndroidJUnitRunner
+adb -s PHONE_SERIAL shell "run-as dev.akibh.mycompanion sh -c 'cat > files/robotic-c.wav'" < out/robotic-voice/robotic-c.wav
+adb -s PHONE_SERIAL shell "run-as dev.akibh.mycompanion sh -c 'cat > files/robotic-d.wav'" < out/robotic-voice/robotic-d.wav
+adb -s PHONE_SERIAL shell am instrument -w -e class dev.akibh.mycompanion.RoboticVoiceAuditionDeviceTest dev.akibh.mycompanion.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
 The test plays C first, D second, and records MediaPlayer completion for both. It does not
@@ -128,5 +128,5 @@ reading before allowing the invented foreground sample on the speaker, and resto
 in `finally`. Run it deliberately on an unlocked phone with an offline Bengali voice:
 
 ```bash
-adb -s PHONE_SERIAL shell am instrument -w -e class com.akib.mycompanion.ProductionVoiceDeviceTest com.akib.mycompanion.test/androidx.test.runner.AndroidJUnitRunner
+adb -s PHONE_SERIAL shell am instrument -w -e class dev.akibh.mycompanion.ProductionVoiceDeviceTest dev.akibh.mycompanion.test/androidx.test.runner.AndroidJUnitRunner
 ```
