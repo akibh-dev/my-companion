@@ -2,6 +2,9 @@ package dev.akibh.mycompanion.ai
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioManager
+import android.media.audiofx.LoudnessEnhancer
+import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.speech.tts.Voice
@@ -48,6 +51,19 @@ data class SpeechTiming(
     val playbackMillis: Long,
 )
 
+/** How spoken messages play: as media, so the phone's music volume controls them. */
+object SpeechAudio {
+    /**
+     * USAGE_MEDIA, not USAGE_ASSISTANT: the assistant usage has its own volume group and curve
+     * (AUDIO_STREAM_ASSISTANT), which played noticeably quieter than music at the same slider position.
+     */
+    val ATTRIBUTES: AudioAttributes = AudioAttributes.Builder()
+        .setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build()
+
+    /** Lift for speech, which is mastered quieter than music. The enhancer's limiter keeps it from clipping. */
+    const val BOOST_MILLIBELS = 600
+}
+
 /** Installed offline phone voices, selected deterministically and reused for each requested locale. */
 @Singleton
 class PhoneSpeechSynth @Inject constructor(@ApplicationContext private val context: Context) : SpeechSynth {
@@ -55,6 +71,23 @@ class PhoneSpeechSynth @Inject constructor(@ApplicationContext private val conte
     private val lock = Mutex()
     private var tts: TextToSpeech? = null
     private val selectedVoices = mutableMapOf<String, Voice>()
+
+    /** The voice plays in its own audio session so [SpeechAudio.BOOST_MILLIBELS] applies to speech only. */
+    private val session: Int by lazy {
+        (context.getSystemService(Context.AUDIO_SERVICE) as AudioManager).generateAudioSessionId()
+    }
+    private var booster: LoudnessEnhancer? = null
+
+    private fun boost() {
+        if (booster != null) return
+        // Optional: without the effect the voice still plays, just at its natural level.
+        booster = runCatching {
+            LoudnessEnhancer(session).apply {
+                setTargetGain(SpeechAudio.BOOST_MILLIBELS)
+                enabled = true
+            }
+        }.getOrNull()
+    }
 
     private fun engine(): TextToSpeech {
         tts?.let { return it }
@@ -99,10 +132,8 @@ class PhoneSpeechSynth @Inject constructor(@ApplicationContext private val conte
             selectedVoices.remove(language.toLanguageTag())
             return AiResult.NotReady("The phone couldn't select its ${language.displayLanguage} voice")
         }
-        engine.setAudioAttributes(
-            AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANT)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build(),
-        )
+        engine.setAudioAttributes(SpeechAudio.ATTRIBUTES)
+        boost()
         return AiResult.Ready(Unit)
     }
 
@@ -167,11 +198,15 @@ class PhoneSpeechSynth @Inject constructor(@ApplicationContext private val conte
                     },
                 )
                 continuation.invokeOnCancellation { engine.stop() }
-                if (engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, id) == TextToSpeech.ERROR) {
+                if (engine.speak(text, TextToSpeech.QUEUE_FLUSH, speechParams(), id) == TextToSpeech.ERROR) {
                     finish(AiResult.NotReady("The phone couldn't start speaking"))
                 }
             }
         } ?: AiResult.NotReady("Speech timed out")
+    }
+
+    private fun speechParams() = Bundle().apply {
+        if (session != AudioManager.ERROR) putInt(TextToSpeech.Engine.KEY_PARAM_SESSION_ID, session)
     }
 
     override fun stop() {
@@ -183,6 +218,8 @@ class PhoneSpeechSynth @Inject constructor(@ApplicationContext private val conte
         lock.withLock {
             tts?.shutdown()
             tts = null
+            booster?.release()
+            booster = null
             selectedVoices.clear()
         }
     }

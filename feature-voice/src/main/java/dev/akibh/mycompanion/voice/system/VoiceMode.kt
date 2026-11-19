@@ -22,6 +22,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.akibh.mycompanion.ai.SpeechAudio
 import dev.akibh.mycompanion.core.host.HostedComponent
 import dev.akibh.mycompanion.core.log.AppLog
 import dev.akibh.mycompanion.core.settings.Feature
@@ -155,8 +156,8 @@ class AudioWatcher @Inject constructor(@ApplicationContext private val context: 
     }
 
     companion object {
-        val ATTRIBUTES: AudioAttributes = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_ASSISTANT).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build()
+        /** The same attributes the voice plays with, so focus, routing and volume all follow media. */
+        val ATTRIBUTES: AudioAttributes = SpeechAudio.ATTRIBUTES
         private val PRIVATE_OUTPUTS = setOf(
             AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
             AudioDeviceInfo.TYPE_WIRED_HEADSET,

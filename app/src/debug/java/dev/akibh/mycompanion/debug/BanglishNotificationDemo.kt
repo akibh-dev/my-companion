@@ -1,7 +1,6 @@
 package dev.akibh.mycompanion.debug
 
 import android.content.Context
-import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.service.notification.StatusBarNotification
@@ -14,6 +13,7 @@ import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.IntoSet
 import dev.akibh.mycompanion.ai.AiResult
 import dev.akibh.mycompanion.ai.PhoneSpeechSynth
+import dev.akibh.mycompanion.ai.SpeechAudio
 import dev.akibh.mycompanion.ai.models.IndicXlitPrototype
 import dev.akibh.mycompanion.ai.models.TransliterationPreview
 import dev.akibh.mycompanion.messaging.MessageSamples
@@ -91,10 +91,7 @@ class BanglishNotificationDemo @Inject constructor(
                 return
             }
             val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
-                .setAudioAttributes(
-                    AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANT)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build(),
-                )
+                .setAudioAttributes(SpeechAudio.ATTRIBUTES)
                 .setOnAudioFocusChangeListener { focus ->
                     if (focus < 0) speech.stop()
                 }
