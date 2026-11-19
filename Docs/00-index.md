@@ -127,3 +127,5 @@ Reminder and player upgrades: [Plan 13](13-reminder-upgrades-and-player-history-
 WhatsApp calling: [direct-call diagnosis and repair plan](14-whatsapp-direct-call-plan.md).
 
 WhatsApp call recovery: [implementation and validation](15-whatsapp-call-recovery.md).
+
+Performance, last step before release: [baseline profile plan](18-baseline-profile-plan.md).
