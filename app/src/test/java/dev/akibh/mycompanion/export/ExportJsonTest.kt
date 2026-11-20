@@ -99,7 +99,15 @@ class ExportJsonTest {
             ),
             voice = VoiceSettings(
                 privacy = Privacy.ALWAYS,
-                apps = setOf(ChatApp.WHATSAPP),
+                appScope = dev.akibh.mycompanion.voice.domain.AppScope.CHAT_APPS,
+                mutedApps = setOf("com.google.android.gm", ChatApp.TELEGRAM.packageName),
+                blockRules = listOf(
+                    dev.akibh.mycompanion.voice.domain.BlockRule(
+                        "promo",
+                        dev.akibh.mycompanion.voice.domain.BlockWhere.TITLE,
+                    ),
+                ),
+                readSilent = true,
                 senders = listOf("Mum"),
                 maxChars = 120,
                 speechRate = 1.25f,
@@ -134,6 +142,16 @@ class ExportJsonTest {
         assertThat(bundle.app.paused).isFalse()
         assertThat(bundle.voice).isEqualTo(VoiceSettings())
         assertThat(bundle.autoReply).isEqualTo(AutoReplySettings())
+    }
+
+    @Test
+    fun `a version 1 backup's voice apps become muted chat apps`() {
+        val text = JSONObject()
+            .put("format", ExportJson.SETTINGS_FORMAT)
+            .put("voice", JSONObject().put("apps", JSONArray(ChatApp.entries.map { it.name } - "SIGNAL")))
+            .toString()
+
+        assertThat(ExportJson.parseSettings(text).voice.mutedApps).containsExactly(ChatApp.SIGNAL.packageName)
     }
 
     @Test

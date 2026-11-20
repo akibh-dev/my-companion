@@ -8,6 +8,8 @@ import dev.akibh.mycompanion.core.settings.Feature
 import dev.akibh.mycompanion.core.settings.SettingsStore
 import dev.akibh.mycompanion.messaging.ChatApp
 import dev.akibh.mycompanion.messaging.IncomingMessage
+import dev.akibh.mycompanion.messaging.Notice
+import dev.akibh.mycompanion.messaging.toNotice
 import dev.akibh.mycompanion.voice.domain.Privacy
 import dev.akibh.mycompanion.voice.domain.VoiceBody
 import dev.akibh.mycompanion.voice.domain.VoiceDecider
@@ -63,7 +65,7 @@ class VoicePlayback @Inject constructor(
     }
 
     suspend fun release() = lock.withLock { speech.shutdown() }
-    suspend fun read(item: VoiceQueue.Item): AiResult<Unit> = play(item.message, item, false)
+    suspend fun read(item: VoiceQueue.Item): AiResult<Unit> = play(item.notice, item, false)
 
     suspend fun sample(): AiResult<Unit> = play(
         IncomingMessage(
@@ -75,12 +77,12 @@ class VoicePlayback @Inject constructor(
             false,
             0,
             false
-        ),
+        ).toNotice(),
         null,
         true,
     )
 
-    private suspend fun reason(message: IncomingMessage, item: VoiceQueue.Item?, sample: Boolean): String? {
+    private suspend fun reason(notice: Notice, item: VoiceQueue.Item?, sample: Boolean): String? {
         val app = settingsStore.settings.first()
         if (app.paused) return "Paused from Home"
         if (!sample && !app.isActive(Feature.VOICE_MODE)) return "Voice mode is off"
@@ -95,16 +97,16 @@ class VoicePlayback @Inject constructor(
                 null
             }
         } else {
-            VoiceDecider.skipReason(message, settings, situation)
+            VoiceDecider.skipReason(notice, settings, situation)
         }
     }
 
     private suspend fun play(
-        message: IncomingMessage,
+        notice: Notice,
         item: VoiceQueue.Item?,
         sample: Boolean,
     ): AiResult<Unit> = lock.withLock {
-        val blocked = reason(message, item, sample)
+        val blocked = reason(notice, item, sample)
         if (blocked != null) {
             mutableState.value = VoiceState.Blocked(blocked)
             return AiResult.NotReady(blocked)
@@ -116,17 +118,17 @@ class VoicePlayback @Inject constructor(
                 val operation = async(start = CoroutineStart.LAZY) {
                     val preparation = async { speech.prepare(VoiceText.readingLanguage) }
                     val settings = voiceSettings.settings.first()
-                    val text = body.prepare(message.text, settings)
+                    val text = if (notice.text.isBlank()) "" else body.prepare(notice.text, settings)
                     val ready = preparation.await()
                     if (ready is AiResult.NotReady) return@async ready
-                    val changed = reason(message, item, sample)
+                    val changed = reason(notice, item, sample)
                     if (changed != null) return@async AiResult.NotReady(changed)
                     audio.ducking {
-                        val finalCheck = reason(message, item, sample)
+                        val finalCheck = reason(notice, item, sample)
                         if (finalCheck != null) return@ducking AiResult.NotReady(finalCheck)
                         mutableState.value = VoiceState.Speaking
                         speech.speakConfigured(
-                            VoiceText.announce(message, text),
+                            VoiceText.announce(notice, text),
                             VoiceText.readingLanguage,
                             settings.speechRate
                         )
@@ -142,7 +144,7 @@ class VoicePlayback @Inject constructor(
                 val guard = launch {
                     while (isActive) {
                         privateOnly = voiceSettings.settings.first().privacy == Privacy.HEADPHONES_OR_CAR
-                        val changed = reason(message, item, sample)
+                        val changed = reason(notice, item, sample)
                         if (changed != null) {
                             operation.cancel(VoiceInterrupted(changed))
                             speech.stop()
@@ -162,7 +164,7 @@ class VoicePlayback @Inject constructor(
             when (result) {
                 is AiResult.Ready -> {
                     mutableState.value = VoiceState.Idle
-                    log.i("Voice", "read a message")
+                    log.i("Voice", "read a notification")
                 }
                 is AiResult.NotReady -> {
                     mutableState.value = VoiceState.Failed(result.reason)

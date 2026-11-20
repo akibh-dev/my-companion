@@ -1,8 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- App names for spoken notifications and the voice mode app picker. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
     <application>
-        <!-- Reads chat notifications for auto-reply and voice mode (FR-1, FR-5). The system starts it
+        <!-- Reads notifications for auto-reply (chat apps) and voice mode (any app) (FR-1, FR-5). The system starts it
              once "Notification access" is switched on for the app. -->
         <service
             android:name=".MessageListener"

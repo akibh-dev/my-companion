@@ -3,7 +3,11 @@ package dev.akibh.mycompanion.voice
 import com.google.common.truth.Truth.assertThat
 import dev.akibh.mycompanion.messaging.ChatApp
 import dev.akibh.mycompanion.messaging.IncomingMessage
+import dev.akibh.mycompanion.messaging.Notice
+import dev.akibh.mycompanion.messaging.toNotice
 import dev.akibh.mycompanion.voice.domain.AudioSituation
+import dev.akibh.mycompanion.voice.domain.BlockRule
+import dev.akibh.mycompanion.voice.domain.BlockWhere
 import dev.akibh.mycompanion.voice.domain.Privacy
 import dev.akibh.mycompanion.voice.domain.VoiceDecider
 import dev.akibh.mycompanion.voice.domain.VoiceSettings
@@ -13,7 +17,16 @@ import org.junit.Test
 class VoiceTextTest {
 
     private val message =
-        IncomingMessage("k", ChatApp.TELEGRAM, "Nadia", "On my way 😂👍 https://maps.app/x", "Nadia", false, 0, true)
+        IncomingMessage(
+            "k",
+            ChatApp.TELEGRAM,
+            "Nadia",
+            "On my way 😂👍 https://maps.app/x",
+            "Nadia",
+            false,
+            0,
+            true
+        ).toNotice()
 
     @Test
     fun `messages become sentences with emoji in words and links named`() {
@@ -57,10 +70,49 @@ class VoiceTextTest {
         assertThat(VoiceDecider.skipReason(message, settings, headphones)).isNull()
         assertThat(VoiceDecider.skipReason(message, settings.copy(privacy = Privacy.ALWAYS), speaker)).isNull()
         assertThat(
-            VoiceDecider.skipReason(message, settings.copy(apps = setOf(ChatApp.SIGNAL)), headphones)
-        ).isEqualTo("Telegram is off")
+            VoiceDecider.skipReason(message, settings.copy(mutedApps = setOf(ChatApp.TELEGRAM.packageName)), headphones)
+        ).isEqualTo("Telegram is muted")
         assertThat(
             VoiceDecider.skipReason(message, settings.copy(senders = listOf("Rahim")), headphones)
         ).isEqualTo("sender not on the list")
+    }
+    private val notice = Notice("n", "com.bank.app", "City Bank", "Payment received", "Tk 500 from Rahim")
+
+    @Test
+    fun `other apps read app, title and text, leaving out what's empty`() {
+        assertThat(VoiceText.sentence(notice, 200)).isEqualTo("City Bank: Payment received. Tk 500 from Rahim")
+        assertThat(VoiceText.sentence(notice.copy(title = ""), 200)).isEqualTo("City Bank: Tk 500 from Rahim")
+        assertThat(VoiceText.sentence(notice.copy(text = ""), 200)).isEqualTo("City Bank: Payment received")
+        assertThat(
+            VoiceText.sentence(notice.copy(title = "Done."), 200)
+        ).isEqualTo("City Bank: Done. Tk 500 from Rahim")
+    }
+
+    @Test
+    fun `block rules match title or text, any case`() {
+        assertThat(BlockRule("payment", BlockWhere.TITLE).matches(notice)).isTrue()
+        assertThat(BlockRule("payment", BlockWhere.TEXT).matches(notice)).isFalse()
+        assertThat(BlockRule("RAHIM", BlockWhere.TEXT).matches(notice)).isTrue()
+        assertThat(BlockRule("rahim", BlockWhere.ANYWHERE).matches(notice)).isTrue()
+        assertThat(BlockRule("  ", BlockWhere.ANYWHERE).matches(notice)).isFalse()
+        // A chat message's title is its sender or group.
+        assertThat(BlockRule("nadia", BlockWhere.TITLE).matches(message)).isTrue()
+    }
+
+    @Test
+    fun `block rules survive encoding, even with a bar in the phrase`() {
+        val rule = BlockRule("a | b", BlockWhere.TEXT)
+        assertThat(BlockRule.decode(rule.encode())).isEqualTo(rule)
+        assertThat(BlockRule.decode("NOWHERE|x")).isNull()
+        assertThat(BlockRule.decode("TEXT|  ")).isNull()
+    }
+
+    @Test
+    fun `the sender list only filters messages, not other notifications`() {
+        val headphones = AudioSituation(privateOutput = true, inCall = false)
+        val onlyMum = VoiceSettings(senders = listOf("Mum"))
+
+        assertThat(VoiceDecider.skipReason(notice, onlyMum, headphones)).isNull()
+        assertThat(VoiceDecider.skipReason(message, onlyMum, headphones)).isEqualTo("sender not on the list")
     }
 }
