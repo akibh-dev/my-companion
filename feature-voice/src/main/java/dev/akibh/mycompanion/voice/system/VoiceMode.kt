@@ -221,15 +221,17 @@ class VoiceQueue @Inject constructor() {
 
     @Synchronized fun current(item: Item): Boolean = accepting && item.generation == generation
 
-    /** False when it's closed or the same notice was queued in the last five minutes. */
-    @Synchronized fun add(notice: Notice, now: Long = SystemClock.elapsedRealtime()): Boolean {
-        if (!accepting) return false
+    enum class Added { QUEUED, DUPLICATE, NOT_RUNNING }
+
+    /** [Added.DUPLICATE] when the same notice was queued in the last five minutes. */
+    @Synchronized fun add(notice: Notice, now: Long = SystemClock.elapsedRealtime()): Added {
+        if (!accepting) return Added.NOT_RUNNING
         seen.entries.removeAll { now - it.value > STALE_MILLIS }
-        if (notice.fingerprint in seen) return false
+        if (notice.fingerprint in seen) return Added.DUPLICATE
         seen[notice.fingerprint] = now
         if (seen.size > 200) seen.remove(seen.keys.first())
         items.trySend(Item(notice, now, generation))
-        return true
+        return Added.QUEUED
     }
     companion object {
         const val STALE_MILLIS = 5 * 60_000L
@@ -245,14 +247,31 @@ class VoiceConsumer @Inject constructor(
     private val log: AppLog,
 ) : NoticeConsumer {
     override suspend fun onNotice(notice: Notice) {
-        if (!settingsStore.settings.first().isActive(Feature.VOICE_MODE)) return
+        val app = settingsStore.settings.first()
+        if (!app.isActive(Feature.VOICE_MODE)) {
+            // Shown in Recent so a quiet phone has an explanation; voice mode switched off records nothing.
+            if (app.paused && Feature.VOICE_MODE in app.enabled) recent.add(notice, PAUSED)
+            return
+        }
         val skip = VoiceDecider.skipReason(notice, voiceSettings.settings.first(), audio.situation())
         if (skip != null) {
             recent.add(notice, skip)
             log.i("Voice", "not queued: $skip")
             return
         }
-        if (queue.add(notice)) recent.add(notice, null)
+        when (queue.add(notice)) {
+            VoiceQueue.Added.QUEUED -> recent.add(notice, null)
+            VoiceQueue.Added.DUPLICATE -> Unit
+            VoiceQueue.Added.NOT_RUNNING -> {
+                recent.add(notice, NOT_RUNNING)
+                log.w("Voice", "not queued: the background service isn't running")
+            }
+        }
+    }
+
+    internal companion object {
+        const val PAUSED = "paused from Home"
+        const val NOT_RUNNING = "voice mode isn't running in the background; open the app to restart it"
     }
 }
 
