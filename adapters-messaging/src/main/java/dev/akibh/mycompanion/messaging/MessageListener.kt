@@ -46,10 +46,16 @@ class MessageListener : NotificationListenerService() {
 
     @Inject lateinit var apps: InstalledApps
 
+    @Inject lateinit var memory: NoticeMemory
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onListenerConnected() {
         samples.setConnected(true)
+        // Already in the shade before (a restart, access switched on): seen, so not read again.
+        runCatching { activeNotifications.orEmpty() }.getOrDefault(emptyArray())
+            .filter { it.packageName != packageName }
+            .forEach { runCatching { memory.remember(NotificationExtractor.parts(it)) } }
         log.i(TAG, "connected")
     }
 
@@ -72,6 +78,8 @@ class MessageListener : NotificationListenerService() {
             }
         }
         if (notices.isEmpty()) return
+        // Re-posts of a notification still in the shade are read only when they add something.
+        if (!memory.isNew(parts)) return
         val notice = NoticeParser.parse(parts, apps.label(sbn.packageName), message) ?: return
         notices.forEach { consumer -> deliver("notice consumer") { consumer.onNotice(notice) } }
     }
@@ -97,6 +105,7 @@ class MessageListener : NotificationListenerService() {
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         replies.forget(sbn.key)
+        memory.forget(sbn.key)
     }
 
     override fun onDestroy() {

@@ -21,7 +21,6 @@ import dev.akibh.mycompanion.messaging.toNotice
 import dev.akibh.mycompanion.voice.domain.Privacy
 import dev.akibh.mycompanion.voice.domain.VoiceSettings
 import dev.akibh.mycompanion.voice.system.AudioWatcher
-import dev.akibh.mycompanion.voice.system.RecentNotices
 import dev.akibh.mycompanion.voice.system.VoiceComponent
 import dev.akibh.mycompanion.voice.system.VoiceConsumer
 import dev.akibh.mycompanion.voice.system.VoiceQueue
@@ -139,8 +138,7 @@ class VoiceModeTest {
     }
     private val voiceSettings = MutableStateFlow(VoiceSettings(privacy = Privacy.ALWAYS))
     private val voiceStore = mockk<VoiceSettingsStore> { every { settings } returns voiceSettings }
-    private val recent = RecentNotices()
-    private val consumer = VoiceConsumer(settingsStore, voiceStore, audio, queue, recent, log)
+    private val consumer = VoiceConsumer(settingsStore, voiceStore, audio, queue, log)
 
     @Test
     fun `readable messages are queued as sentences`() = runTest {
@@ -157,22 +155,6 @@ class VoiceModeTest {
         consumer.onNotice(message)
 
         assertThat(drain()).isEmpty()
-    }
-
-    @Test
-    fun `a paused or stopped reader explains itself in recent, voice mode off records nothing`() = runTest {
-        settings.value = Settings(paused = true, enabled = setOf(Feature.VOICE_MODE))
-        consumer.onNotice(message)
-        settings.value = Settings()
-        consumer.onNotice(message.copy(key = "off"))
-        settings.value = Settings(enabled = setOf(Feature.VOICE_MODE))
-        queue.close()
-        consumer.onNotice(message.copy(key = "closed"))
-
-        assertThat(recent.entries.value.map { it.notice.key to it.skipReason }).containsExactly(
-            "closed" to VoiceConsumer.NOT_RUNNING,
-            "k" to VoiceConsumer.PAUSED,
-        ).inOrder()
     }
 
     @Test
@@ -413,12 +395,11 @@ class VoiceModeTest {
         runCurrent()
 
         assertThat(synth.spoken.map { it.first }).containsExactly("Gmail: Bank. Your statement is ready")
-        assertThat(recent.entries.value.single().skipReason).isNull()
         scope.cancel()
     }
 
     @Test
-    fun `muted apps, block rules, silent notifications and chat-only scope are skipped and shown as recent`() =
+    fun `muted apps, block rules, silent notifications and chat-only scope are skipped`() =
         runTest {
             voiceSettings.value = VoiceSettings(privacy = Privacy.ALWAYS, mutedApps = setOf(gmail.packageName))
             consumer.onNotice(gmail)
@@ -442,12 +423,5 @@ class VoiceModeTest {
             consumer.onNotice(message)
 
             assertThat(drain()).containsExactly("On my way")
-            assertThat(recent.entries.value.map { it.skipReason }).containsExactly(
-                null,
-                "only chat apps are read",
-                "silent notification",
-                "blocked by \"BANK\"",
-                "Gmail is muted",
-            ).inOrder()
         }
 }
