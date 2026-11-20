@@ -32,6 +32,8 @@ Filters, in this order: muted apps, chat-apps-only scope, silent, the sender lis
 
 Old settings migrate: chat apps that were switched off become muted apps. Old settings backups do the same.
 
+Recent notifications also explains silence: while Home is paused a notification shows "Skipped: paused from Home", and if the background service isn't running it shows "voice mode isn't running in the background" (and logs a warning). Only voice mode switched off records nothing.
+
 ## Lifecycle and privacy decisions
 
 Messages enter a bounded queue as structured data. The reader rechecks current settings and actual anticipated speech routes before playback and while work is active. Connected Bluetooth devices alone do not prove that speech is routed privately. Unknown routes and Bluetooth speakers are not accepted for private playback. Calls, master pause, disabling voice mode, audio-focus loss, output disconnect and Stop interrupt speech. Android route updates can be asynchronous; unit checks cannot establish timing guarantees for every headset/car.
@@ -52,6 +54,12 @@ Local validation on 2026-11-06:
 - Earlier prototype/notification tests ran on the CMF Phone 1 as recorded in the results report. The final production-controller phone test is compiled but has not been executed: the phone is currently disconnected from ADB and wireless discovery. That final replay and physical headphone-disconnect test remain device verification work.
 
 Audition fixtures and research previews are diagnostic tools; they do not select a new default voice.
+
+### Phone check, 2026-11-20 (CMF Phone 1, speaker, media volume step 3)
+
+Run by hand with `cmd notification post` and `tools/device-test/ui.py`. Pass: skipped without headphones; read through the speaker; big text; same content re-posted is read once; MessagingStyle from a non-chat app; a player notification is never read; mute from Recent and unmute from the chip; a Title block rule blocks "PROMO" in the title but not "promo" in the text; chat apps only; paused from Home is listed in Recent; Read a test message. Not covered: a real WhatsApp/Messenger message and a headphones connect/disconnect.
+
+Audio (`VoiceAudioDiagnosticsDeviceTest`): speech plays as USAGE_MEDIA/SPEECH on the same deep-buffer speaker output and volume as music (-37 dB at that step), and its average output power matched a music track at the same step (about -46 dB). The Bengali voice renders the English announcement in full (7.1 s), at about -19 dBFS RMS with peaks near -2 dBFS. In a listening A/B the shipped +6 dB booster matched YouTube Shorts loudness, and without it the voice was too quiet, so the booster stays. The earlier "sounds off" report came from the older install, which still played on the assistant volume (USAGE_ASSISTANT). Run it with `am instrument` (see the test's KDoc), not `connectedAndroidTest`, which uninstalls the app and deletes its data.
 
 ## References
 
