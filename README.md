@@ -5,36 +5,34 @@
 Android app for reviving features on my own terms. NO CAP.
 
 Personal Android app (Kotlin) for the Nothing CMF Phone 1 (Android 16), on-device only:
-- **People** – WhatsApp contact-call handoffs with chat fallback and home-screen call icons
-- **Reminders** – custom notifications, repeating daily, on chosen days, monthly or every few hours
-- **Player** – YouTube background audio with queue and playlists
-- **Context rules** – sound mode, Do Not Disturb, volume, brightness (and Wi-Fi/Bluetooth prompts) by time, place, charging, Bluetooth or Wi-Fi; offline map for places
-- **Auto-reply & missed-call SMS** – replies through WhatsApp, Messenger, Signal, Telegram and Messages notifications
-- **Voice mode** – reads incoming messages aloud, privately
-- **Keep screen on outdoors**, quick actions widget and data export
-- Offline IndicXlit converts Banglish for voice mode; the remaining AI model slots are placeholders
+- **People**: WhatsApp voice/video call handoffs with permission recovery and chat fallback, home-screen call shortcuts
+- **Reminders**: custom notifications now, later or at a time; repeat daily, on chosen days, monthly or every few hours; custom sounds; snooze / done / call buttons; per-reminder pause; survive reboot
+- **Player**: YouTube background audio with notification and lock-screen controls, queue, playlists and listening history
+- **Context rules**: sound mode, Do Not Disturb, volume, brightness (and Wi-Fi/Bluetooth prompts) by time, place, charging, Bluetooth, Wi-Fi or app in use; offline map for places
+- **Auto-reply & missed-call SMS**: replies through WhatsApp, Messenger, Signal, Telegram and Messages notifications
+- **Voice mode**: reads notifications from any app aloud on the media volume, with muted apps and block rules (by title or text); Banglish is converted to Bangla offline (lexicon + IndicXlit)
+- **Keep screen on outdoors**, quick-actions widget, pause tile, data export and settings backup
 
-Built as a **learning vehicle** for Android development.
+Built as a **learning vehicle** for Android development. Current version: **0.3.1**.
 
 ## 📚 Documentation
 
 | Document | Description |
 |----------|-------------|
-| [AGENTS.md](AGENTS.md) | Agent guidelines, code style, architecture rules |
-| [plan/01-project-overview.md](plan/01-project-overview.md) | Project vision, features, timeline |
-| [plan/02-tech-stack.md](plan/02-tech-stack.md) | Technical decisions with rationale |
-| [plan/03-learning-roadmap.md](plan/03-learning-roadmap.md) | Phase-by-phase learning path |
-| [Docs/learning/README.md](Docs/learning/README.md) | **Start here** — how to start + step-by-step learning path |
-| [Docs/00-index.md](Docs/00-index.md) | Documentation index and templates |
+| [AGENTS.md](AGENTS.md) | Agent guidelines, stack, modules, commands |
+| [Docs/learning/README.md](Docs/learning/README.md) | **Start here**: step-by-step learning path |
+| [Docs/00-index.md](Docs/00-index.md) | Documentation index |
+| [Docs/decisions.md](Docs/decisions.md) | Every decision so far |
+| [Docs/implementation-guide.md](Docs/implementation-guide.md) | Conventions, pitfalls, where to add code |
+| [Docs/19-audit-and-hardening-plan.md](Docs/19-audit-and-hardening-plan.md) | Current work: audit findings and fix order |
+| [Docs/18-baseline-profile-plan.md](Docs/18-baseline-profile-plan.md) | Baseline profile (last step) |
 | [Docs/03-whatsapp-call-and-reminders.md](Docs/03-whatsapp-call-and-reminders.md) | How calls and reminders work |
-| [Docs/04-testing.md](Docs/04-testing.md) | Test layers, tools and patterns |
 | [Docs/05-youtube-player.md](Docs/05-youtube-player.md) | YouTube background player, queue, playlists |
-| [Docs/07-feature-test-report.md](Docs/07-feature-test-report.md) | Full module unit results, instrumented feature tests and emulator checks |
-| [Docs/06-device-test-report.md](Docs/06-device-test-report.md) | Emulator test results, bugs found, next steps (in progress) |
-| [tools/device-test/](tools/device-test/) | Command-line helpers for testing on an emulator (fake WhatsApp, UI driver) |
+| [Docs/12-production-voice.md](Docs/12-production-voice.md) | Voice reader setup and limitations |
+| [Docs/04-testing.md](Docs/04-testing.md) | Test layers, tools and patterns |
+| [Docs/releases/](Docs/releases/) | Release notes |
 | [Docs/architecture/](Docs/architecture/) | Architecture Decision Records (ADRs) |
-| [Docs/references/](Docs/references/) | Quick reference sheets (coroutines, lifecycle, Gradle) |
-| [Docs/resources/](Docs/resources/) | Curated external learning resources |
+| [tools/](tools/) | Model fetcher, device-test helpers, reminder sound generator |
 
 ## 🏗 Architecture
 
@@ -53,84 +51,73 @@ Built as a **learning vehicle** for Android development.
 ┌─────────────────────────────────────────┐
 │                 DATA                    │
 │  Repository Impl │ Room │ DataStore     │
-│  Retrofit │ Media3 │ WorkManager        │
+│  Media3 │ NewPipe │ WorkManager │ ONNX  │
 └─────────────────────────────────────────┘
 ```
 
-**Stack**: Kotlin, Jetpack Compose, Hilt, Room, Media3 (ExoPlayer), Coroutines/Flow, WorkManager
+**Stack**: Kotlin 2.2, Jetpack Compose + Material 3, Hilt, Room, DataStore, Media3 (ExoPlayer), NewPipeExtractor, ONNX Runtime, Coroutines/Flow, WorkManager
+
+### Modules
+
+| Module | What it holds |
+|---|---|
+| `app` | Shell, navigation, People, Reminders, Player, export, widget, tiles |
+| `core` | Log, heartbeat, settings, foreground `ServiceHost`, reconciler |
+| `ai-api` / `ai-models` | AI interfaces; IndicXlit transliterator, Banglish lexicon, placeholder models |
+| `adapters-messaging` | Notification listener and chat-app adapters |
+| `feature-context` | Context rules, places, offline map, keep screen on outdoors |
+| `feature-autoreply` | Auto-reply and missed-call SMS |
+| `feature-voice` | Voice mode |
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Android Studio Koala (2024.1.1) or later
-- JDK 17
-- Android SDK 36 (Android 16); JDK 21 for Robolectric tests
+- Android Studio (recent stable)
+- JDK 17 or 21 for Gradle (JDK 25 doesn't work with Gradle 8.14); unit tests use JDK 21, which Gradle downloads automatically
+- Android SDK 36 (Android 16)
+- Python 3 (to fetch the transliteration models)
 
 ### Build
 ```bash
-# Clone and open in Android Studio
-git clone <repo-url>
-
-# Or build from command line
+git clone https://github.com/akibh-dev/my-companion.git
+cd my-companion
 python3 tools/banglish/fetch_models.py
 ./gradlew assembleDebug
 ```
 
+The APK contains only `arm64-v8a` native libraries. For an x86_64 emulator, add `-Pabis=x86_64`.
+
+### Install on your phone
+With the phone connected (USB or wireless debugging):
+```bash
+./gradlew installDebug
+```
+Or download `my-companion-debug-apk` from the latest green **Android CI** run (Actions tab).
+
 ### Run Tests
 ```bash
-# Unit tests (JVM)
-./gradlew test
+# Full check, same as CI (use --max-workers=3 on <= 16 GB RAM)
+./gradlew ktlintCheck testDebugUnitTest lintDebug assembleDebug --continue
 
-# Instrumented tests (device/emulator)
+# Instrumented tests (phone or emulator)
 ./gradlew connectedAndroidTest
-
-# Lint
-./gradlew lint
-```
-
-## 📁 Project Structure
-
-```
-app/
-├── src/main/java/dev/akibh/mycompanion/
-│   ├── di/                 # Hilt modules
-│   ├── domain/             # Pure Kotlin: entities, repositories, usecases
-│   ├── data/               # Repository impl, Room, DataStore, Media3
-│   ├── presentation/       # ViewModels, Compose screens, call activity, shortcuts
-│   ├── player/             # Media3 playback service and controller
-│   ├── system/             # Broadcast receivers (alarms, boot)
-│   └── ui/theme/           # Material 3 theme
-└── src/test/               # JUnit, MockK, Turbine, Robolectric, Compose UI tests
 ```
 
 ## 🎯 Current Status
 
-- [x] Gradle Kotlin DSL + version catalog, Hilt, Room, Compose + Material 3
-- [x] **People**: WhatsApp call handoffs with permission recovery and chat fallback, pick from phone book, edit/undo, home-screen call shortcuts
-- [x] **Reminders**: custom notifications now / later / at a time, daily repeat, Snooze / Done / Call buttons, survive reboot
-- [x] **Player**: share a YouTube video → play in the background (notification + lock-screen controls), queue, permanent playlists ([details](Docs/05-youtube-player.md))
-- [x] Tests: domain, ViewModel, Robolectric (Room, alarms, notifications, receivers) and Compose UI ([Docs/04-testing.md](Docs/04-testing.md))
-- [x] Tested end to end on an Android 17 emulator — 8 fixes pending ([Docs/06-device-test-report.md](Docs/06-device-test-report.md))
-- [x] CI: ktlint, unit tests, Android lint, debug APK on every push
+- [x] People, Reminders, Player, context rules, auto-reply, voice mode, keep screen on outdoors, widget, export
+- [x] Monochrome dotted UI with smooth navigation (0.3.x)
+- [x] Offline Banglish → Bangla for voice mode
+- [x] About 1,500 unit, Robolectric and Compose UI tests; CI on every push
+- [ ] **Plan 19** hardening: correctness fixes, crash logging, player access control, performance, release signing + R8
+- [ ] **Plan 18** baseline profile
 
-How it works: [Docs/03-whatsapp-call-and-reminders.md](Docs/03-whatsapp-call-and-reminders.md)
-
-Secure Vault and volume-button Quick Capture have been removed. See [decision D19](Docs/decisions.md#d19--remove-secure-vault-and-quick-capture-2026-10-30). Earlier test reports describe previous versions.
-
-### Install on your phone
-Download `my-companion-debug-apk` from the latest green **Android CI** run (Actions tab), or run `./gradlew installDebug` with the phone connected.
+Secure Vault and volume-button Quick Capture have been removed. See [decision D19](Docs/decisions.md#d19--remove-secure-vault-and-quick-capture-2026-10-30).
 
 ## 📖 Learning Resources
 
-See [Docs/resources/official-docs.md](Docs/resources/official-docs.md) for curated links to:
-- Android fundamentals
-- Jetpack Compose
-- Media3/ExoPlayer
-- Foreground Services
-- WorkManager
-- Testing
+See [Docs/resources/official-docs.md](Docs/resources/official-docs.md) for curated links to Android fundamentals, Jetpack Compose, Media3, foreground services, WorkManager and testing.
 
 ---
 
 *Personal project - not for Play Store distribution.*
-Voice reader setup and limitations: [production voice notes](Docs/12-production-voice.md).
