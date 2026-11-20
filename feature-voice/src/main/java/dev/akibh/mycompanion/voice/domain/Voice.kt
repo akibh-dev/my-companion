@@ -1,7 +1,6 @@
 package dev.akibh.mycompanion.voice.domain
 
-import dev.akibh.mycompanion.messaging.ChatApp
-import dev.akibh.mycompanion.messaging.IncomingMessage
+import dev.akibh.mycompanion.messaging.Notice
 import java.util.Locale
 
 /** Where speech may come out (FR-5.7): privately only, or anywhere. */
@@ -16,10 +15,55 @@ enum class ReadingMode(val title: String) {
     ORIGINAL("As written"),
 }
 
+/** Which apps' notifications are read. */
+enum class AppScope(val title: String) {
+    ALL_APPS("All apps"),
+    CHAT_APPS("Chat apps only"),
+}
+
+/** Where a block rule looks for its words. */
+enum class BlockWhere(val title: String) {
+    TITLE("Title"),
+    TEXT("Text"),
+    ANYWHERE("Title or text"),
+}
+
+/** Don't read a notification whose title and/or text contains [phrase] (any case). */
+data class BlockRule(val phrase: String, val where: BlockWhere = BlockWhere.ANYWHERE) {
+    fun matches(notice: Notice): Boolean {
+        val needle = phrase.trim()
+        if (needle.isEmpty()) return false
+        val titles = listOfNotNull(notice.title, notice.sender, notice.conversation)
+        val inTitle = titles.any { it.contains(needle, ignoreCase = true) }
+        val inText = notice.text.contains(needle, ignoreCase = true)
+        return when (where) {
+            BlockWhere.TITLE -> inTitle
+            BlockWhere.TEXT -> inText
+            BlockWhere.ANYWHERE -> inTitle || inText
+        }
+    }
+
+    /** "TITLE|Promo"; the phrase may itself contain "|". */
+    fun encode(): String = "${where.name}|${phrase.trim()}"
+
+    companion object {
+        fun decode(text: String): BlockRule? {
+            val where = enumValues<BlockWhere>().firstOrNull { it.name == text.substringBefore('|') } ?: return null
+            val phrase = text.substringAfter('|', "").trim()
+            return if (phrase.isEmpty()) null else BlockRule(phrase, where)
+        }
+    }
+}
+
 data class VoiceSettings(
     val privacy: Privacy = Privacy.HEADPHONES_OR_CAR,
-    val apps: Set<ChatApp> = ChatApp.entries.toSet(),
-    /** Empty: everyone. Otherwise only these senders are read (FR-5.4). */
+    val appScope: AppScope = AppScope.ALL_APPS,
+    /** Package names of apps that are never read. */
+    val mutedApps: Set<String> = emptySet(),
+    val blockRules: List<BlockRule> = emptyList(),
+    /** Notifications the app or user set to silent (low importance) are skipped unless this is on. */
+    val readSilent: Boolean = false,
+    /** Empty: everyone. Otherwise only messages from these senders are read (FR-5.4). */
     val senders: List<String> = emptyList(),
     /** Longer messages are cut with "and more" (FR-5.10). */
     val maxChars: Int = 200,
@@ -32,14 +76,20 @@ data class VoiceSettings(
 data class AudioSituation(val privateOutput: Boolean, val inCall: Boolean)
 
 object VoiceDecider {
-    /** Null when the message should be read, otherwise why not. */
-    fun skipReason(message: IncomingMessage, settings: VoiceSettings, audio: AudioSituation): String? = when {
-        message.app !in settings.apps -> "${message.app.title} is off"
-        settings.senders.isNotEmpty() && settings.senders.none {
-            it.equals(message.sender, ignoreCase = true)
+    /** Null when the notification should be read, otherwise why not. */
+    fun skipReason(notice: Notice, settings: VoiceSettings, audio: AudioSituation): String? = when {
+        notice.packageName in settings.mutedApps -> "${notice.appName} is muted"
+        settings.appScope == AppScope.CHAT_APPS && !notice.isChatApp -> "only chat apps are read"
+        notice.isSilent && !settings.readSilent -> "silent notification"
+        notice.sender != null && settings.senders.isNotEmpty() && settings.senders.none {
+            it.equals(notice.sender, ignoreCase = true)
         } -> "sender not on the list"
-        settings.privacy == Privacy.HEADPHONES_OR_CAR && !audio.privateOutput -> "no headphones or car connected"
-        else -> null
+        else -> settings.blockRules.firstOrNull { it.matches(notice) }?.let { "blocked by \"${it.phrase}\"" }
+            ?: if (settings.privacy == Privacy.HEADPHONES_OR_CAR && !audio.privateOutput) {
+                "no headphones or car connected"
+            } else {
+                null
+            }
     }
 }
 
@@ -62,18 +112,33 @@ object VoiceText {
         "👋" to "waving", "✅" to "done", "💯" to "hundred percent",
     )
 
-    fun sentence(message: IncomingMessage, maxChars: Int): String {
-        return announce(message, clean(message.text, maxChars))
+    fun sentence(notice: Notice, maxChars: Int): String =
+        announce(notice, if (notice.text.isBlank()) "" else clean(notice.text, maxChars))
+
+    /**
+     * Messages: "Nadia in Office on WhatsApp says: …". Anything else: "Gmail: New sign-in. …", with the
+     * title or the body left out when it's empty.
+     */
+    fun announce(notice: Notice, body: String): String {
+        val sender = notice.sender
+        if (sender != null) {
+            val conversation = notice.conversation
+            val who = if (notice.isGroup && conversation != null && conversation != sender) {
+                "$sender in $conversation on ${notice.appName}"
+            } else {
+                "$sender on ${notice.appName}"
+            }
+            return "$who says: $body"
+        }
+        val title = if (notice.title.isBlank()) "" else clean(notice.title, TITLE_CHARS)
+        return when {
+            title.isEmpty() -> "${notice.appName}: $body"
+            body.isEmpty() -> "${notice.appName}: $title"
+            else -> "${notice.appName}: ${title.trimEnd('.', ':')}. $body"
+        }
     }
 
-    fun announce(message: IncomingMessage, body: String): String {
-        val who = if (message.isGroup && message.conversation != message.sender) {
-            "${message.sender} in ${message.conversation} on ${message.app.title}"
-        } else {
-            "${message.sender} on ${message.app.title}"
-        }
-        return "$who says: $body"
-    }
+    private const val TITLE_CHARS = 120
 
     fun clean(text: String, maxChars: Int): String {
         var out = LINK.replace(text, " a link ")

@@ -6,7 +6,7 @@ The automatic reader now uses the pretrained offline IndicXlit ONNX model throug
 
 1. Run `python3 tools/banglish/fetch_models.py` before building. Graphs are pinned by upstream revision and SHA-256, packaged in the APK, and excluded from Git. `preBuild` verifies them; CI downloads and verifies them before building.
 2. Install an offline Bengali voice using the phone's Text-to-speech settings. Grant My Companion notification access.
-3. Enable Read messages aloud from the Voice screen. This also enables the transliteration engine. Choose apps, optionally save a sender allowlist, and select the output privacy policy.
+3. Enable Read notifications aloud from the Voice screen. This also enables the transliteration engine. Choose All apps or Chat apps only, mute apps, add block rules, optionally save a sender allowlist, and select the output privacy policy.
 4. Use Read a test message. It follows the same privacy, pause, call, speed, serializer and audio-focus checks as automatic reading. Stop reading clears pending messages and cancels current preparation/playback.
 
 ## Text routing and limits
@@ -17,6 +17,20 @@ The automatic reader now uses the pretrained offline IndicXlit ONNX model throug
 - Failed or timed-out conversion preserves the original text. Conversion has a 30-second budget per message. Length is bounded to 600 input characters and each model word to 48 letters. Speed is persisted and applied between 0.5 and 2.
 - English pronunciation has the selected Bengali voice's accent. The small evaluation fixture measures text conversion only and is not a broad accuracy or intelligibility guarantee; see the model research and prototype reports.
 - Character-by-character spelling of unknown words, numbers and punctuation is deferred by request.
+
+## Which notifications are read
+
+Since decision D20, voice mode reads every app's notifications, not only the six chat apps:
+
+- **Chat apps** (WhatsApp, WhatsApp Business, Messenger, Signal, Telegram, Messages) still go through their adapters: "Nadia in Office on WhatsApp says: …".
+- **Any other app** with MessagingStyle (Discord, Instagram, Slack, …) reads the same way, using the newest message's sender.
+- **Everything else** reads as "App: Title. Text", using the expanded (big) text when there is one and leaving out a title that is just the app name.
+- **Never read:** group summaries, ongoing and foreground-service notifications, media players, and the categories call, alarm, progress, transport, service, system, status, stopwatch, navigation and location sharing. My Companion's own notifications are not read either.
+- **Silent notifications** (importance low or min, from the listener's ranking, so the user's per-channel choice counts) are skipped unless "Also read silent notifications" is on.
+
+Filters, in this order: muted apps, chat-apps-only scope, silent, the sender list (messages only), block rules, then privacy. A **block rule** is a phrase (any case) matched against the title (title, sender or group), the text, or either. The screen's **Recent notifications** list (last 25, in memory only, never saved or logged) shows each notification as read or skipped with the reason, with **Mute app** and **Block this title** buttons.
+
+Old settings migrate: chat apps that were switched off become muted apps. Old settings backups do the same.
 
 ## Lifecycle and privacy decisions
 
