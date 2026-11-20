@@ -160,6 +160,22 @@ class VoiceModeTest {
     }
 
     @Test
+    fun `a paused or stopped reader explains itself in recent, voice mode off records nothing`() = runTest {
+        settings.value = Settings(paused = true, enabled = setOf(Feature.VOICE_MODE))
+        consumer.onNotice(message)
+        settings.value = Settings()
+        consumer.onNotice(message.copy(key = "off"))
+        settings.value = Settings(enabled = setOf(Feature.VOICE_MODE))
+        queue.close()
+        consumer.onNotice(message.copy(key = "closed"))
+
+        assertThat(recent.entries.value.map { it.notice.key to it.skipReason }).containsExactly(
+            "closed" to VoiceConsumer.NOT_RUNNING,
+            "k" to VoiceConsumer.PAUSED,
+        ).inOrder()
+    }
+
+    @Test
     fun `privacy keeps messages quiet without headphones`() = runTest {
         voiceSettings.value = VoiceSettings(privacy = Privacy.HEADPHONES_OR_CAR)
         routes(listOf(output(AudioDeviceInfo.TYPE_BUILTIN_SPEAKER)))
