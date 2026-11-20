@@ -106,6 +106,12 @@ parser stays generic. Silent notifications are skipped by default using the list
 because reading every low-importance sync or promo line would make the feature unusable.
 
 App names come from `PackageManager` with a launcher `<queries>` entry; hidden apps fall back to
-a guess from the package name. The recent-notifications list is in memory only, so no
-notification text is stored. Settings migrate the old per-chat-app switches into muted apps.
+a guess from the package name. Settings migrate the old per-chat-app switches into muted apps.
+
+Follow-up the same day, after phone use: an in-app "recent notifications" list was tried and removed,
+because Android's notification history already does that job. A WhatsApp message still in the
+shade was read three times, because WhatsApp re-posts its notification (new title, new times) and
+duplicates were matched on the title and kept for only five minutes. `NoticeMemory` now remembers
+each notification's content until it leaves the shade and reads a re-post only when it adds a
+message; notifications already in the shade on reconnect are marked as seen.
 

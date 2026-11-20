@@ -53,12 +53,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -243,62 +239,18 @@ class VoiceConsumer @Inject constructor(
     private val voiceSettings: VoiceSettingsStore,
     private val audio: AudioWatcher,
     private val queue: VoiceQueue,
-    private val recent: RecentNotices,
     private val log: AppLog,
 ) : NoticeConsumer {
     override suspend fun onNotice(notice: Notice) {
-        val app = settingsStore.settings.first()
-        if (!app.isActive(Feature.VOICE_MODE)) {
-            // Shown in Recent so a quiet phone has an explanation; voice mode switched off records nothing.
-            if (app.paused && Feature.VOICE_MODE in app.enabled) recent.add(notice, PAUSED)
-            return
-        }
+        if (!settingsStore.settings.first().isActive(Feature.VOICE_MODE)) return
         val skip = VoiceDecider.skipReason(notice, voiceSettings.settings.first(), audio.situation())
         if (skip != null) {
-            recent.add(notice, skip)
             log.i("Voice", "not queued: $skip")
             return
         }
-        when (queue.add(notice)) {
-            VoiceQueue.Added.QUEUED -> recent.add(notice, null)
-            VoiceQueue.Added.DUPLICATE -> Unit
-            VoiceQueue.Added.NOT_RUNNING -> {
-                recent.add(notice, NOT_RUNNING)
-                log.w("Voice", "not queued: the background service isn't running")
-            }
+        if (queue.add(notice) == VoiceQueue.Added.NOT_RUNNING) {
+            log.w("Voice", "not queued: the background service isn't running")
         }
-    }
-
-    internal companion object {
-        const val PAUSED = "paused from Home"
-        const val NOT_RUNNING = "voice mode isn't running in the background; open the app to restart it"
-    }
-}
-
-/**
- * The last notifications voice mode saw and whether they were read, in memory only, so the settings
- * screen can offer "mute this app" or "block this title" for something that was just read.
- */
-@Singleton
-class RecentNotices @Inject constructor() {
-    data class Entry(val notice: Notice, val skipReason: String?, val at: Long)
-
-    private val mutableEntries = MutableStateFlow<List<Entry>>(emptyList())
-    val entries: StateFlow<List<Entry>> = mutableEntries.asStateFlow()
-
-    fun add(notice: Notice, skipReason: String?, at: Long = System.currentTimeMillis()) {
-        mutableEntries.update { list ->
-            (listOf(Entry(notice, skipReason, at)) + list.filter { it.notice.fingerprint != notice.fingerprint })
-                .take(MAX)
-        }
-    }
-
-    fun clear() {
-        mutableEntries.value = emptyList()
-    }
-
-    private companion object {
-        const val MAX = 25
     }
 }
 

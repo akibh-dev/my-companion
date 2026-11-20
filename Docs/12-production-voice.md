@@ -28,11 +28,13 @@ Since decision D20, voice mode reads every app's notifications, not only the six
 - **Never read:** group summaries, ongoing and foreground-service notifications, media players, and the categories call, alarm, progress, transport, service, system, status, stopwatch, navigation and location sharing. My Companion's own notifications are not read either.
 - **Silent notifications** (importance low or min, from the listener's ranking, so the user's per-channel choice counts) are skipped unless "Also read silent notifications" is on.
 
-Filters, in this order: muted apps, chat-apps-only scope, silent, the sender list (messages only), block rules, then privacy. A **block rule** is a phrase (any case) matched against the title (title, sender or group), the text, or either. The screen's **Recent notifications** list (last 25, in memory only, never saved or logged) shows each notification as read or skipped with the reason, with **Mute app** and **Block this title** buttons.
+Filters, in this order: muted apps, chat-apps-only scope, silent, the sender list (messages only), block rules, then privacy. A **block rule** is a phrase (any case) matched against the title (title, sender or group), the text, or either. Skips are logged with their reason (never the text) in Home → Log. There is no in-app list of recent notifications: Android's own notification history (Settings → Notifications) already keeps one.
+
+**Read once.** Chat apps re-post the same notification many times while it stays in the shade (a new title such as a message count, a refreshed list, coming back online), and its timestamps change on those re-posts. `NoticeMemory` remembers what each notification already said, its messages (sender and text) or its title and text, until it is removed from the shade, and a re-post is read only when it adds a message or changes. Notifications already in the shade when the listener connects (after a restart) are marked as seen, not read.
 
 Old settings migrate: chat apps that were switched off become muted apps. Old settings backups do the same.
 
-Recent notifications also explains silence: while Home is paused a notification shows "Skipped: paused from Home", and if the background service isn't running it shows "voice mode isn't running in the background" (and logs a warning). Only voice mode switched off records nothing.
+If the background service isn't running when a notification arrives, the log says "the background service isn't running".
 
 ## Lifecycle and privacy decisions
 
@@ -57,7 +59,7 @@ Audition fixtures and research previews are diagnostic tools; they do not select
 
 ### Phone check, 2026-11-20 (CMF Phone 1, speaker, media volume step 3)
 
-Run by hand with `cmd notification post` and `tools/device-test/ui.py`. Pass: skipped without headphones; read through the speaker; big text; same content re-posted is read once; MessagingStyle from a non-chat app; a player notification is never read; mute from Recent and unmute from the chip; a Title block rule blocks "PROMO" in the title but not "promo" in the text; chat apps only; paused from Home is listed in Recent; Read a test message. Not covered: a real WhatsApp/Messenger message and a headphones connect/disconnect.
+Run by hand with `cmd notification post` and `tools/device-test/ui.py`. Pass: skipped without headphones; read through the speaker; big text; same content re-posted is read once; MessagingStyle from a non-chat app; a player notification is never read; mute and unmute an app; a Title block rule blocks "PROMO" in the title but not "promo" in the text; chat apps only; nothing is read while paused from Home; Read a test message. Not covered: a real WhatsApp/Messenger message and a headphones connect/disconnect.
 
 Audio (`VoiceAudioDiagnosticsDeviceTest`): speech plays as USAGE_MEDIA/SPEECH on the same deep-buffer speaker output and volume as music (-37 dB at that step), and its average output power matched a music track at the same step (about -46 dB). The Bengali voice renders the English announcement in full (7.1 s), at about -19 dBFS RMS with peaks near -2 dBFS. In a listening A/B the shipped +6 dB booster matched YouTube Shorts loudness, and without it the voice was too quiet, so the booster stays. The earlier "sounds off" report came from the older install, which still played on the assistant volume (USAGE_ASSISTANT). Run it with `am instrument` (see the test's KDoc), not `connectedAndroidTest`, which uninstalls the app and deletes its data.
 

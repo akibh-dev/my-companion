@@ -44,14 +44,12 @@ import dev.akibh.mycompanion.core.settings.Settings
 import dev.akibh.mycompanion.core.settings.SettingsStore
 import dev.akibh.mycompanion.messaging.InstalledApp
 import dev.akibh.mycompanion.messaging.InstalledApps
-import dev.akibh.mycompanion.messaging.Notice
 import dev.akibh.mycompanion.voice.domain.AppScope
 import dev.akibh.mycompanion.voice.domain.BlockRule
 import dev.akibh.mycompanion.voice.domain.BlockWhere
 import dev.akibh.mycompanion.voice.domain.Privacy
 import dev.akibh.mycompanion.voice.domain.ReadingMode
 import dev.akibh.mycompanion.voice.domain.VoiceSettings
-import dev.akibh.mycompanion.voice.system.RecentNotices
 import dev.akibh.mycompanion.voice.system.VoicePlayback
 import dev.akibh.mycompanion.voice.system.VoiceSettingsStore
 import dev.akibh.mycompanion.voice.system.VoiceState
@@ -73,7 +71,6 @@ class VoiceViewModel @Inject constructor(
     private val voiceSettings: VoiceSettingsStore,
     private val playback: VoicePlayback,
     private val installedApps: InstalledApps,
-    recentNotices: RecentNotices,
 ) : ViewModel() {
     val app: StateFlow<Settings> = settingsStore.settings.stateIn(
         viewModelScope,
@@ -83,7 +80,6 @@ class VoiceViewModel @Inject constructor(
     val settings: StateFlow<VoiceSettings> =
         voiceSettings.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), VoiceSettings())
     val playbackState = playback.state
-    val recent: StateFlow<List<RecentNotices.Entry>> = recentNotices.entries
     private val mutableApps = MutableStateFlow<List<InstalledApp>?>(null)
 
     /** Null until [loadApps] has listed them. */
@@ -110,12 +106,6 @@ class VoiceViewModel @Inject constructor(
     }
 
     fun removeRule(rule: BlockRule) = update { it.copy(blockRules = it.blockRules - rule) }
-
-    /** "Block title" on a recent notification: its title, or the sender for a message. */
-    fun blockTitleOf(notice: Notice) {
-        val title = notice.title.ifBlank { notice.sender.orEmpty() }
-        addRule(title, BlockWhere.TITLE)
-    }
 
     fun onVoiceMode(on: Boolean) {
         viewModelScope.launch {
@@ -156,14 +146,13 @@ class VoiceViewModel @Inject constructor(
     }
 }
 
-/** Voice settings (plan §11): apps, muting and block rules, senders, privacy, speed, a test, recent notifications. */
+/** Voice settings (plan §11): apps, muting and block rules, senders, privacy, speed, and a test. */
 @Composable
 fun VoiceRoute(modifier: Modifier = Modifier, viewModel: VoiceViewModel = hiltViewModel()) {
     val app by viewModel.app.collectAsStateWithLifecycle()
     val s by viewModel.settings.collectAsStateWithLifecycle()
     val state by viewModel.playbackState.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
-    val recent by viewModel.recent.collectAsStateWithLifecycle()
     var senders by remember(s.senders) { mutableStateOf(s.senders.joinToString(", ")) }
     var rulePhrase by remember { mutableStateOf("") }
     var ruleWhere by remember { mutableStateOf(BlockWhere.ANYWHERE) }
@@ -325,21 +314,6 @@ fun VoiceRoute(modifier: Modifier = Modifier, viewModel: VoiceViewModel = hiltVi
                 style = MaterialTheme.typography.bodySmall
             )
         }
-        item {
-            Text("Recent notifications", style = MaterialTheme.typography.titleSmall)
-            Text(
-                if (recent.isEmpty()) "Nothing yet. Kept in memory only, never saved." else "Kept in memory only.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-        }
-        items(recent, key = { it.notice.fingerprint + it.at }) { entry ->
-            RecentRow(
-                entry = entry,
-                muted = entry.notice.packageName in s.mutedApps,
-                onMute = { viewModel.toggleMute(entry.notice.packageName) },
-                onBlockTitle = { viewModel.blockTitleOf(entry.notice) },
-            )
-        }
     }
 }
 
@@ -365,28 +339,6 @@ private fun <T> Removable(items: List<Pair<T, String>>, onRemove: (Pair<T, Strin
                 label = { Text(item.second) },
                 trailingIcon = { Text("✕") },
             )
-        }
-    }
-}
-
-@Composable
-private fun RecentRow(entry: RecentNotices.Entry, muted: Boolean, onMute: () -> Unit, onBlockTitle: () -> Unit) {
-    val notice = entry.notice
-    val heading = listOf(notice.appName, notice.title.ifBlank { notice.sender.orEmpty() })
-        .filter(String::isNotBlank)
-        .joinToString(" · ")
-    androidx.compose.foundation.layout.Column(Modifier.fillMaxWidth()) {
-        Text(heading, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
-        Text(
-            entry.skipReason?.let { "Skipped: $it" } ?: "Read",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            TextButton(onClick = onMute) { Text(if (muted) "Unmute app" else "Mute app") }
-            if (notice.title.isNotBlank() || notice.sender != null) {
-                TextButton(onClick = onBlockTitle) { Text("Block this title") }
-            }
         }
     }
 }

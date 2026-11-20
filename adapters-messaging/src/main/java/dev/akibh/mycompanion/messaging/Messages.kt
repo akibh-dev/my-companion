@@ -79,8 +79,11 @@ data class Notice(
 ) {
     val isChatApp: Boolean get() = ChatApp.of(packageName) != null
 
-    /** Same for an update that changes nothing worth reading, so it's read once. */
-    val fingerprint: String get() = listOf(packageName, key, title, sender, text, postedAt).joinToString("|")
+    /**
+     * Same for a quick re-post of the same message; the title is left out because chat apps change it
+     * (message counts) on re-posts. [NoticeMemory] handles re-posts while the notification stays.
+     */
+    val fingerprint: String get() = listOf(packageName, key, sender ?: title, text, postedAt).joinToString("|")
 }
 
 /** A chat message as a [Notice], for voice mode and tests. */
