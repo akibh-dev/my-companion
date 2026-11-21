@@ -46,7 +46,7 @@ class AndroidReminderNotifier @Inject constructor(
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setAutoCancel(true)
-            .setContentIntent(openAppIntent(id))
+            .setContentIntent(openAppIntent(id, reminder.link))
             .addAction(0, "Snooze ${SnoozeReminderUseCase.DEFAULT_SNOOZE_MINUTES} min", snooze)
             .addAction(0, "Done", done)
 
@@ -64,10 +64,11 @@ class AndroidReminderNotifier @Inject constructor(
 
     override fun cancel(notificationId: Int) = manager.cancel(notificationId)
 
-    private fun openAppIntent(id: Int): PendingIntent = PendingIntent.getActivity(
+    /** Opens the reminder's screen when it has one (the Quran reminder opens the reader), else Reminders. */
+    private fun openAppIntent(id: Int, link: String?): PendingIntent = PendingIntent.getActivity(
         context,
         requestCode(id, ACTION_OPEN),
-        MainActivity.openTabIntent(context, Tab.REMINDERS),
+        link?.let { MainActivity.openRouteIntent(context, it) } ?: MainActivity.openTabIntent(context, Tab.REMINDERS),
         FLAGS,
     )
 

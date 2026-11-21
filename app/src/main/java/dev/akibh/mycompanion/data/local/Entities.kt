@@ -35,6 +35,7 @@ data class ReminderEntity(
     val delivered: Boolean,
     @ColumnInfo(defaultValue = "'DEFAULT'") val sound: String = "DEFAULT",
     @ColumnInfo(defaultValue = "0") val paused: Boolean = false,
+    val link: String? = null,
 ) {
     fun toDomain() = Reminder(
         id = id,
@@ -46,6 +47,7 @@ data class ReminderEntity(
         delivered = delivered,
         sound = ReminderSound.decode(sound),
         paused = paused,
+        link = link,
     )
 
     companion object {
@@ -59,6 +61,7 @@ data class ReminderEntity(
             delivered = reminder.delivered,
             sound = reminder.sound.encode(),
             paused = reminder.paused,
+            link = reminder.link,
         )
     }
 }
@@ -67,5 +70,12 @@ data class ReminderEntity(
 val MIGRATION_4_5 = object : Migration(4, 5) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE reminders ADD COLUMN paused INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+/** Version 6 lets a reminder open a screen (the Quran reading reminder opens the reader). */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE reminders ADD COLUMN link TEXT")
     }
 }

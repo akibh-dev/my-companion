@@ -92,3 +92,46 @@ so on-device behavior has not been rechecked.
 Final verification after dependency catalog cleanup also passed: `ktlintCheck testDebugUnitTest
 lintDebug assembleDebug :app:assembleDebugAndroidTest --continue --max-workers=3`. The device
 test APK compiles; execution still requires a connected phone or emulator.
+
+## D20 — Voice mode reads every app, with muted apps and block rules (2026-11-20)
+
+Voice mode only read the six chat apps the adapters know. It now reads any app's notifications,
+so bank alerts, email and other messengers are heard too. To stay quiet where it matters, the
+user can mute apps, add block rules (phrase in title, text or either) and choose chat apps only.
+
+How: `MessageListener` still sends chat messages to `MessageConsumer`s (auto-reply is unchanged)
+and now also turns every other app's notification into a `Notice` via `NoticeParser` for
+`NoticeConsumer`s (voice mode). Noise is filtered by flags and categories, not by text, so the
+parser stays generic. Silent notifications are skipped by default using the listener's ranking,
+because reading every low-importance sync or promo line would make the feature unusable.
+
+App names come from `PackageManager` with a launcher `<queries>` entry; hidden apps fall back to
+a guess from the package name. Settings migrate the old per-chat-app switches into muted apps.
+
+Follow-up the same day, after phone use: an in-app "recent notifications" list was tried and removed,
+because Android's notification history already does that job. A WhatsApp message still in the
+shade was read three times, because WhatsApp re-posts its notification (new title, new times) and
+duplicates were matched on the title and kept for only five minutes. `NoticeMemory` now remembers
+each notification's content until it leaves the shade and reads a re-post only when it adds a
+message; notifications already in the shade on reconnect are marked as seen.
+
+
+## D22 — Quran reader: bundled KFGQPC text and exact page fonts, two scripts (2026-11-20)
+
+A Quran reader with Arabic only (no audio or translation): mushaf pages and an ayah list, Madani
+and Indo-Pak scripts, search, go-to, bookmarks, a khatm goal, a reminder and a widget (Plan 21).
+
+The data is published text, not scans or a decompiled app: the KFGQPC Uthmanic Hafs and Hafs
+Nastaleeq texts with their fonts, the QPC V2 per-page fonts (1421H Madinah print, one glyph per
+word, so pages match print exactly), per-word line positions from the quran.com API, and Tanzil's
+Uthmani and simple texts to cross-check every ayah and to search in everyday spelling. The Indo-Pak
+15-line (Hafezi) layout comes from QUL, which needs a sign-in, so it is downloaded by hand.
+
+`tools/quran/build_quran_db.py` builds one read-only SQLite file in Room's own schema (read from
+the exported schema JSON) and opens it with `createFromAsset`; bookmarks and progress live in a
+separate store, so a newer text can replace the file without a migration. The tool refuses to
+build unless counts, the text and the page coverage check out.
+
+The exact page fonts are about 200 MB; the user chose them over a single Hafs font drawn on the same
+lines. They ship brotli-compressed (about a third) and each page's font is unpacked on first open.
+Zoom resizes the text rather than scaling a picture, so pages stay sharp at any size.

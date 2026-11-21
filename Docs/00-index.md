@@ -131,3 +131,5 @@ WhatsApp call recovery: [implementation and validation](15-whatsapp-call-recover
 Performance, last step before release: [baseline profile plan](18-baseline-profile-plan.md).
 
 Code audit and hardening: [findings and fix order](19-audit-and-hardening-plan.md).
+
+Quran reader: [Plan 21](21-quran-plan.md).

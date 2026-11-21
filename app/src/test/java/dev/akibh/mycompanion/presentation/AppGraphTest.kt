@@ -14,6 +14,7 @@ import dev.akibh.mycompanion.core.settings.Feature
 import dev.akibh.mycompanion.core.settings.Settings
 import dev.akibh.mycompanion.featureRoute
 import dev.akibh.mycompanion.messaging.MessageConsumer
+import dev.akibh.mycompanion.messaging.NoticeConsumer
 import dev.akibh.mycompanion.presentation.home.HomeLink
 import javax.inject.Inject
 import org.junit.Before
@@ -40,6 +41,8 @@ class AppGraphTest {
     @Inject lateinit var components: Set<@JvmSuppressWildcards HostedComponent>
 
     @Inject lateinit var consumers: Set<@JvmSuppressWildcards MessageConsumer>
+
+    @Inject lateinit var notices: Set<@JvmSuppressWildcards NoticeConsumer>
 
     private val app = ApplicationProvider.getApplicationContext<Application>()
 
@@ -104,7 +107,8 @@ class AppGraphTest {
     }
 
     @Test
-    fun `auto-reply and voice mode both hear chat messages`() {
-        assertThat(consumers).hasSize(2)
+    fun `auto-reply hears chat messages, voice mode hears every app's notifications`() {
+        assertThat(consumers.map { it::class.simpleName }).containsExactly("AutoReplyConsumer")
+        assertThat(notices.map { it::class.simpleName }).containsExactly("VoiceConsumer")
     }
 }

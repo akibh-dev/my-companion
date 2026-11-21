@@ -1,0 +1,307 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "36b2ab98a8098bbffa7acc18b73a1783",
+    "entities": [
+      {
+        "tableName": "surah",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`number` INTEGER NOT NULL, `name_arabic` TEXT NOT NULL, `name_simple` TEXT NOT NULL, `name_english` TEXT NOT NULL, `meccan` INTEGER NOT NULL, `ayah_count` INTEGER NOT NULL, `first_ayah_id` INTEGER NOT NULL, `first_page` INTEGER NOT NULL, `first_page_indopak` INTEGER, PRIMARY KEY(`number`))",
+        "fields": [
+          {
+            "fieldPath": "number",
+            "columnName": "number",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nameArabic",
+            "columnName": "name_arabic",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nameSimple",
+            "columnName": "name_simple",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nameEnglish",
+            "columnName": "name_english",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "meccan",
+            "columnName": "meccan",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ayahCount",
+            "columnName": "ayah_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "firstAyahId",
+            "columnName": "first_ayah_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "firstPage",
+            "columnName": "first_page",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "firstPageIndopak",
+            "columnName": "first_page_indopak",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "number"
+          ]
+        }
+      },
+      {
+        "tableName": "ayah",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `surah` INTEGER NOT NULL, `number` INTEGER NOT NULL, `text_hafs` TEXT NOT NULL, `text_indopak` TEXT NOT NULL, `text_search` TEXT NOT NULL, `juz` INTEGER NOT NULL, `hizb_quarter` INTEGER NOT NULL, `ruku` INTEGER NOT NULL, `manzil` INTEGER NOT NULL, `sajdah` INTEGER NOT NULL, `page` INTEGER NOT NULL, `page_indopak` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "surah",
+            "columnName": "surah",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "number",
+            "columnName": "number",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "textHafs",
+            "columnName": "text_hafs",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "textIndopak",
+            "columnName": "text_indopak",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "textSearch",
+            "columnName": "text_search",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "juz",
+            "columnName": "juz",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hizbQuarter",
+            "columnName": "hizb_quarter",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ruku",
+            "columnName": "ruku",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "manzil",
+            "columnName": "manzil",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sajdah",
+            "columnName": "sajdah",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "page",
+            "columnName": "page",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pageIndopak",
+            "columnName": "page_indopak",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_ayah_surah_number",
+            "unique": true,
+            "columnNames": [
+              "surah",
+              "number"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_ayah_surah_number` ON `${TABLE_NAME}` (`surah`, `number`)"
+          },
+          {
+            "name": "index_ayah_page",
+            "unique": false,
+            "columnNames": [
+              "page"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ayah_page` ON `${TABLE_NAME}` (`page`)"
+          },
+          {
+            "name": "index_ayah_page_indopak",
+            "unique": false,
+            "columnNames": [
+              "page_indopak"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ayah_page_indopak` ON `${TABLE_NAME}` (`page_indopak`)"
+          },
+          {
+            "name": "index_ayah_juz",
+            "unique": false,
+            "columnNames": [
+              "juz"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ayah_juz` ON `${TABLE_NAME}` (`juz`)"
+          }
+        ]
+      },
+      {
+        "tableName": "ayah_fts",
+        "createSql": "CREATE VIRTUAL TABLE IF NOT EXISTS `${TABLE_NAME}` USING FTS4(`text_search` TEXT NOT NULL, content=`ayah`)",
+        "fields": [
+          {
+            "fieldPath": "textSearch",
+            "columnName": "text_search",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": []
+        },
+        "ftsVersion": "FTS4",
+        "ftsOptions": {
+          "tokenizer": "simple",
+          "tokenizerArgs": [],
+          "contentTable": "ayah",
+          "languageIdColumnName": "",
+          "matchInfo": "FTS4",
+          "notIndexedColumns": [],
+          "prefixSizes": [],
+          "preferredOrder": "ASC"
+        },
+        "contentSyncTriggers": [
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_ayah_fts_BEFORE_UPDATE BEFORE UPDATE ON `ayah` BEGIN DELETE FROM `ayah_fts` WHERE `docid`=OLD.`rowid`; END",
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_ayah_fts_BEFORE_DELETE BEFORE DELETE ON `ayah` BEGIN DELETE FROM `ayah_fts` WHERE `docid`=OLD.`rowid`; END",
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_ayah_fts_AFTER_UPDATE AFTER UPDATE ON `ayah` BEGIN INSERT INTO `ayah_fts`(`docid`, `text_search`) VALUES (NEW.`rowid`, NEW.`text_search`); END",
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_ayah_fts_AFTER_INSERT AFTER INSERT ON `ayah` BEGIN INSERT INTO `ayah_fts`(`docid`, `text_search`) VALUES (NEW.`rowid`, NEW.`text_search`); END"
+        ]
+      },
+      {
+        "tableName": "mushaf_line",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`script` INTEGER NOT NULL, `page` INTEGER NOT NULL, `line` INTEGER NOT NULL, `kind` INTEGER NOT NULL, `text` TEXT NOT NULL, `centered` INTEGER NOT NULL, `surah` INTEGER NOT NULL, `first_ayah_id` INTEGER NOT NULL, `last_ayah_id` INTEGER NOT NULL, PRIMARY KEY(`script`, `page`, `line`))",
+        "fields": [
+          {
+            "fieldPath": "script",
+            "columnName": "script",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "page",
+            "columnName": "page",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "line",
+            "columnName": "line",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "text",
+            "columnName": "text",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "centered",
+            "columnName": "centered",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "surah",
+            "columnName": "surah",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "firstAyahId",
+            "columnName": "first_ayah_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastAyahId",
+            "columnName": "last_ayah_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "script",
+            "page",
+            "line"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '36b2ab98a8098bbffa7acc18b73a1783')"
+    ]
+  }
+}

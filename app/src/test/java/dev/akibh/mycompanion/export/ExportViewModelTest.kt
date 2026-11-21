@@ -19,6 +19,10 @@ import dev.akibh.mycompanion.fakes.FakeContactRepository
 import dev.akibh.mycompanion.fakes.FakePlaylistRepository
 import dev.akibh.mycompanion.fakes.FakeReminderRepository
 import dev.akibh.mycompanion.fakes.MainDispatcherRule
+import dev.akibh.mycompanion.quran.data.BackupBookmark
+import dev.akibh.mycompanion.quran.data.BookmarkRepository
+import dev.akibh.mycompanion.quran.data.QuranBackup
+import dev.akibh.mycompanion.quran.domain.AyahRef
 import dev.akibh.mycompanion.voice.domain.Privacy
 import dev.akibh.mycompanion.voice.domain.VoiceSettings
 import dev.akibh.mycompanion.voice.system.VoiceSettingsStore
@@ -71,7 +75,12 @@ class ExportViewModelTest {
         every { settings } returns flowOf(AutoReplySettings())
         coEvery { update(any()) } just Runs
     }
-    private val backup = SettingsBackup(settingsStore, voiceStore, replyStore)
+    private val restoredQuran = slot<QuranBackup>()
+    private val quranBookmarks = mockk<BookmarkRepository> {
+        coEvery { backup() } returns QuranBackup(listOf(BackupBookmark(AyahRef(2, 255), "Ayat al-Kursi", 1_000)))
+        coEvery { restore(capture(restoredQuran)) } just Runs
+    }
+    private val backup = SettingsBackup(settingsStore, voiceStore, replyStore, quranBookmarks)
     private val exporter = DataExporter(
         contacts = FakeContactRepository(),
         reminders = FakeReminderRepository(),

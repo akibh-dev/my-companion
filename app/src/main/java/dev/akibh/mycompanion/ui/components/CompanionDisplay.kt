@@ -90,6 +90,9 @@ enum class DotSymbol(val path: String, val filled: Boolean = false) {
     NOTE("M9 18V5L20 3V16 M9 18A3 3 0 1 1 6 15A3 3 0 0 1 9 18 M20 16A3 3 0 1 1 17 13A3 3 0 0 1 20 16"),
     PLUS("M12 4V20 M4 12H20"),
 
+    /** An open book: two pages meeting at the spine. */
+    BOOK("M12 6Q8 3 3 4V19Q8 18 12 21Q16 18 21 19V4Q16 3 12 6 M12 6V21"),
+
     /** An eight-tooth cog with a hollow centre (the hole winds the other way, so it stays empty). */
     GEAR(
         "M9.78 4.73L9.98 1.59L14.02 1.59L14.22 4.73L15.57 5.29L17.93 3.21L20.79 6.07L18.71 8.43L19.27 9.78" +
