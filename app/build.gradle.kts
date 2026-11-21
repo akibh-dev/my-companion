@@ -125,6 +125,7 @@ dependencies {
     implementation(project(":feature-context"))
     implementation(project(":feature-autoreply"))
     implementation(project(":feature-voice"))
+    implementation(project(":feature-quran"))
     implementation(libs.navigation.compose)
     implementation(libs.work.runtime)
     implementation(libs.androidx.core.ktx)

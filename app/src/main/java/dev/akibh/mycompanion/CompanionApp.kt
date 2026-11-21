@@ -8,7 +8,9 @@ import dev.akibh.mycompanion.core.log.AppLog
 import dev.akibh.mycompanion.core.settings.SettingsStore
 import dev.akibh.mycompanion.data.notification.AndroidReminderNotifier
 import dev.akibh.mycompanion.di.ApplicationScope
+import dev.akibh.mycompanion.quran.data.QuranSummaries
 import dev.akibh.mycompanion.widget.QuickActionsWidget
+import dev.akibh.mycompanion.widget.QuranWidget
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -21,6 +23,8 @@ class CompanionApp : Application() {
     @Inject lateinit var serviceHost: ServiceHost
 
     @Inject lateinit var log: AppLog
+
+    @Inject lateinit var quranSummaries: QuranSummaries
 
     @Inject
     @ApplicationScope
@@ -35,5 +39,7 @@ class CompanionApp : Application() {
         scope.launch { settingsStore.settings.collect(serviceHost::sync) }
         // Keep the home-screen widget's Pause / Voice buttons in step with the settings.
         scope.launch { settingsStore.settings.collect { QuickActionsWidget.refresh(this@CompanionApp, it) } }
+        // And the Quran widget with the place read and today's khatm pages.
+        scope.launch { quranSummaries.summary.collect { QuranWidget.refresh(this@CompanionApp, it) } }
     }
 }

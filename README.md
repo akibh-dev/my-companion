@@ -11,6 +11,7 @@ Personal Android app (Kotlin) for the Nothing CMF Phone 1 (Android 16), on-devic
 - **Context rules**: sound mode, Do Not Disturb, volume, brightness (and Wi-Fi/Bluetooth prompts) by time, place, charging, Bluetooth, Wi-Fi or app in use; offline map for places
 - **Auto-reply & missed-call SMS**: replies through WhatsApp, Messenger, Signal, Telegram and Messages notifications
 - **Voice mode**: reads notifications from any app aloud on the media volume, with muted apps and block rules (by title or text); Banglish is converted to Bangla offline (lexicon + IndicXlit)
+- **Quran** (Arabic only): Madani pages in the exact King Fahd page fonts and Indo-Pak 15-line pages, an ayah list, search with or without harakat, go to surah/ayah/page/juz, bookmarks, a khatm goal, a daily reminder, a widget and a tile
 - **Keep screen on outdoors**, quick-actions widget, pause tile, data export and settings backup
 
 Built as a **learning vehicle** for Android development. Current version: **0.3.1**.
@@ -68,6 +69,7 @@ Built as a **learning vehicle** for Android development. Current version: **0.3.
 | `feature-context` | Context rules, places, offline map, keep screen on outdoors |
 | `feature-autoreply` | Auto-reply and missed-call SMS |
 | `feature-voice` | Voice mode |
+| `feature-quran` | Quran reader: pages, ayah list, search, bookmarks, khatm goal |
 
 ## 🚀 Getting Started
 
@@ -75,13 +77,16 @@ Built as a **learning vehicle** for Android development. Current version: **0.3.
 - Android Studio (recent stable)
 - JDK 17 or 21 for Gradle (JDK 25 doesn't work with Gradle 8.14); unit tests use JDK 21, which Gradle downloads automatically
 - Android SDK 36 (Android 16)
-- Python 3 (to fetch the transliteration models)
+- Python 3 (to fetch the transliteration models and build the Quran data)
 
 ### Build
 ```bash
 git clone https://github.com/akibh-dev/my-companion.git
 cd my-companion
 python3 tools/banglish/fetch_models.py
+pip install -r tools/quran/requirements.txt
+python3 tools/quran/fetch_sources.py   # Quran text, layouts and fonts (~210 MB, pinned)
+python3 tools/quran/build_quran_db.py  # builds feature-quran/src/main/assets/quran
 ./gradlew assembleDebug
 ```
 
@@ -108,6 +113,7 @@ Or download `my-companion-debug-apk` from the latest green **Android CI** run (A
 - [x] People, Reminders, Player, context rules, auto-reply, voice mode, keep screen on outdoors, widget, export
 - [x] Monochrome dotted UI with smooth navigation (0.3.x)
 - [x] Offline Banglish → Bangla for voice mode
+- [x] Quran reader, Madani and Indo-Pak ([Plan 21](Docs/21-quran-plan.md))
 - [x] About 1,500 unit, Robolectric and Compose UI tests; CI on every push
 - [ ] **Plan 19** hardening: correctness fixes, crash logging, player access control, performance, release signing + R8
 - [ ] **Plan 18** baseline profile

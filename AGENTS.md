@@ -9,6 +9,7 @@ not for the Play Store. It brings back features usually locked behind paid apps:
 - **Context rules**: sound mode, DND, volume, brightness by time, place, charging, Bluetooth, Wi-Fi, app in use
 - **Auto-reply & missed-call SMS**, **voice mode** (reads any app's notifications aloud, with muted apps and block rules; Banglish → Bangla offline),
   keep screen on outdoors, quick-actions widget, pause tile, data export/backup
+- **Quran** (Arabic only): Madani and Indo-Pak pages, ayah list, search, bookmarks, khatm goal, reminder, widget, tile
 
 ## Development Stack
 - **Language**: Kotlin 2.2 (AGP 8.13, Gradle Kotlin DSL + version catalog `gradle/libs.versions.toml`)
@@ -34,6 +35,7 @@ not for the Play Store. It brings back features usually locked behind paid apps:
 | `feature-context` | Context rules, places, offline map, keep-screen-on-outdoors |
 | `feature-autoreply` | Auto-reply and missed-call SMS |
 | `feature-voice` | Voice mode (reads notifications aloud: muted apps, block rules) and its tile |
+| `feature-quran` | Quran reader: bundled read-only `quran.db` (Room `createFromAsset`), page fonts, user DB for bookmarks/progress |
 
 Package root: `dev.akibh.mycompanion` (each module adds its own sub-package, e.g. `.context`, `.voice`).
 
@@ -81,8 +83,11 @@ This project is also a learning vehicle. Document decisions in `Docs/`:
 
 ## Commands
 ```bash
-# Models (once, before the first build)
+# Models and Quran data (once, before the first build; both are git-ignored)
 python3 tools/banglish/fetch_models.py
+pip install -r tools/quran/requirements.txt
+python3 tools/quran/fetch_sources.py && python3 tools/quran/build_quran_db.py
+# Changing the Quran content: raise VERSION in build_quran_db.py and QuranContentDb.VERSION together
 
 # Full check (same as CI); use --max-workers=3 on machines with <= 16 GB RAM
 ./gradlew ktlintFormat ktlintCheck testDebugUnitTest lintDebug assembleDebug --continue --max-workers=3

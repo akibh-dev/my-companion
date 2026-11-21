@@ -19,11 +19,16 @@ import dev.akibh.mycompanion.fakes.FakeContactRepository
 import dev.akibh.mycompanion.fakes.FakePlaylistRepository
 import dev.akibh.mycompanion.fakes.FakeReminderRepository
 import dev.akibh.mycompanion.fakes.video
+import dev.akibh.mycompanion.quran.data.BackupBookmark
+import dev.akibh.mycompanion.quran.data.BookmarkRepository
+import dev.akibh.mycompanion.quran.data.QuranBackup
+import dev.akibh.mycompanion.quran.domain.AyahRef
 import dev.akibh.mycompanion.voice.domain.Privacy
 import dev.akibh.mycompanion.voice.domain.VoiceSettings
 import dev.akibh.mycompanion.voice.system.VoiceSettingsStore
 import io.mockk.Runs
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -72,7 +77,12 @@ class DataExporterTest {
         every { settings } returns flowOf(AutoReplySettings())
         coEvery { update(capture(replyChange)) } just Runs
     }
-    private val backup = SettingsBackup(settingsStore, voiceStore, replyStore)
+    private val restoredQuran = slot<QuranBackup>()
+    private val quranBookmarks = mockk<BookmarkRepository> {
+        coEvery { backup() } returns QuranBackup(listOf(BackupBookmark(AyahRef(2, 255), "Ayat al-Kursi", 1_000)))
+        coEvery { restore(capture(restoredQuran)) } just Runs
+    }
+    private val backup = SettingsBackup(settingsStore, voiceStore, replyStore, quranBookmarks)
 
     @Test
     fun `the zip holds one readable file per area and explains the export`() = runTest {
@@ -146,7 +156,22 @@ class DataExporterTest {
     fun `the settings export is the current settings`() = runTest {
         val exported = ExportJson.parseSettings(backup.exportJson())
 
-        assertThat(exported).isEqualTo(SettingsBundle(app = Settings(enabled = setOf(Feature.CONTEXT_RULES))))
+        assertThat(exported).isEqualTo(
+            SettingsBundle(
+                app = Settings(enabled = setOf(Feature.CONTEXT_RULES)),
+                quran = QuranBackup(listOf(BackupBookmark(AyahRef(2, 255), "Ayat al-Kursi", 1_000))),
+            ),
+        )
+    }
+
+    @Test
+    fun `quran bookmarks restore, and an older backup without them leaves them alone`() = runTest {
+        val saved = QuranBackup(listOf(BackupBookmark(AyahRef(18, 10), "", 5)))
+        backup.restore(backup.parse(ExportJson.settings(SettingsBundle(quran = saved)).toString()))
+        assertThat(restoredQuran.captured).isEqualTo(saved)
+
+        backup.restore(backup.parse(ExportJson.settings(SettingsBundle()).toString()))
+        coVerify(exactly = 1) { quranBookmarks.restore(any()) }
     }
 
     private fun unzip(bytes: ByteArray): Map<String, String> {
