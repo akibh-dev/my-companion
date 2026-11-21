@@ -8,6 +8,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import dev.akibh.mycompanion.data.QuranReminderBridge
 import dev.akibh.mycompanion.data.alarm.AndroidAlarmScheduler
 import dev.akibh.mycompanion.data.local.AppDatabase
 import dev.akibh.mycompanion.data.local.ContactDao
@@ -15,6 +16,7 @@ import dev.akibh.mycompanion.data.local.MIGRATION_1_2
 import dev.akibh.mycompanion.data.local.MIGRATION_2_3
 import dev.akibh.mycompanion.data.local.MIGRATION_3_4
 import dev.akibh.mycompanion.data.local.MIGRATION_4_5
+import dev.akibh.mycompanion.data.local.MIGRATION_5_6
 import dev.akibh.mycompanion.data.local.PlaybackHistoryDao
 import dev.akibh.mycompanion.data.local.PlaylistDao
 import dev.akibh.mycompanion.data.local.ReminderDao
@@ -39,6 +41,7 @@ import dev.akibh.mycompanion.domain.repository.ReminderRepository
 import dev.akibh.mycompanion.player.MediaControllerPlayback
 import dev.akibh.mycompanion.presentation.shortcuts.AndroidHomeShortcuts
 import dev.akibh.mycompanion.presentation.shortcuts.HomeShortcuts
+import dev.akibh.mycompanion.quran.domain.QuranReminder
 import dev.akibh.mycompanion.system.DefaultReminderEvents
 import dev.akibh.mycompanion.system.ReminderEvents
 import java.util.concurrent.TimeUnit
@@ -56,7 +59,7 @@ object DatabaseModule {
     @Singleton
     fun database(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
             .build()
 
     @Provides
@@ -116,6 +119,9 @@ abstract class BindingsModule {
 
     @Binds
     abstract fun alarms(impl: AndroidAlarmScheduler): AlarmScheduler
+
+    @Binds
+    abstract fun quranReminder(impl: QuranReminderBridge): QuranReminder
 
     @Binds
     abstract fun notifier(impl: AndroidReminderNotifier): ReminderNotifier

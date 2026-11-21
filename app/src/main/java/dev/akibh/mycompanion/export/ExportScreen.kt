@@ -119,8 +119,9 @@ private fun Section(title: String, body: String, content: @Composable () -> Unit
 fun restoreSummary(bundle: SettingsBundle): String {
     val features = bundle.app.enabled.sortedBy { it.ordinal }.joinToString(", ") { it.title }.ifEmpty { "none" }
     val paused = if (bundle.app.paused) "Paused." else "Not paused."
+    val bookmarks = bundle.quran?.let { " ${it.bookmarks.size} Quran bookmarks replace yours." }.orEmpty()
     return "The backup's settings will replace your current ones, including voice mode and auto-reply.\n\n" +
-        "Features on: $features. $paused"
+        "Features on: $features. $paused$bookmarks"
 }
 
 private const val ZIP = "application/zip"

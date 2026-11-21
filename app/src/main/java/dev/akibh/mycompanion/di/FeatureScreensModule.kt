@@ -14,6 +14,10 @@ import dev.akibh.mycompanion.context.ui.PlacesRoute
 import dev.akibh.mycompanion.context.ui.RuleEditorRoute
 import dev.akibh.mycompanion.context.ui.RuleHistoryRoute
 import dev.akibh.mycompanion.context.ui.RulesRoute
+import dev.akibh.mycompanion.presentation.home.QURAN_ROUTE
+import dev.akibh.mycompanion.quran.ui.QuranHomeRoute
+import dev.akibh.mycompanion.quran.ui.QuranSearchRoute
+import dev.akibh.mycompanion.quran.ui.ReaderRoute
 import dev.akibh.mycompanion.voice.ui.VoiceRoute
 
 /** The feature modules' screens, placed in the app's navigation. */
@@ -63,6 +67,25 @@ object FeatureScreensModule {
 
     @Provides @IntoSet
     fun voice() = Screen("voice", "Voice mode") { s -> VoiceRoute(s.modifier) }
+
+    // ---- Quran ----
+
+    @Provides @IntoSet
+    fun quran() = Screen(QURAN_ROUTE, "Quran") { s ->
+        QuranHomeRoute(
+            onRead = { id -> s.navigate("quran/read/$id") },
+            onSearch = { s.navigate("quran/search") },
+            modifier = s.modifier,
+        )
+    }
+
+    @Provides @IntoSet
+    fun quranReader() = Screen("quran/read/{ayah}", "Quran") { s -> ReaderRoute(s.modifier) }
+
+    @Provides @IntoSet
+    fun quranSearch() = Screen("quran/search", "Search the Quran") { s ->
+        QuranSearchRoute(onRead = { id -> s.navigate("quran/read/$id") }, modifier = s.modifier)
+    }
 
     /** Route argument for "create a new one" (not a number, so the editor starts empty). */
     private const val NEW = "new"

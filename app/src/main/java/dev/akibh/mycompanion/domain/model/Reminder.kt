@@ -21,6 +21,8 @@ data class Reminder(
     val sound: ReminderSound = ReminderSound.Default,
     /** Paused reminders stay in the list but have no alarm until resumed. */
     val paused: Boolean = false,
+    /** Screen route the notification opens (e.g. "quran/read/0"); null opens the Reminders tab. */
+    val link: String? = null,
 ) {
     /** Notification ids are ints; reminder ids stay far below Int.MAX_VALUE on a personal device. */
     val notificationId: Int get() = id.toInt()

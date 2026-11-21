@@ -13,6 +13,7 @@ import dev.akibh.mycompanion.data.local.MIGRATION_1_2
 import dev.akibh.mycompanion.data.local.MIGRATION_2_3
 import dev.akibh.mycompanion.data.local.MIGRATION_3_4
 import dev.akibh.mycompanion.data.local.MIGRATION_4_5
+import dev.akibh.mycompanion.data.local.MIGRATION_5_6
 import dev.akibh.mycompanion.domain.model.ReminderSound
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
@@ -80,12 +81,14 @@ class Plan13MigrationTest {
                 }).build()
             FrameworkSQLiteOpenHelperFactory().create(config).use { it.writableDatabase }
             val db = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build()
+                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build()
             try {
                 assertThat(db.contactDao().get(1)?.name).isEqualTo("Fixture")
                 val reminder = db.reminderDao().get(1)!!.toDomain()
                 assertThat(reminder.title).isEqualTo("Keep reminder")
                 assertThat(reminder.repeat.encode()).isEqualTo("EVERY:60")
+                // Version 6: old reminders open the Reminders tab (no link).
+                assertThat(reminder.link).isNull()
                 assertThat(
                     reminder.sound
                 ).isEqualTo(if (version == 3) ReminderSound.Silent else ReminderSound.Default)

@@ -84,8 +84,13 @@ class MainActivity : ComponentActivity() {
                         requestedRoute = null
                         // The graph is set while CompanionRoot composes; skip routes it doesn't have
                         // (e.g. a feature screen that isn't part of this build).
-                        val known = runCatching { navController.graph.findNode(route) != null }.getOrDefault(false)
-                        if (known) navController.navigate(route) { launchSingleTop = true }
+                        val node = runCatching { navController.graph.findNode(route) }.getOrNull()
+                            ?: return@LaunchedEffect
+                        // Already on that screen with other arguments (the Quran widget opening another
+                        // page): single-top would keep the old screen, so replace it.
+                        val current = navController.currentBackStackEntry?.destination?.id
+                        if (current == node.id) navController.popBackStack()
+                        navController.navigate(route) { launchSingleTop = true }
                     }
                 }
             }

@@ -56,6 +56,16 @@ class AndroidReminderNotifierTest {
     }
 
     @Test
+    fun `a reminder with a link opens that screen, like the Quran reminder opens the reader`() {
+        notifier.show(reminder.copy(link = "quran/read/0"), contact = null)
+
+        val tap = shadowOf(shadowOf(manager).getNotification(12)!!.contentIntent).savedIntent
+        assertThat(tap.component!!.className).isEqualTo(MainActivity::class.java.name)
+        assertThat(tap.getStringExtra(MainActivity.EXTRA_ROUTE)).isEqualTo("quran/read/0")
+        assertThat(tap.hasExtra(MainActivity.EXTRA_TAB)).isFalse()
+    }
+
+    @Test
     fun `snooze and done talk to the reminder receiver`() {
         notifier.show(reminder, contact = null)
         val (snooze, done) = shadowOf(manager).getNotification(12)!!.actions
