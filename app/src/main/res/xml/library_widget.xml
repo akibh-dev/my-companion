@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Continue-reading widget for the book library. The app redraws it when reading moves on. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/widget_library_description"
+    android:initialLayout="@layout/widget_library"
+    android:minWidth="180dp"
+    android:minHeight="50dp"
+    android:minResizeWidth="140dp"
+    android:minResizeHeight="50dp"
+    android:previewLayout="@layout/widget_library"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="3"
+    android:targetCellHeight="1"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen" />

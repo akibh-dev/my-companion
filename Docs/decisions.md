@@ -149,3 +149,17 @@ build unless counts, the text and the page coverage check out.
 The exact page fonts are about 200 MB; the user chose them over a single Hafs font drawn on the same
 lines. They ship brotli-compressed (about a third) and each page's font is unpacked on first open.
 Zoom resizes the text rather than scaling a picture, so pages stay sharp at any size.
+
+## D23 — Book library: linked files, Readium engine (2026-11-21)
+
+A library for PDF, EPUB and CBZ files downloaded with the browser (Plan 22). Books are **linked**,
+not copied: the app keeps a persistable read grant on each picked file, so no storage is doubled.
+When a file is deleted or moved, the book shows "Missing" and "Locate file" links it again,
+keeping the place, bookmarks and reading time. Grants don't survive a reinstall, so restored
+backups ask to locate each file.
+
+Readium Kotlin Toolkit (BSD-3-Clause) opens all three formats and gives every position as a
+`Locator`, the standard way to remember the place in a book. Version 3.1.2 is the newest built
+for Kotlin 2.2 and Media3 1.8; it needs core library desugaring in `app`. Its PDF page fragment is
+off by one page, so `FixedPdfium.kt` (adapted from Readium, BSD notice kept) replaces it until the
+app moves to Readium 3.4. PDFium's native library adds about 5 MB to the APK, plus Readium's code.

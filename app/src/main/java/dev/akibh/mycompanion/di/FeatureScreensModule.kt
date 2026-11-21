@@ -14,6 +14,9 @@ import dev.akibh.mycompanion.context.ui.PlacesRoute
 import dev.akibh.mycompanion.context.ui.RuleEditorRoute
 import dev.akibh.mycompanion.context.ui.RuleHistoryRoute
 import dev.akibh.mycompanion.context.ui.RulesRoute
+import dev.akibh.mycompanion.library.ui.LibraryRoute
+import dev.akibh.mycompanion.library.ui.ReadingStatsRoute
+import dev.akibh.mycompanion.presentation.home.LIBRARY_ROUTE
 import dev.akibh.mycompanion.presentation.home.QURAN_ROUTE
 import dev.akibh.mycompanion.quran.ui.QuranHomeRoute
 import dev.akibh.mycompanion.quran.ui.QuranSearchRoute
@@ -86,6 +89,16 @@ object FeatureScreensModule {
     fun quranSearch() = Screen("quran/search", "Search the Quran") { s ->
         QuranSearchRoute(onRead = { id -> s.navigate("quran/read/$id") }, modifier = s.modifier)
     }
+
+    // ---- Library ----
+
+    @Provides @IntoSet
+    fun library() = Screen(LIBRARY_ROUTE, "Library") { s ->
+        LibraryRoute(onStats = { s.navigate("library/stats") }, modifier = s.modifier)
+    }
+
+    @Provides @IntoSet
+    fun libraryStats() = Screen("library/stats", "Reading") { s -> ReadingStatsRoute(s.modifier) }
 
     /** Route argument for "create a new one" (not a number, so the editor starts empty). */
     private const val NEW = "new"

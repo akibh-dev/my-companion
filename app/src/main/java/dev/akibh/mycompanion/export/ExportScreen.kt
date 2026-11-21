@@ -120,8 +120,11 @@ fun restoreSummary(bundle: SettingsBundle): String {
     val features = bundle.app.enabled.sortedBy { it.ordinal }.joinToString(", ") { it.title }.ifEmpty { "none" }
     val paused = if (bundle.app.paused) "Paused." else "Not paused."
     val bookmarks = bundle.quran?.let { " ${it.bookmarks.size} Quran bookmarks replace yours." }.orEmpty()
+    val books = bundle.library?.let {
+        " ${it.bookCount} library books replace yours; locate each file again to read it."
+    }.orEmpty()
     return "The backup's settings will replace your current ones, including voice mode and auto-reply.\n\n" +
-        "Features on: $features. $paused$bookmarks"
+        "Features on: $features. $paused$bookmarks$books"
 }
 
 private const val ZIP = "application/zip"

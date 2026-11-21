@@ -28,6 +28,7 @@ include(":app")
 
 // Plan §2: fragile parts in their own modules; the AI models sit behind ai-api.
 include(":core")
+include(":design")
 include(":ai-api")
 include(":ai-models")
 include(":adapters-messaging")
@@ -35,3 +36,4 @@ include(":feature-context")
 include(":feature-autoreply")
 include(":feature-voice")
 include(":feature-quran")
+include(":feature-library")

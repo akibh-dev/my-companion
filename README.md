@@ -12,6 +12,7 @@ Personal Android app (Kotlin) for the Nothing CMF Phone 1 (Android 16), on-devic
 - **Auto-reply & missed-call SMS**: replies through WhatsApp, Messenger, Signal, Telegram and Messages notifications
 - **Voice mode**: reads notifications from any app aloud on the media volume, with muted apps and block rules (by title or text); Banglish is converted to Bangla offline (lexicon + IndicXlit)
 - **Quran** (Arabic only): Madani pages in the exact King Fahd page fonts and Indo-Pak 15-line pages, an ayah list, search with or without harakat, go to surah/ayah/page/juz, bookmarks, a khatm goal, a daily reminder, a widget and a tile
+- **Library**: add PDF, EPUB and CBZ files from Downloads (linked, not copied), read them with your place remembered, search inside, bookmarks, shelves and tags, reading time with a daily goal and streak, a widget
 - **Keep screen on outdoors**, quick-actions widget, pause tile, data export and settings backup
 
 Built as a **learning vehicle** for Android development. Current version: **0.3.1**.
@@ -70,6 +71,8 @@ Built as a **learning vehicle** for Android development. Current version: **0.3.
 | `feature-autoreply` | Auto-reply and missed-call SMS |
 | `feature-voice` | Voice mode |
 | `feature-quran` | Quran reader: pages, ayah list, search, bookmarks, khatm goal |
+| `feature-library` | Book library: linked PDF/EPUB/CBZ files, reader, shelves, reading stats |
+| `design` | The monochrome dotted theme, `DotText` and `DotIcon`, shared by all screens |
 
 ## 🚀 Getting Started
 
@@ -114,6 +117,7 @@ Or download `my-companion-debug-apk` from the latest green **Android CI** run (A
 - [x] Monochrome dotted UI with smooth navigation (0.3.x)
 - [x] Offline Banglish → Bangla for voice mode
 - [x] Quran reader, Madani and Indo-Pak ([Plan 21](Docs/21-quran-plan.md))
+- [x] Book library: PDF, EPUB and CBZ ([Plan 22](Docs/22-library-plan.md))
 - [x] About 1,500 unit, Robolectric and Compose UI tests; CI on every push
 - [ ] **Plan 19** hardening: correctness fixes, crash logging, player access control, performance, release signing + R8
 - [ ] **Plan 18** baseline profile

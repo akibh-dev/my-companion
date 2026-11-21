@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- The book reader. It handles rotation and dark mode itself: Readium's page views can't be
+             rebuilt by Android, and re-opening the book would lose the place on the page. -->
+        <activity
+            android:name=".reader.BookReaderActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|uiMode|density|fontScale"
+            android:exported="false"
+            android:theme="@style/Theme.Library.Reader" />
+    </application>
+</manifest>

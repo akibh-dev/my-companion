@@ -8,7 +8,9 @@ import dev.akibh.mycompanion.core.log.AppLog
 import dev.akibh.mycompanion.core.settings.SettingsStore
 import dev.akibh.mycompanion.data.notification.AndroidReminderNotifier
 import dev.akibh.mycompanion.di.ApplicationScope
+import dev.akibh.mycompanion.library.data.LibrarySummaries
 import dev.akibh.mycompanion.quran.data.QuranSummaries
+import dev.akibh.mycompanion.widget.LibraryWidget
 import dev.akibh.mycompanion.widget.QuickActionsWidget
 import dev.akibh.mycompanion.widget.QuranWidget
 import javax.inject.Inject
@@ -26,6 +28,8 @@ class CompanionApp : Application() {
 
     @Inject lateinit var quranSummaries: QuranSummaries
 
+    @Inject lateinit var librarySummaries: LibrarySummaries
+
     @Inject
     @ApplicationScope
     lateinit var scope: CoroutineScope
@@ -41,5 +45,7 @@ class CompanionApp : Application() {
         scope.launch { settingsStore.settings.collect { QuickActionsWidget.refresh(this@CompanionApp, it) } }
         // And the Quran widget with the place read and today's khatm pages.
         scope.launch { quranSummaries.summary.collect { QuranWidget.refresh(this@CompanionApp, it) } }
+        // And the library widget with the book being read and today's minutes.
+        scope.launch { librarySummaries.summary.collect { LibraryWidget.refresh(this@CompanionApp, it) } }
     }
 }

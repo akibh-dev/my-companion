@@ -19,6 +19,8 @@ import dev.akibh.mycompanion.fakes.FakeContactRepository
 import dev.akibh.mycompanion.fakes.FakePlaylistRepository
 import dev.akibh.mycompanion.fakes.FakeReminderRepository
 import dev.akibh.mycompanion.fakes.MainDispatcherRule
+import dev.akibh.mycompanion.library.data.LibraryBackup
+import dev.akibh.mycompanion.library.data.LibraryBackups
 import dev.akibh.mycompanion.quran.data.BackupBookmark
 import dev.akibh.mycompanion.quran.data.BookmarkRepository
 import dev.akibh.mycompanion.quran.data.QuranBackup
@@ -39,6 +41,8 @@ import java.util.zip.ZipInputStream
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import org.json.JSONArray
+import org.json.JSONObject
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -80,7 +84,13 @@ class ExportViewModelTest {
         coEvery { backup() } returns QuranBackup(listOf(BackupBookmark(AyahRef(2, 255), "Ayat al-Kursi", 1_000)))
         coEvery { restore(capture(restoredQuran)) } just Runs
     }
-    private val backup = SettingsBackup(settingsStore, voiceStore, replyStore, quranBookmarks)
+    private val savedLibrary = LibraryBackup(JSONObject().put("version", 1).put("books", JSONArray()))
+    private val restoredLibrary = slot<LibraryBackup>()
+    private val library = mockk<LibraryBackups> {
+        coEvery { backup() } returns savedLibrary
+        coEvery { restore(capture(restoredLibrary)) } just Runs
+    }
+    private val backup = SettingsBackup(settingsStore, voiceStore, replyStore, quranBookmarks, library)
     private val exporter = DataExporter(
         contacts = FakeContactRepository(),
         reminders = FakeReminderRepository(),

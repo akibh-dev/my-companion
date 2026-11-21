@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Library widget icon: books on a shelf in the widget text colour (RemoteViews can't tint with app:tint). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="@color/widget_text"
+        android:strokeWidth="1.6"
+        android:strokeLineJoin="round"
+        android:pathData="M3,4H7V20H3Z M9,6H13V20H9Z M15,5.5L18.6,4.6L21.6,19.2L18,20.1Z M2,22H22" />
+</vector>

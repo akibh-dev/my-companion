@@ -118,6 +118,7 @@ fun HomeScreen(
             onToggle = { onFeatureChange(feature, it) },
         )
     } + HomeTileSpec(title = "Quran", symbol = DotSymbol.BOOK, onOpen = { onOpen(QURAN_ROUTE) }) +
+        HomeTileSpec(title = "Library", symbol = DotSymbol.SHELF, onOpen = { onOpen(LIBRARY_ROUTE) }) +
         HomeTileSpec(title = "AI engines", symbol = DotSymbol.SPARK, onOpen = { onOpen(AI_ROUTE) })
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val hour by produceState(initialValue = LocalTime.now().hour, key1 = lifecycle) {
@@ -422,6 +423,7 @@ private fun Warning(title: String, detail: String, onFix: () -> Unit) {
 const val PERMISSIONS_ROUTE = "permissions"
 const val AI_ROUTE = "ai"
 const val QURAN_ROUTE = "quran"
+const val LIBRARY_ROUTE = "library"
 
 /** Dot columns "My Companion" spans in the dot alphabet (glyph widths plus one-dot gaps). */
 private const val WORDMARK_COLUMNS = 66f

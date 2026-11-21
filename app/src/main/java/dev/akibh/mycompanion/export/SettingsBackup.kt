@@ -4,26 +4,30 @@ import dev.akibh.mycompanion.autoreply.data.AutoReplySettingsStore
 import dev.akibh.mycompanion.core.settings.AiEngine
 import dev.akibh.mycompanion.core.settings.Feature
 import dev.akibh.mycompanion.core.settings.SettingsStore
+import dev.akibh.mycompanion.library.data.LibraryBackups
 import dev.akibh.mycompanion.quran.data.BookmarkRepository
 import dev.akibh.mycompanion.voice.system.VoiceSettingsStore
 import javax.inject.Inject
 import kotlinx.coroutines.flow.first
 
 /**
- * Settings backup (Phase 5): the app's switches, voice mode and auto-reply settings and the Quran
- * bookmarks as one JSON file. Restoring overwrites them all (the screen asks first).
+ * Settings backup (Phase 5): the app's switches, voice mode and auto-reply settings, the Quran
+ * bookmarks and the book library (without the files themselves) as one JSON file. Restoring
+ * overwrites them all (the screen asks first).
  */
 class SettingsBackup @Inject constructor(
     private val settingsStore: SettingsStore,
     private val voiceSettings: VoiceSettingsStore,
     private val autoReplySettings: AutoReplySettingsStore,
     private val quranBookmarks: BookmarkRepository,
+    private val library: LibraryBackups,
 ) {
     suspend fun current(): SettingsBundle = SettingsBundle(
         app = settingsStore.settings.first(),
         voice = voiceSettings.settings.first(),
         autoReply = autoReplySettings.settings.first(),
         quran = quranBookmarks.backup(),
+        library = library.backup(),
     )
 
     suspend fun exportJson(): String = ExportJson.settings(current()).toString(INDENT)
@@ -39,6 +43,7 @@ class SettingsBackup @Inject constructor(
         voiceSettings.update { bundle.voice }
         autoReplySettings.update { bundle.autoReply }
         bundle.quran?.let { quranBookmarks.restore(it) }
+        bundle.library?.let { library.restore(it) }
     }
 
     private companion object {

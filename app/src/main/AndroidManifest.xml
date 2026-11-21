@@ -153,6 +153,19 @@
                 android:resource="@xml/quran_widget" />
         </receiver>
 
+        <!-- Home-screen widget: continue the book being read. -->
+        <receiver
+            android:name=".widget.LibraryWidget"
+            android:exported="false"
+            android:label="@string/widget_library_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/library_widget" />
+        </receiver>
+
         <!-- Home-screen widget: pause/resume and voice mode. -->
         <receiver
             android:name=".widget.QuickActionsWidget"

@@ -10,6 +10,7 @@ not for the Play Store. It brings back features usually locked behind paid apps:
 - **Auto-reply & missed-call SMS**, **voice mode** (reads any app's notifications aloud, with muted apps and block rules; Banglish → Bangla offline),
   keep screen on outdoors, quick-actions widget, pause tile, data export/backup
 - **Quran** (Arabic only): Madani and Indo-Pak pages, ayah list, search, bookmarks, khatm goal, reminder, widget, tile
+- **Library**: linked PDF/EPUB/CBZ books (Readium), place remembered, search, bookmarks, shelves/tags, reading stats, widget
 
 ## Development Stack
 - **Language**: Kotlin 2.2 (AGP 8.13, Gradle Kotlin DSL + version catalog `gradle/libs.versions.toml`)
@@ -37,6 +38,8 @@ not for the Play Store. It brings back features usually locked behind paid apps:
 | `feature-autoreply` | Auto-reply and missed-call SMS |
 | `feature-voice` | Voice mode (reads notifications aloud: muted apps, block rules) and its tile |
 | `feature-quran` | Quran reader: bundled read-only `quran.db` (Room `createFromAsset`), page fonts, user DB for bookmarks/progress |
+| `feature-library` | Book library: Readium reader activity (EPUB/PDF/CBZ), linked files, `library.db`, stats; `FixedPdfium.kt` works around a Readium 3.1.2 PDF page bug |
+| `design` | Theme, Inter, `DotText`/`DotIcon` (packages `ui.theme`, `ui.components`), shared by app and features |
 
 Package root: `dev.akibh.mycompanion` (each module adds its own sub-package, e.g. `.context`, `.voice`).
 
