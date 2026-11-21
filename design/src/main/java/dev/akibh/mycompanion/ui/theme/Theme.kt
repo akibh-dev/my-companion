@@ -13,7 +13,7 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import dev.akibh.mycompanion.R
+import dev.akibh.mycompanion.design.R
 
 val CompanionRed = Color(0xFFFF3B3B)
 

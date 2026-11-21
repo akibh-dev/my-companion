@@ -39,6 +39,20 @@ jobs:
       - name: Fetch pinned offline transliteration models
         run: python3 tools/banglish/fetch_models.py
 
+      # Quran text, page data and fonts (~210 MB of sources); pinned by tools/quran/sources.lock.json.
+      - name: Cache Quran sources
+        uses: actions/cache@v4
+        with:
+          path: tools/quran/sources
+          key: quran-sources-${{ hashFiles('tools/quran/sources.lock.json') }}
+
+      - name: Fetch and build the Quran assets
+        run: |
+          pip install -r tools/quran/requirements.txt
+          python3 tools/quran/fetch_sources.py
+          python3 tools/quran/build_quran_db.py
+          python3 -m pytest -q tools/quran
+
       - name: Format check, unit + Robolectric tests, lint, build APK
         id: gradle
         shell: bash

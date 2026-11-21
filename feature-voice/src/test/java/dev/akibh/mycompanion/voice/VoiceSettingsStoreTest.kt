@@ -6,7 +6,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
 import dev.akibh.mycompanion.messaging.ChatApp
 import dev.akibh.mycompanion.messaging.IncomingMessage
+import dev.akibh.mycompanion.messaging.toNotice
+import dev.akibh.mycompanion.voice.domain.AppScope
 import dev.akibh.mycompanion.voice.domain.AudioSituation
+import dev.akibh.mycompanion.voice.domain.BlockRule
+import dev.akibh.mycompanion.voice.domain.BlockWhere
 import dev.akibh.mycompanion.voice.domain.Privacy
 import dev.akibh.mycompanion.voice.domain.VoiceDecider
 import dev.akibh.mycompanion.voice.domain.VoiceSettings
@@ -30,7 +34,10 @@ class VoiceSettingsStoreTest {
         store.update {
             it.copy(
                 privacy = Privacy.ALWAYS,
-                apps = setOf(ChatApp.TELEGRAM),
+                appScope = AppScope.CHAT_APPS,
+                mutedApps = setOf(ChatApp.TELEGRAM.packageName),
+                blockRules = listOf(BlockRule("Promo | sale", BlockWhere.TITLE), BlockRule("otp")),
+                readSilent = true,
                 senders = listOf("Rahim", "Mum"),
                 maxChars = 80,
                 speechRate = 1.25f,
@@ -38,7 +45,16 @@ class VoiceSettingsStoreTest {
         }
 
         assertThat(store.settings.first()).isEqualTo(
-            VoiceSettings(Privacy.ALWAYS, setOf(ChatApp.TELEGRAM), listOf("Mum", "Rahim"), 80, 1.25f),
+            VoiceSettings(
+                privacy = Privacy.ALWAYS,
+                appScope = AppScope.CHAT_APPS,
+                mutedApps = setOf(ChatApp.TELEGRAM.packageName),
+                blockRules = listOf(BlockRule("otp"), BlockRule("Promo | sale", BlockWhere.TITLE)),
+                readSilent = true,
+                senders = listOf("Mum", "Rahim"),
+                maxChars = 80,
+                speechRate = 1.25f,
+            ),
         )
 
         store.update { it.copy(senders = emptyList()) }
@@ -47,7 +63,7 @@ class VoiceSettingsStoreTest {
     }
 
     private val message =
-        IncomingMessage("k", ChatApp.SIGNAL, "Nadia", "hi", "Nadia", false, 0, true)
+        IncomingMessage("k", ChatApp.SIGNAL, "Nadia", "hi", "Nadia", false, 0, true).toNotice()
 
     @Test
     fun `a group named after the sender reads like a one-to-one chat`() {

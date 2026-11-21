@@ -1,11 +1,13 @@
 package dev.akibh.mycompanion.messaging
 
 import android.app.Notification
+import android.app.NotificationManager
 import android.app.RemoteInput
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.service.notification.NotificationListenerService
+import android.service.notification.NotificationListenerService.Ranking
 import android.service.notification.StatusBarNotification
 import androidx.core.app.NotificationCompat
 import dagger.hilt.android.AndroidEntryPoint
@@ -23,7 +25,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** Started by the system once Notification access is on; passes chat messages to the consumers. */
+/**
+ * Started by the system once Notification access is on. Chat messages go to the [MessageConsumer]s
+ * (auto-reply); every app's readable notification goes to the [NoticeConsumer]s (voice mode).
+ */
 @AndroidEntryPoint
 class MessageListener : NotificationListenerService() {
 
@@ -37,10 +42,20 @@ class MessageListener : NotificationListenerService() {
 
     @Inject lateinit var observers: Set<@JvmSuppressWildcards NotificationObserver>
 
+    @Inject lateinit var notices: Set<@JvmSuppressWildcards NoticeConsumer>
+
+    @Inject lateinit var apps: InstalledApps
+
+    @Inject lateinit var memory: NoticeMemory
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onListenerConnected() {
         samples.setConnected(true)
+        // Already in the shade before (a restart, access switched on): seen, so not read again.
+        runCatching { activeNotifications.orEmpty() }.getOrDefault(emptyArray())
+            .filter { it.packageName != packageName }
+            .forEach { runCatching { memory.remember(NotificationExtractor.parts(it)) } }
         log.i(TAG, "connected")
     }
 
@@ -50,42 +65,47 @@ class MessageListener : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
-        observers.forEach { observer ->
-            scope.launch {
-                try {
-                    observer.onPosted(sbn)
-                } catch (
-                    cancelled: kotlinx.coroutines.CancellationException
-                ) {
-                    throw cancelled
-                } catch (failure: Exception) {
-                    log.e(TAG, "observer failed", failure)
-                }
+        observers.forEach { observer -> deliver("observer") { observer.onPosted(sbn) } }
+        if (sbn.packageName == packageName) return
+        val parts = NotificationExtractor.parts(sbn, isSilent = isSilent(sbn))
+        val app = ChatApp.of(sbn.packageName)
+        val message = app?.let { ChatAdapter.ALL.getValue(it).parse(parts) }
+        if (app != null) {
+            samples.record(parts, app, parsed = message != null)
+            if (message != null) {
+                NotificationExtractor.replyAction(sbn.notification)?.let { replies.remember(sbn.key, it) }
+                consumers.forEach { consumer -> deliver("consumer") { consumer.onMessage(message) } }
             }
         }
-        val app = ChatApp.of(sbn.packageName) ?: return
-        val parts = NotificationExtractor.parts(sbn)
-        val message = ChatAdapter.ALL.getValue(app).parse(parts)
-        samples.record(parts, app, parsed = message != null)
-        message ?: return
-        NotificationExtractor.replyAction(sbn.notification)?.let { replies.remember(sbn.key, it) }
-        consumers.forEach { consumer ->
-            scope.launch {
-                try {
-                    consumer.onMessage(message)
-                } catch (
-                    cancelled: kotlinx.coroutines.CancellationException
-                ) {
-                    throw cancelled
-                } catch (failure: Exception) {
-                    log.e(TAG, "consumer failed", failure)
-                }
+        if (notices.isEmpty()) return
+        // Re-posts of a notification still in the shade are read only when they add something.
+        if (!memory.isNew(parts)) return
+        val notice = NoticeParser.parse(parts, apps.label(sbn.packageName), message) ?: return
+        notices.forEach { consumer -> deliver("notice consumer") { consumer.onNotice(notice) } }
+    }
+
+    private fun deliver(what: String, block: suspend () -> Unit) {
+        scope.launch {
+            try {
+                block()
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                log.e(TAG, "$what failed", failure)
             }
         }
     }
 
+    /** Low and min importance post without sound; the ranking knows the user's per-channel choice. */
+    private fun isSilent(sbn: StatusBarNotification): Boolean {
+        val ranking = Ranking()
+        val found = runCatching { currentRanking?.getRanking(sbn.key, ranking) == true }.getOrDefault(false)
+        return found && ranking.importance < NotificationManager.IMPORTANCE_DEFAULT
+    }
+
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         replies.forget(sbn.key)
+        memory.forget(sbn.key)
     }
 
     override fun onDestroy() {
@@ -104,7 +124,7 @@ interface NotificationObserver {
 }
 
 object NotificationExtractor {
-    fun parts(sbn: StatusBarNotification): NotificationParts {
+    fun parts(sbn: StatusBarNotification, isSilent: Boolean = false): NotificationParts {
         val notification = sbn.notification
         val extras = notification.extras
         val style = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(notification)
@@ -122,6 +142,11 @@ object NotificationExtractor {
             isOngoing = notification.flags and Notification.FLAG_ONGOING_EVENT != 0,
             category = notification.category,
             hasReplyAction = replyAction(notification) != null,
+            bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString(),
+            isForegroundService = notification.flags and Notification.FLAG_FOREGROUND_SERVICE != 0,
+            isMedia = extras.containsKey(Notification.EXTRA_MEDIA_SESSION) ||
+                extras.getString(Notification.EXTRA_TEMPLATE).orEmpty().endsWith("MediaStyle"),
+            isSilent = isSilent,
         )
     }
 

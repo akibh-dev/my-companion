@@ -16,6 +16,8 @@ import dev.akibh.mycompanion.core.settings.Settings
 import dev.akibh.mycompanion.core.settings.SettingsStore
 import dev.akibh.mycompanion.messaging.ChatApp
 import dev.akibh.mycompanion.messaging.IncomingMessage
+import dev.akibh.mycompanion.messaging.Notice
+import dev.akibh.mycompanion.messaging.toNotice
 import dev.akibh.mycompanion.voice.domain.Privacy
 import dev.akibh.mycompanion.voice.domain.VoiceSettings
 import dev.akibh.mycompanion.voice.system.AudioWatcher
@@ -54,7 +56,7 @@ class VoiceModeTest {
     private val queue = VoiceQueue()
 
     private val message =
-        IncomingMessage("k", ChatApp.WHATSAPP, "Nadia", "On my way", "Nadia", false, 0, true)
+        IncomingMessage("k", ChatApp.WHATSAPP, "Nadia", "On my way", "Nadia", false, 0, true).toNotice()
 
     private fun output(type: Int): AudioDeviceInfo = AudioDeviceInfoBuilder.newBuilder().setType(type).build()
 
@@ -70,7 +72,7 @@ class VoiceModeTest {
     }
 
     private fun drain(): List<String> =
-        generateSequence { queue.items.tryReceive().getOrNull() }.map { it.message.text }.toList()
+        generateSequence { queue.items.tryReceive().getOrNull() }.map { it.notice.text }.toList()
 
     // ---- Audio situation ----
 
@@ -140,7 +142,7 @@ class VoiceModeTest {
 
     @Test
     fun `readable messages are queued as sentences`() = runTest {
-        consumer.onMessage(message)
+        consumer.onNotice(message)
 
         assertThat(drain()).containsExactly("On my way")
     }
@@ -148,9 +150,9 @@ class VoiceModeTest {
     @Test
     fun `nothing is queued while voice mode is off or paused`() = runTest {
         settings.value = Settings(paused = true, enabled = setOf(Feature.VOICE_MODE))
-        consumer.onMessage(message)
+        consumer.onNotice(message)
         settings.value = Settings()
-        consumer.onMessage(message)
+        consumer.onNotice(message)
 
         assertThat(drain()).isEmpty()
     }
@@ -159,11 +161,11 @@ class VoiceModeTest {
     fun `privacy keeps messages quiet without headphones`() = runTest {
         voiceSettings.value = VoiceSettings(privacy = Privacy.HEADPHONES_OR_CAR)
         routes(listOf(output(AudioDeviceInfo.TYPE_BUILTIN_SPEAKER)))
-        consumer.onMessage(message)
+        consumer.onNotice(message)
         assertThat(drain()).isEmpty()
 
         routes(listOf(output(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP)))
-        consumer.onMessage(message)
+        consumer.onNotice(message)
         assertThat(drain()).hasSize(1)
     }
 
@@ -171,7 +173,7 @@ class VoiceModeTest {
     fun `the length limit applies to what's read`() = runTest {
         voiceSettings.value = VoiceSettings(privacy = Privacy.ALWAYS, maxChars = 10)
 
-        consumer.onMessage(message.copy(text = "one two three four five six"))
+        consumer.onNotice(message.copy(text = "one two three four five six"))
 
         assertThat(drain().single()).isEqualTo("one two three four five six")
     }
@@ -226,7 +228,15 @@ class VoiceModeTest {
         component.start(scope)
 
         queue.add(message.copy(text = "see you at 5"))
-        queue.add(message.copy(sender = "Rahim", app = ChatApp.SIGNAL, text = "ami bhalo achi"))
+        queue.add(
+            message.copy(
+                sender = "Rahim",
+                conversation = "Rahim",
+                packageName = ChatApp.SIGNAL.packageName,
+                appName = "Signal",
+                text = "ami bhalo achi",
+            ),
+        )
         runCurrent()
 
         assertThat(synth.spoken.map { it.first })
@@ -366,4 +376,52 @@ class VoiceModeTest {
         assertThat(synth.spoken.map { it.first }).containsExactly("Nadia on WhatsApp says: On my way")
         second.cancel()
     }
+    // ---- Any app ----
+
+    private val gmail = Notice(
+        key = "g",
+        packageName = "com.google.android.gm",
+        appName = "Gmail",
+        title = "Bank",
+        text = "Your statement is ready",
+    )
+
+    @Test
+    fun `notifications from any app are read with the app name and title`() = runTest {
+        val scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + Job())
+        component.start(scope)
+
+        consumer.onNotice(gmail)
+        runCurrent()
+
+        assertThat(synth.spoken.map { it.first }).containsExactly("Gmail: Bank. Your statement is ready")
+        scope.cancel()
+    }
+
+    @Test
+    fun `muted apps, block rules, silent notifications and chat-only scope are skipped`() =
+        runTest {
+            voiceSettings.value = VoiceSettings(privacy = Privacy.ALWAYS, mutedApps = setOf(gmail.packageName))
+            consumer.onNotice(gmail)
+            voiceSettings.value = VoiceSettings(
+                privacy = Privacy.ALWAYS,
+                blockRules = listOf(
+                    dev.akibh.mycompanion.voice.domain.BlockRule(
+                        "BANK",
+                        dev.akibh.mycompanion.voice.domain.BlockWhere.TITLE,
+                    ),
+                ),
+            )
+            consumer.onNotice(gmail.copy(key = "g2"))
+            voiceSettings.value = VoiceSettings(privacy = Privacy.ALWAYS)
+            consumer.onNotice(gmail.copy(key = "g3", isSilent = true))
+            voiceSettings.value = VoiceSettings(
+                privacy = Privacy.ALWAYS,
+                appScope = dev.akibh.mycompanion.voice.domain.AppScope.CHAT_APPS,
+            )
+            consumer.onNotice(gmail.copy(key = "g4"))
+            consumer.onNotice(message)
+
+            assertThat(drain()).containsExactly("On my way")
+        }
 }

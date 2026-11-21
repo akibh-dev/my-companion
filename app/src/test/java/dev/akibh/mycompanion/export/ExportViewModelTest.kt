@@ -19,6 +19,12 @@ import dev.akibh.mycompanion.fakes.FakeContactRepository
 import dev.akibh.mycompanion.fakes.FakePlaylistRepository
 import dev.akibh.mycompanion.fakes.FakeReminderRepository
 import dev.akibh.mycompanion.fakes.MainDispatcherRule
+import dev.akibh.mycompanion.library.data.LibraryBackup
+import dev.akibh.mycompanion.library.data.LibraryBackups
+import dev.akibh.mycompanion.quran.data.BackupBookmark
+import dev.akibh.mycompanion.quran.data.BookmarkRepository
+import dev.akibh.mycompanion.quran.data.QuranBackup
+import dev.akibh.mycompanion.quran.domain.AyahRef
 import dev.akibh.mycompanion.voice.domain.Privacy
 import dev.akibh.mycompanion.voice.domain.VoiceSettings
 import dev.akibh.mycompanion.voice.system.VoiceSettingsStore
@@ -35,6 +41,8 @@ import java.util.zip.ZipInputStream
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import org.json.JSONArray
+import org.json.JSONObject
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -71,7 +79,18 @@ class ExportViewModelTest {
         every { settings } returns flowOf(AutoReplySettings())
         coEvery { update(any()) } just Runs
     }
-    private val backup = SettingsBackup(settingsStore, voiceStore, replyStore)
+    private val restoredQuran = slot<QuranBackup>()
+    private val quranBookmarks = mockk<BookmarkRepository> {
+        coEvery { backup() } returns QuranBackup(listOf(BackupBookmark(AyahRef(2, 255), "Ayat al-Kursi", 1_000)))
+        coEvery { restore(capture(restoredQuran)) } just Runs
+    }
+    private val savedLibrary = LibraryBackup(JSONObject().put("version", 1).put("books", JSONArray()))
+    private val restoredLibrary = slot<LibraryBackup>()
+    private val library = mockk<LibraryBackups> {
+        coEvery { backup() } returns savedLibrary
+        coEvery { restore(capture(restoredLibrary)) } just Runs
+    }
+    private val backup = SettingsBackup(settingsStore, voiceStore, replyStore, quranBookmarks, library)
     private val exporter = DataExporter(
         contacts = FakeContactRepository(),
         reminders = FakeReminderRepository(),

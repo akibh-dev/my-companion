@@ -16,7 +16,14 @@ import dev.akibh.mycompanion.domain.model.Contact
 import dev.akibh.mycompanion.domain.model.Playlist
 import dev.akibh.mycompanion.domain.model.PlaylistItem
 import dev.akibh.mycompanion.domain.model.Reminder
+import dev.akibh.mycompanion.library.data.LibraryBackup
 import dev.akibh.mycompanion.messaging.ChatApp
+import dev.akibh.mycompanion.quran.data.BackupBookmark
+import dev.akibh.mycompanion.quran.data.QuranBackup
+import dev.akibh.mycompanion.quran.domain.AyahRef
+import dev.akibh.mycompanion.voice.domain.AppScope
+import dev.akibh.mycompanion.voice.domain.BlockRule
+import dev.akibh.mycompanion.voice.domain.BlockWhere
 import dev.akibh.mycompanion.voice.domain.Privacy
 import dev.akibh.mycompanion.voice.domain.ReadingMode
 import dev.akibh.mycompanion.voice.domain.VoiceSettings
@@ -30,6 +37,10 @@ data class SettingsBundle(
     val app: Settings = Settings(),
     val voice: VoiceSettings = VoiceSettings(),
     val autoReply: AutoReplySettings = AutoReplySettings(),
+    /** Quran bookmarks; null in backups made before the Quran reader, so restoring them keeps the current ones. */
+    val quran: QuranBackup? = null,
+    /** The book library (books, places read, shelves, stats); null in backups made before it. */
+    val library: LibraryBackup? = null,
 )
 
 /**
@@ -136,7 +147,15 @@ object ExportJson {
                 "voice",
                 JSONObject()
                     .put("privacy", voice.privacy.name)
-                    .put("apps", names(voice.apps))
+                    .put("appScope", voice.appScope.name)
+                    .put("mutedApps", JSONArray(voice.mutedApps.sorted()))
+                    .put(
+                        "blockRules",
+                        JSONArray(
+                            voice.blockRules.map { JSONObject().put("phrase", it.phrase).put("where", it.where.name) },
+                        ),
+                    )
+                    .put("readSilent", voice.readSilent)
                     .put("senders", JSONArray(voice.senders))
                     .put("maxChars", voice.maxChars)
                     .put("speechRate", voice.speechRate.toDouble())
@@ -158,6 +177,35 @@ object ExportJson {
                     .put("missedCallText", reply.missedCallText)
                     .put("missedCallContactsOnly", reply.missedCallContactsOnly),
             )
+            .apply { bundle.quran?.let { put("quran", quran(it)) } }
+            .apply { bundle.library?.let { put("library", it.json) } }
+    }
+
+    private fun quran(backup: QuranBackup): JSONObject = JSONObject().put(
+        "bookmarks",
+        JSONArray(
+            backup.bookmarks.map {
+                JSONObject()
+                    .put("surah", it.ref.surah)
+                    .put("ayah", it.ref.ayah)
+                    .put("note", it.note)
+                    .put("createdEpochMillis", it.createdAt)
+            },
+        ),
+    )
+
+    private fun parseQuran(json: JSONObject?): QuranBackup? {
+        json ?: return null
+        val list = json.optJSONArray("bookmarks") ?: JSONArray()
+        return QuranBackup(
+            (0 until list.length()).mapNotNull { i ->
+                val item = list.optJSONObject(i) ?: return@mapNotNull null
+                val surah = item.optInt("surah")
+                val ayah = item.optInt("ayah")
+                if (surah <= 0 || ayah <= 0) return@mapNotNull null
+                BackupBookmark(AyahRef(surah, ayah), item.optString("note"), item.optLong("createdEpochMillis"))
+            },
+        )
     }
 
     /**
@@ -184,7 +232,15 @@ object ExportJson {
             ),
             voice = VoiceSettings(
                 privacy = enumOf<Privacy>(voiceJson.optString("privacy")) ?: voiceDefaults.privacy,
-                apps = enums<ChatApp>(voiceJson.optJSONArray("apps")) ?: voiceDefaults.apps,
+                appScope = enumOf<AppScope>(voiceJson.optString("appScope")) ?: voiceDefaults.appScope,
+                mutedApps = strings(voiceJson.optJSONArray("mutedApps"))?.toSet()
+                    // Version 1 backups listed the chat apps that were read; the others become muted.
+                    ?: enums<ChatApp>(voiceJson.optJSONArray("apps"))?.let { on ->
+                        (ChatApp.entries - on).map { it.packageName }.toSet()
+                    }
+                    ?: voiceDefaults.mutedApps,
+                blockRules = blockRules(voiceJson.optJSONArray("blockRules")),
+                readSilent = voiceJson.optBoolean("readSilent", voiceDefaults.readSilent),
                 senders = strings(voiceJson.optJSONArray("senders")) ?: voiceDefaults.senders,
                 maxChars = voiceJson.optInt("maxChars", voiceDefaults.maxChars),
                 speechRate = voiceJson.optDouble("speechRate", voiceDefaults.speechRate.toDouble()).toFloat(),
@@ -207,8 +263,19 @@ object ExportJson {
                     replyDefaults.missedCallContactsOnly,
                 ),
             ),
+            quran = parseQuran(root.optJSONObject("quran")),
+            library = root.optJSONObject("library")?.let(::LibraryBackup),
         )
     }
+
+    private fun blockRules(array: JSONArray?): List<BlockRule> = array?.let {
+        (0 until it.length()).mapNotNull { i ->
+            val rule = it.optJSONObject(i) ?: return@mapNotNull null
+            val phrase = rule.optString("phrase").trim()
+            val where = enumOf<BlockWhere>(rule.optString("where")) ?: BlockWhere.ANYWHERE
+            if (phrase.isEmpty()) null else BlockRule(phrase, where)
+        }
+    }.orEmpty()
 
     private fun localTime(millis: Long, zone: ZoneId): String =
         Instant.ofEpochMilli(millis).atZone(zone).toLocalDateTime().toString()

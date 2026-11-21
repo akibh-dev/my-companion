@@ -19,13 +19,15 @@ abstract class MessagingModule {
 
     @Multibinds abstract fun observers(): Set<NotificationObserver>
 
+    @Multibinds abstract fun notices(): Set<NoticeConsumer>
+
     companion object {
         /** Sideloaded apps must first "Allow restricted settings" (Android 13+, plan §3). */
         @Provides @IntoSet
         fun notificationAccess() = Requirement(
             id = "notification_access",
             title = "Notification access",
-            why = "Auto-reply and voice mode read chat notifications and reply through them.",
+            why = "Auto-reply reads chat notifications and replies through them; voice mode reads notifications aloud.",
             feature = Feature.AUTO_REPLY,
             isGranted = { NotificationManagerCompat.getEnabledListenerPackages(it).contains(it.packageName) },
             settingsIntent = { Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS) },

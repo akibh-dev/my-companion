@@ -8,4 +8,12 @@
     <string name="widget_resume">Resume</string>
     <string name="widget_voice_on">Voice on</string>
     <string name="widget_voice_off">Voice off</string>
+
+    <!-- Quran widget and tile -->
+    <string name="widget_quran_label">Quran</string>
+    <string name="widget_quran_description">Continue reading where you stopped, with today\'s khatm pages</string>
+    <string name="widget_quran_start">Start reading</string>
+    <string name="widget_library_label">Library</string>
+    <string name="widget_library_description">Continue the book you\'re reading, with today\'s reading minutes</string>
+    <string name="widget_library_start">Add a book to start</string>
 </resources>
