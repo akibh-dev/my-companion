@@ -17,6 +17,9 @@ import dev.akibh.mycompanion.domain.model.Playlist
 import dev.akibh.mycompanion.domain.model.PlaylistItem
 import dev.akibh.mycompanion.domain.model.Reminder
 import dev.akibh.mycompanion.messaging.ChatApp
+import dev.akibh.mycompanion.voice.domain.AppScope
+import dev.akibh.mycompanion.voice.domain.BlockRule
+import dev.akibh.mycompanion.voice.domain.BlockWhere
 import dev.akibh.mycompanion.voice.domain.Privacy
 import dev.akibh.mycompanion.voice.domain.ReadingMode
 import dev.akibh.mycompanion.voice.domain.VoiceSettings
@@ -136,7 +139,15 @@ object ExportJson {
                 "voice",
                 JSONObject()
                     .put("privacy", voice.privacy.name)
-                    .put("apps", names(voice.apps))
+                    .put("appScope", voice.appScope.name)
+                    .put("mutedApps", JSONArray(voice.mutedApps.sorted()))
+                    .put(
+                        "blockRules",
+                        JSONArray(
+                            voice.blockRules.map { JSONObject().put("phrase", it.phrase).put("where", it.where.name) },
+                        ),
+                    )
+                    .put("readSilent", voice.readSilent)
                     .put("senders", JSONArray(voice.senders))
                     .put("maxChars", voice.maxChars)
                     .put("speechRate", voice.speechRate.toDouble())
@@ -184,7 +195,15 @@ object ExportJson {
             ),
             voice = VoiceSettings(
                 privacy = enumOf<Privacy>(voiceJson.optString("privacy")) ?: voiceDefaults.privacy,
-                apps = enums<ChatApp>(voiceJson.optJSONArray("apps")) ?: voiceDefaults.apps,
+                appScope = enumOf<AppScope>(voiceJson.optString("appScope")) ?: voiceDefaults.appScope,
+                mutedApps = strings(voiceJson.optJSONArray("mutedApps"))?.toSet()
+                    // Version 1 backups listed the chat apps that were read; the others become muted.
+                    ?: enums<ChatApp>(voiceJson.optJSONArray("apps"))?.let { on ->
+                        (ChatApp.entries - on).map { it.packageName }.toSet()
+                    }
+                    ?: voiceDefaults.mutedApps,
+                blockRules = blockRules(voiceJson.optJSONArray("blockRules")),
+                readSilent = voiceJson.optBoolean("readSilent", voiceDefaults.readSilent),
                 senders = strings(voiceJson.optJSONArray("senders")) ?: voiceDefaults.senders,
                 maxChars = voiceJson.optInt("maxChars", voiceDefaults.maxChars),
                 speechRate = voiceJson.optDouble("speechRate", voiceDefaults.speechRate.toDouble()).toFloat(),
@@ -209,6 +228,15 @@ object ExportJson {
             ),
         )
     }
+
+    private fun blockRules(array: JSONArray?): List<BlockRule> = array?.let {
+        (0 until it.length()).mapNotNull { i ->
+            val rule = it.optJSONObject(i) ?: return@mapNotNull null
+            val phrase = rule.optString("phrase").trim()
+            val where = enumOf<BlockWhere>(rule.optString("where")) ?: BlockWhere.ANYWHERE
+            if (phrase.isEmpty()) null else BlockRule(phrase, where)
+        }
+    }.orEmpty()
 
     private fun localTime(millis: Long, zone: ZoneId): String =
         Instant.ofEpochMilli(millis).atZone(zone).toLocalDateTime().toString()

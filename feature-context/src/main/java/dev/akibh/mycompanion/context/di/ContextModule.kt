@@ -29,6 +29,8 @@ import dev.akibh.mycompanion.context.device.StoredTakenOver
 import dev.akibh.mycompanion.context.device.TakenOverStorage
 import dev.akibh.mycompanion.context.device.UsageStatsForegroundApps
 import dev.akibh.mycompanion.context.device.hasUsageAccess
+import dev.akibh.mycompanion.context.maps.GooglePlaceSearch
+import dev.akibh.mycompanion.context.maps.PlaceSearch
 import dev.akibh.mycompanion.core.host.HostedComponent
 import dev.akibh.mycompanion.core.permissions.Requirement
 import dev.akibh.mycompanion.core.settings.Feature
@@ -44,6 +46,8 @@ abstract class ContextModule {
     @Binds abstract fun takenOver(impl: StoredTakenOver): TakenOverStorage
 
     @Binds abstract fun foregroundApps(impl: UsageStatsForegroundApps): ForegroundApps
+
+    @Binds abstract fun placeSearch(impl: GooglePlaceSearch): PlaceSearch
 
     @Binds @IntoSet
     abstract fun rulesComponent(impl: RulesComponent): HostedComponent

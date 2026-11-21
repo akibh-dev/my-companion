@@ -47,9 +47,60 @@ data class NotificationParts(
     val category: String?,
     val hasReplyAction: Boolean,
     val messageTimes: List<Long> = emptyList(),
+    /** The expanded text (BigTextStyle), when the app gives one. */
+    val bigText: String? = null,
+    val isForegroundService: Boolean = false,
+    /** Media controls (MediaStyle): a player, not something to read. */
+    val isMedia: Boolean = false,
+    /** Posted without sound or vibration (importance low or min), from the listener's ranking. */
+    val isSilent: Boolean = false,
 )
 
 /** Something that wants every incoming chat message (auto-reply, voice mode). */
 interface MessageConsumer {
     suspend fun onMessage(message: IncomingMessage)
+}
+
+/**
+ * Any app's notification, reduced to what voice mode reads. Chat messages carry [sender]; other
+ * notifications have a [title] (the bold header line) and [text].
+ */
+data class Notice(
+    val key: String,
+    val packageName: String,
+    val appName: String,
+    val title: String,
+    val text: String,
+    val sender: String? = null,
+    val conversation: String? = null,
+    val isGroup: Boolean = false,
+    val postedAt: Long = 0,
+    val isSilent: Boolean = false,
+) {
+    val isChatApp: Boolean get() = ChatApp.of(packageName) != null
+
+    /**
+     * Same for a quick re-post of the same message; the title is left out because chat apps change it
+     * (message counts) on re-posts. [NoticeMemory] handles re-posts while the notification stays.
+     */
+    val fingerprint: String get() = listOf(packageName, key, sender ?: title, text, postedAt).joinToString("|")
+}
+
+/** A chat message as a [Notice], for voice mode and tests. */
+fun IncomingMessage.toNotice(title: String? = null, isSilent: Boolean = false): Notice = Notice(
+    key = key,
+    packageName = app.packageName,
+    appName = app.title,
+    title = title ?: conversation,
+    text = text,
+    sender = sender,
+    conversation = conversation,
+    isGroup = isGroup,
+    postedAt = postedAt,
+    isSilent = isSilent,
+)
+
+/** Something that wants every readable notification from any app (voice mode). */
+interface NoticeConsumer {
+    suspend fun onNotice(notice: Notice)
 }

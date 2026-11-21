@@ -6,7 +6,7 @@ The automatic reader now uses the pretrained offline IndicXlit ONNX model throug
 
 1. Run `python3 tools/banglish/fetch_models.py` before building. Graphs are pinned by upstream revision and SHA-256, packaged in the APK, and excluded from Git. `preBuild` verifies them; CI downloads and verifies them before building.
 2. Install an offline Bengali voice using the phone's Text-to-speech settings. Grant My Companion notification access.
-3. Enable Read messages aloud from the Voice screen. This also enables the transliteration engine. Choose apps, optionally save a sender allowlist, and select the output privacy policy.
+3. Enable Read notifications aloud from the Voice screen. This also enables the transliteration engine. Choose All apps or Chat apps only, mute apps, add block rules, optionally save a sender allowlist, and select the output privacy policy.
 4. Use Read a test message. It follows the same privacy, pause, call, speed, serializer and audio-focus checks as automatic reading. Stop reading clears pending messages and cancels current preparation/playback.
 
 ## Text routing and limits
@@ -17,6 +17,24 @@ The automatic reader now uses the pretrained offline IndicXlit ONNX model throug
 - Failed or timed-out conversion preserves the original text. Conversion has a 30-second budget per message. Length is bounded to 600 input characters and each model word to 48 letters. Speed is persisted and applied between 0.5 and 2.
 - English pronunciation has the selected Bengali voice's accent. The small evaluation fixture measures text conversion only and is not a broad accuracy or intelligibility guarantee; see the model research and prototype reports.
 - Character-by-character spelling of unknown words, numbers and punctuation is deferred by request.
+
+## Which notifications are read
+
+Since decision D20, voice mode reads every app's notifications, not only the six chat apps:
+
+- **Chat apps** (WhatsApp, WhatsApp Business, Messenger, Signal, Telegram, Messages) still go through their adapters: "Nadia in Office on WhatsApp says: …".
+- **Any other app** with MessagingStyle (Discord, Instagram, Slack, …) reads the same way, using the newest message's sender.
+- **Everything else** reads as "App: Title. Text", using the expanded (big) text when there is one and leaving out a title that is just the app name.
+- **Never read:** group summaries, ongoing and foreground-service notifications, media players, and the categories call, alarm, progress, transport, service, system, status, stopwatch, navigation and location sharing. My Companion's own notifications are not read either.
+- **Silent notifications** (importance low or min, from the listener's ranking, so the user's per-channel choice counts) are skipped unless "Also read silent notifications" is on.
+
+Filters, in this order: muted apps, chat-apps-only scope, silent, the sender list (messages only), block rules, then privacy. A **block rule** is a phrase (any case) matched against the title (title, sender or group), the text, or either. Skips are logged with their reason (never the text) in Home → Log. There is no in-app list of recent notifications: Android's own notification history (Settings → Notifications) already keeps one.
+
+**Read once.** Chat apps re-post the same notification many times while it stays in the shade (a new title such as a message count, a refreshed list, coming back online), and its timestamps change on those re-posts. `NoticeMemory` remembers what each notification already said, its messages (sender and text) or its title and text, until it is removed from the shade, and a re-post is read only when it adds a message or changes. Notifications already in the shade when the listener connects (after a restart) are marked as seen, not read.
+
+Old settings migrate: chat apps that were switched off become muted apps. Old settings backups do the same.
+
+If the background service isn't running when a notification arrives, the log says "the background service isn't running".
 
 ## Lifecycle and privacy decisions
 
@@ -38,6 +56,12 @@ Local validation on 2026-11-06:
 - Earlier prototype/notification tests ran on the CMF Phone 1 as recorded in the results report. The final production-controller phone test is compiled but has not been executed: the phone is currently disconnected from ADB and wireless discovery. That final replay and physical headphone-disconnect test remain device verification work.
 
 Audition fixtures and research previews are diagnostic tools; they do not select a new default voice.
+
+### Phone check, 2026-11-20 (CMF Phone 1, speaker, media volume step 3)
+
+Run by hand with `cmd notification post` and `tools/device-test/ui.py`. Pass: skipped without headphones; read through the speaker; big text; same content re-posted is read once; MessagingStyle from a non-chat app; a player notification is never read; mute and unmute an app; a Title block rule blocks "PROMO" in the title but not "promo" in the text; chat apps only; nothing is read while paused from Home; Read a test message. Not covered: a real WhatsApp/Messenger message and a headphones connect/disconnect.
+
+Audio (`VoiceAudioDiagnosticsDeviceTest`): speech plays as USAGE_MEDIA/SPEECH on the same deep-buffer speaker output and volume as music (-37 dB at that step), and its average output power matched a music track at the same step (about -46 dB). The Bengali voice renders the English announcement in full (7.1 s), at about -19 dBFS RMS with peaks near -2 dBFS. In a listening A/B the shipped +6 dB booster matched YouTube Shorts loudness, and without it the voice was too quiet, so the booster stays. The earlier "sounds off" report came from the older install, which still played on the assistant volume (USAGE_ASSISTANT). Run it with `am instrument` (see the test's KDoc), not `connectedAndroidTest`, which uninstalls the app and deletes its data.
 
 ## References
 
