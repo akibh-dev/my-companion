@@ -70,7 +70,7 @@ run on a real phone yet**, and the new Phase 4–5 code hasn't run on the emulat
    (`Docs/decisions.md` lists them): notification access + restricted settings (S8), reply
    actions per chat app (S4, use Home → Auto-reply → Chat app self-test), volume-key capture
    (S2), keep-screen-on overlay (S3), places detection (S7), background survival with the
-   heartbeat log (S6, Home → Log), offline map file (S10, `Docs/offline-map.md`). Write each result
+   heartbeat log (S6, Home → Log), offline map file (S10, since replaced by Google Maps, D21). Write each result
    in `Docs/decisions.md`.
    Also re-run the typing replay from device finding #5 (expect 0 of 5 corrupted now).
    Run `SpeedChecksTest` on the phone and compare with the emulator numbers (decision D18).

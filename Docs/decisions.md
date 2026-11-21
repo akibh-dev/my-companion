@@ -8,7 +8,7 @@ IDs D1–D7 come from the implementation plan; later entries are numbered on.
 | D1 | Place detection method | Spike S7 | **Open** — built on `LocationManager` proximity alerts (no Google location) behind `PlaceDetector`, so S7 can swap it | 2026-10-25 |
 | D2 | Wi-Fi control method | Spike S1 | **Open** — apps can't switch Wi-Fi since Android 10; the rule action shows the system Wi-Fi panel as a notification to tap (the plan's fallback) | 2026-10-25 |
 | D3 | Vault database | Start of Phase 3 | **Decided: encrypted fields + in-memory search index** after unlock (no SQLCipher dependency; 500 items fit in memory) | 2026-10-25 |
-| D4 | Offline map picker | You | Decided: MapLibre + local PMTiles file, plus current location and typed coordinates | plan |
+| D4 | Offline map picker | You | Replaced by D21 (Google Maps). Was: MapLibre + local PMTiles file, plus current location and typed coordinates | plan |
 | D5 | Speech-to-text and summarizer models | B5, B6 | Open — **dummy models** in `:ai-models` until the local models pass their tests | 2026-10-25 |
 | D6 | Banglish approach | B2, B3 | Proposed: rules first, small model second. Dummy word list for now | plan |
 | D7 | Bangla voice | B4 | Open — the phone's text-to-speech is used | plan |
@@ -56,7 +56,7 @@ Reference: [AndroidX ExifInterface](https://developer.android.com/reference/andr
 | S7 Places and Wi-Fi range | not run |
 | S8 Sideload permissions | phone not run. **Emulator, Android 17, `adb install`:** the quick capture accessibility service and Usage access switched on without "Allow restricted settings" (2026-10-25). Check an APK installed from a file on the phone |
 | S9 Starting services from the background | not run |
-| S10 Offline map | not run (map screen is ready; needs the PMTiles file) |
+| S10 Offline map | dropped: the offline map was replaced by Google Maps (D21) |
 
 ## D19 — Remove Secure Vault and Quick Capture (2026-10-30)
 
@@ -114,4 +114,19 @@ shade was read three times, because WhatsApp re-posts its notification (new titl
 duplicates were matched on the title and kept for only five minutes. `NoticeMemory` now remembers
 each notification's content until it leaves the shade and reads a re-post only when it adds a
 message; notifications already in the shade on reconnect are marked as seen.
+
+## D21 — Google Maps and place search replace the offline map (2026-11-20)
+
+The offline MapLibre map needed a PMTiles file built on a computer and pushed to the phone. That
+was never done, so the place editor showed no map, and finding a place meant typing coordinates.
+The place editor now uses an embedded Google Map (maps-compose) with search by name (Places API
+(New) autocomplete). MapLibre, its style code and `Docs/offline-map.md` are removed. The APK is
+smaller, and picking a place is far easier.
+
+Trade-off: picking a place now needs the internet and a Google Cloud API key with billing.
+Detection stays on the phone, so rules still work offline. Without a key the app still builds,
+and places can still be added from the current location or typed coordinates. The in-app map has
+no charge. Search is metered per session (suggestions plus the chosen place share one session
+token) and personal use stays inside the free allowance. The key lives in `local.properties`
+(git-ignored) and reaches the manifest through a placeholder. Setup: `Docs/20-google-maps.md`.
 

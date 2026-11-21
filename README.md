@@ -8,7 +8,7 @@ Personal Android app (Kotlin) for the Nothing CMF Phone 1 (Android 16), on-devic
 - **People**: WhatsApp voice/video call handoffs with permission recovery and chat fallback, home-screen call shortcuts
 - **Reminders**: custom notifications now, later or at a time; repeat daily, on chosen days, monthly or every few hours; custom sounds; snooze / done / call buttons; per-reminder pause; survive reboot
 - **Player**: YouTube background audio with notification and lock-screen controls, queue, playlists and listening history
-- **Context rules**: sound mode, Do Not Disturb, volume, brightness (and Wi-Fi/Bluetooth prompts) by time, place, charging, Bluetooth, Wi-Fi or app in use; offline map for places
+- **Context rules**: sound mode, Do Not Disturb, volume, brightness (and Wi-Fi/Bluetooth prompts) by time, place, charging, Bluetooth, Wi-Fi or app in use; places picked on a Google Map or found by search ([setup](Docs/20-google-maps.md))
 - **Auto-reply & missed-call SMS**: replies through WhatsApp, Messenger, Signal, Telegram and Messages notifications
 - **Voice mode**: reads notifications from any app aloud on the media volume, with muted apps and block rules (by title or text); Banglish is converted to Bangla offline (lexicon + IndicXlit)
 - **Keep screen on outdoors**, quick-actions widget, pause tile, data export and settings backup
@@ -65,7 +65,7 @@ Built as a **learning vehicle** for Android development. Current version: **0.3.
 | `core` | Log, heartbeat, settings, foreground `ServiceHost`, reconciler |
 | `ai-api` / `ai-models` | AI interfaces; IndicXlit transliterator, Banglish lexicon, placeholder models |
 | `adapters-messaging` | Notification listener and chat-app adapters |
-| `feature-context` | Context rules, places, offline map, keep screen on outdoors |
+| `feature-context` | Context rules, places (Google Maps + search), keep screen on outdoors |
 | `feature-autoreply` | Auto-reply and missed-call SMS |
 | `feature-voice` | Voice mode |
 
