@@ -1,25 +1,34 @@
 package dev.akibh.mycompanion.library
 
 import com.google.common.truth.Truth.assertThat
-import dev.akibh.mycompanion.library.reader.scrubSpeed
-import dev.akibh.mycompanion.library.reader.scrubSpeedLabel
+import dev.akibh.mycompanion.library.reader.bell
+import dev.akibh.mycompanion.library.reader.bellLift
+import dev.akibh.mycompanion.library.reader.fineAcceleration
 import org.junit.Test
 
 class ScrubSpeedTest {
 
     @Test
-    fun slidingUpSlowsTheScrubberInSteps() {
-        assertThat(scrubSpeed(0f)).isEqualTo(1f)
-        assertThat(scrubSpeed(-30f)).isEqualTo(1f) // below the strip is full speed too
-        assertThat(scrubSpeed(60f)).isEqualTo(.5f)
-        assertThat(scrubSpeed(150f)).isEqualTo(.25f)
-        assertThat(scrubSpeed(400f)).isEqualTo(.1f)
+    fun theCurveRisesOnlyOnceTheFingerIsPushedUp() {
+        assertThat(bellLift(0f)).isEqualTo(0f)
+        assertThat(bellLift(-40f)).isEqualTo(0f) // below the strip stays flat
+        assertThat(bellLift(48f)).isWithin(.01f).of(.5f)
+        assertThat(bellLift(300f)).isEqualTo(1f)
     }
 
     @Test
-    fun onlySlowSpeedsAreAnnounced() {
-        assertThat(scrubSpeedLabel(1f)).isNull()
-        assertThat(scrubSpeedLabel(.25f)).isEqualTo("Quarter speed")
-        assertThat(scrubSpeedLabel(.1f)).isEqualTo("Fine")
+    fun theBellPeaksUnderTheFingerAndFadesToTheSides() {
+        assertThat(bell(0f, 26f)).isEqualTo(1f)
+        assertThat(bell(26f, 26f)).isLessThan(.7f)
+        assertThat(bell(-26f, 26f)).isEqualTo(bell(26f, 26f))
+        assertThat(bell(120f, 26f)).isLessThan(.01f)
+    }
+
+    @Test
+    fun slowMovesArePageByPageAndFlicksAccelerate() {
+        assertThat(fineAcceleration(.05f)).isEqualTo(1f)
+        assertThat(fineAcceleration(-.05f)).isEqualTo(1f)
+        assertThat(fineAcceleration(.6f)).isGreaterThan(2f)
+        assertThat(fineAcceleration(10f)).isEqualTo(8f)
     }
 }

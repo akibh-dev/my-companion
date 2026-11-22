@@ -51,6 +51,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
@@ -335,7 +336,6 @@ private fun ProgressBar(
     onSeek: (Int) -> Unit,
 ) {
     var dragging by remember { mutableStateOf<Float?>(null) }
-    var speed by remember { mutableStateOf(1f) }
     var askPage by remember { mutableStateOf(false) }
     val total = positions.size
     val position = locator?.locations?.position
@@ -343,61 +343,51 @@ private fun ProgressBar(
     fun indexOf(value: Float) = (value * (total - 1)).roundToInt()
     val shownPosition = dragging?.let { indexOf(it) + 1 } ?: position
 
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        // Where the dot would land, above the finger's way, while the strip is held.
-        AnimatedVisibility(dragging != null, enter = fadeIn(), exit = fadeOut()) {
-            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.inverseSurface) {
-                Text(
-                    listOfNotNull("$unit${shownPosition ?: ""} / $total", scrubSpeedLabel(speed)).joinToString("  ·  "),
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-            }
+    // Not a clipping Surface: the scrubber's curve rises out of the pill while it's pushed up.
+    Row(
+        Modifier
+            .shadow(4.dp, CircleShape, clip = false)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape)
+            .heightIn(min = 56.dp)
+            .padding(start = 8.dp, end = 20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            if (total > 0 && shownPosition != null) "$unit$shownPosition / $total" else " ",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            modifier = Modifier
+                .clip(CircleShape)
+                .clickable(enabled = total > 1, onClickLabel = "Go to page") { askPage = true }
+                .heightIn(min = 48.dp)
+                .wrapContentHeight()
+                .padding(horizontal = 12.dp),
+        )
+        if (total > 1) {
+            Scrubber(
+                value = dragging ?: ((position ?: 1) - 1f) / (total - 1),
+                steps = total - 1,
+                expanded = dragging != null,
+                label = "$unit${shownPosition ?: ""}",
+                onGrab = {},
+                onChange = { dragging = it },
+                onRelease = {
+                    dragging?.let { onSeek(indexOf(it)) }
+                    dragging = null
+                },
+                modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
+            )
+        } else {
+            Spacer(Modifier.weight(1f))
         }
-        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh, shadowElevation = 4.dp) {
-            Row(
-                Modifier.heightIn(min = 56.dp).padding(start = 8.dp, end = 20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    if (total > 0 && shownPosition != null) "$unit$shownPosition / $total" else " ",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .clickable(enabled = total > 1, onClickLabel = "Go to page") { askPage = true }
-                        .heightIn(min = 48.dp)
-                        .wrapContentHeight()
-                        .padding(horizontal = 12.dp),
-                )
-                if (total > 1) {
-                    Scrubber(
-                        value = dragging ?: ((position ?: 1) - 1f) / (total - 1),
-                        expanded = dragging != null,
-                        onGrab = { speed = 1f },
-                        onChange = { value, newSpeed ->
-                            dragging = value
-                            speed = newSpeed
-                        },
-                        onRelease = {
-                            dragging?.let { onSeek(indexOf(it)) }
-                            dragging = null
-                        },
-                        modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
-                    )
-                } else {
-                    Spacer(Modifier.weight(1f))
-                }
-                Box(Modifier.size(6.dp).clip(CircleShape).background(CompanionRed))
-                Text(
-                    "${((dragging?.toDouble() ?: progress) * 100).roundToInt()}%",
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.padding(start = 8.dp),
-                    maxLines = 1,
-                )
-            }
-        }
+        Box(Modifier.size(6.dp).clip(CircleShape).background(CompanionRed))
+        Text(
+            "${((dragging?.toDouble() ?: progress) * 100).roundToInt()}%",
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.padding(start = 8.dp),
+            maxLines = 1,
+        )
     }
     if (askPage) {
         GoToPageDialog(
