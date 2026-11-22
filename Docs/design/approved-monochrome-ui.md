@@ -94,9 +94,13 @@ Verified on the CMF Phone 1 in light and dark: all 27 screens, the reminder shee
 The reader's controls had no Surface behind them, so their text and icons fell back to black and almost vanished on a dark page; both bars also sat straight over running text. Now:
 
 - Content colour is the page's ink (`LocalContentColor` = `onBackground`), in every page theme (Auto, Light, Sepia, Dark).
-- Top: a round back button on the left and one opaque pill of actions (contents, search, bookmark, look) on the right.
-- Bottom: one opaque pill with the chapter (small caps) over the book title, the position, the red-dot percentage and the dotted slider (unread dots at 22% ink so the track is visible). On short screens (landscape) the title shares a row with the position so the pill stays low.
-- Behind both, a fade from the page's own colour (black, white or sepia), so the bars never sit on text. The fades are plain backgrounds and take no touches.
+- Top: a round back button, the chapter (one line of small caps), and one pill of actions (contents, search, bookmark, look). Both pills are 56 dp with 4 dp around each 48 dp button, so a pressed button's circle is concentric with the pill's end.
+- Bottom: one compact floating pill, like the Quran zoom pill: position · dotted strip · red-dot percentage. Tap the position to type a page ("Go to page"; "position" for EPUB).
+- The strip: tap to jump, swipe to move through the whole book. After a seek it holds the new place until the book reports it, so it never flashes back first.
+- The page dial, after the camera zoom wheel: push up from the strip, or press and hold, and a half dial rises above the pill. One tick per page, a numbered tick every ten, fading towards the ends. The page under the fixed red marker at the top (large, with its chapter) is where you land, so the finger turning the dial below never covers it. Ticks follow the finger like a wheel (right goes back); slow is page by page, a flick accelerates up to 8 pages per tick. A light haptic tick per page; release lands exactly on the marked page. TalkBack sets the position directly.
+- Behind the bars, a fade from the page's own colour (black, white or sepia), so the bars never sit on text. The fades are plain backgrounds and take no touches.
 - Bars are at most 640 dp wide and centred, for landscape.
 
-Checked on the CMF Phone 1: dark and light, paged and scroll layouts, portrait and landscape.
+Tried and dropped on the way: a slider that slowed as the finger rose, and a bell curve of dots rising under the finger. Both put the value under the fingertip; the dial keeps it above.
+
+Checked on the CMF Phone 1: dark and light, paged and scroll layouts, portrait and landscape; the dial turned 43 → 46 and released exactly there.
