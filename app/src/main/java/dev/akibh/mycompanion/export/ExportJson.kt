@@ -16,7 +16,11 @@ import dev.akibh.mycompanion.domain.model.Contact
 import dev.akibh.mycompanion.domain.model.Playlist
 import dev.akibh.mycompanion.domain.model.PlaylistItem
 import dev.akibh.mycompanion.domain.model.Reminder
+import dev.akibh.mycompanion.library.data.LibraryBackup
 import dev.akibh.mycompanion.messaging.ChatApp
+import dev.akibh.mycompanion.quran.data.BackupBookmark
+import dev.akibh.mycompanion.quran.data.QuranBackup
+import dev.akibh.mycompanion.quran.domain.AyahRef
 import dev.akibh.mycompanion.voice.domain.AppScope
 import dev.akibh.mycompanion.voice.domain.BlockRule
 import dev.akibh.mycompanion.voice.domain.BlockWhere
@@ -33,6 +37,10 @@ data class SettingsBundle(
     val app: Settings = Settings(),
     val voice: VoiceSettings = VoiceSettings(),
     val autoReply: AutoReplySettings = AutoReplySettings(),
+    /** Quran bookmarks; null in backups made before the Quran reader, so restoring them keeps the current ones. */
+    val quran: QuranBackup? = null,
+    /** The book library (books, places read, shelves, stats); null in backups made before it. */
+    val library: LibraryBackup? = null,
 )
 
 /**
@@ -169,6 +177,35 @@ object ExportJson {
                     .put("missedCallText", reply.missedCallText)
                     .put("missedCallContactsOnly", reply.missedCallContactsOnly),
             )
+            .apply { bundle.quran?.let { put("quran", quran(it)) } }
+            .apply { bundle.library?.let { put("library", it.json) } }
+    }
+
+    private fun quran(backup: QuranBackup): JSONObject = JSONObject().put(
+        "bookmarks",
+        JSONArray(
+            backup.bookmarks.map {
+                JSONObject()
+                    .put("surah", it.ref.surah)
+                    .put("ayah", it.ref.ayah)
+                    .put("note", it.note)
+                    .put("createdEpochMillis", it.createdAt)
+            },
+        ),
+    )
+
+    private fun parseQuran(json: JSONObject?): QuranBackup? {
+        json ?: return null
+        val list = json.optJSONArray("bookmarks") ?: JSONArray()
+        return QuranBackup(
+            (0 until list.length()).mapNotNull { i ->
+                val item = list.optJSONObject(i) ?: return@mapNotNull null
+                val surah = item.optInt("surah")
+                val ayah = item.optInt("ayah")
+                if (surah <= 0 || ayah <= 0) return@mapNotNull null
+                BackupBookmark(AyahRef(surah, ayah), item.optString("note"), item.optLong("createdEpochMillis"))
+            },
+        )
     }
 
     /**
@@ -226,6 +263,8 @@ object ExportJson {
                     replyDefaults.missedCallContactsOnly,
                 ),
             ),
+            quran = parseQuran(root.optJSONObject("quran")),
+            library = root.optJSONObject("library")?.let(::LibraryBackup),
         )
     }
 

@@ -50,6 +50,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // Readium (the library's book engine) is built for older Android and asks for it.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     buildFeatures {
@@ -130,12 +132,16 @@ ktlint {
 
 dependencies {
     implementation(project(":core"))
+    implementation(project(":design"))
     implementation(project(":ai-api"))
     implementation(project(":ai-models"))
     implementation(project(":adapters-messaging"))
     implementation(project(":feature-context"))
     implementation(project(":feature-autoreply"))
     implementation(project(":feature-voice"))
+    implementation(project(":feature-quran"))
+    implementation(project(":feature-library"))
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(libs.navigation.compose)
     implementation(libs.work.runtime)
     implementation(libs.androidx.core.ktx)

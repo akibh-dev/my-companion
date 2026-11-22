@@ -41,6 +41,7 @@ class ScheduleReminderUseCase @Inject constructor(
         contactId: Long? = null,
         sound: ReminderSound = ReminderSound.Default,
         editingId: Long? = null,
+        link: String? = null,
     ): ScheduleResult {
         if (title.isBlank() && message.isBlank()) return ScheduleResult.EmptyContent
         if (!time.isValid() || !repeat.isValid()) return ScheduleResult.InvalidTime
@@ -62,6 +63,7 @@ class ScheduleReminderUseCase @Inject constructor(
                 contactId = contactId,
                 sound = sound,
                 paused = existing?.paused == true,
+                link = link ?: existing?.link,
             ),
         )
 

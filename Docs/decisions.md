@@ -130,3 +130,36 @@ no charge. Search is metered per session (suggestions plus the chosen place shar
 token) and personal use stays inside the free allowance. The key lives in `local.properties`
 (git-ignored) and reaches the manifest through a placeholder. Setup: `Docs/20-google-maps.md`.
 
+## D22 — Quran reader: bundled KFGQPC text and exact page fonts, two scripts (2026-11-20)
+
+A Quran reader with Arabic only (no audio or translation): mushaf pages and an ayah list, Madani
+and Indo-Pak scripts, search, go-to, bookmarks, a khatm goal, a reminder and a widget (Plan 21).
+
+The data is published text, not scans or a decompiled app: the KFGQPC Uthmanic Hafs and Hafs
+Nastaleeq texts with their fonts, the QPC V2 per-page fonts (1421H Madinah print, one glyph per
+word, so pages match print exactly), per-word line positions from the quran.com API, and Tanzil's
+Uthmani and simple texts to cross-check every ayah and to search in everyday spelling. The Indo-Pak
+15-line (Hafezi) layout comes from QUL, which needs a sign-in, so it is downloaded by hand.
+
+`tools/quran/build_quran_db.py` builds one read-only SQLite file in Room's own schema (read from
+the exported schema JSON) and opens it with `createFromAsset`; bookmarks and progress live in a
+separate store, so a newer text can replace the file without a migration. The tool refuses to
+build unless counts, the text and the page coverage check out.
+
+The exact page fonts are about 200 MB; the user chose them over a single Hafs font drawn on the same
+lines. They ship brotli-compressed (about a third) and each page's font is unpacked on first open.
+Zoom resizes the text rather than scaling a picture, so pages stay sharp at any size.
+
+## D23 — Book library: linked files, Readium engine (2026-11-21)
+
+A library for PDF, EPUB and CBZ files downloaded with the browser (Plan 22). Books are **linked**,
+not copied: the app keeps a persistable read grant on each picked file, so no storage is doubled.
+When a file is deleted or moved, the book shows "Missing" and "Locate file" links it again,
+keeping the place, bookmarks and reading time. Grants don't survive a reinstall, so restored
+backups ask to locate each file.
+
+Readium Kotlin Toolkit (BSD-3-Clause) opens all three formats and gives every position as a
+`Locator`, the standard way to remember the place in a book. Version 3.1.2 is the newest built
+for Kotlin 2.2 and Media3 1.8; it needs core library desugaring in `app`. Its PDF page fragment is
+off by one page, so `FixedPdfium.kt` (adapted from Readium, BSD notice kept) replaces it until the
+app moves to Readium 3.4. PDFium's native library adds about 5 MB to the APK, plus Readium's code.

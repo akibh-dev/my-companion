@@ -98,3 +98,8 @@ out/
 # Pinned pretrained graphs: fetch with tools/banglish/fetch_models.py before evaluating.
 ai-models/src/main/assets/indicxlit/*.onnx
 ai-models/src/main/assets/indicxlit/*.download
+
+# Quran sources and built assets: fetch with tools/quran/fetch_sources.py, build with build_quran_db.py.
+tools/quran/sources/
+tools/quran/.venv/
+feature-quran/src/main/assets/quran/
