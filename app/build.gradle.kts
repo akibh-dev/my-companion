@@ -1,3 +1,13 @@
+import java.util.Properties
+
+/**
+ * Google Maps / Places key for the place editor: MAPS_API_KEY in local.properties (never committed) or
+ * the environment. Without it the app still builds; the map and search say the key is missing.
+ */
+val mapsApiKey: String = rootProject.file("local.properties").takeIf { it.exists() }
+    ?.let { file -> Properties().apply { file.inputStream().use { load(it) } }.getProperty("MAPS_API_KEY") }
+    ?: System.getenv("MAPS_API_KEY").orEmpty()
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -19,6 +29,7 @@ android {
         versionCode = 4
         versionName = "0.3.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        manifestPlaceholders["mapsApiKey"] = mapsApiKey
 
         // Only the CPU the target phone has (CMF Phone 1: 64-bit ARM). Every other ABI's copy of the native
         // libraries (ONNX Runtime and friends) just made the APK ~90 MB bigger. For an emulator, build with

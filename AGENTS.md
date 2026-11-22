@@ -20,6 +20,7 @@ not for the Play Store. It brings back features usually locked behind paid apps:
 - **UI**: Jetpack Compose + Material 3, approved monochrome "dotted" design (`Docs/design/`)
 - **Storage**: Room, DataStore
 - **Media**: Media3 (ExoPlayer + MediaSession), NewPipeExtractor (JitPack)
+- **Maps**: Google Maps (maps-compose) + Places API for the place editor; key `MAPS_API_KEY` in `local.properties` (`Docs/20-google-maps.md`)
 - **AI**: ONNX Runtime, IndicXlit model in `ai-models/src/main/assets/indicxlit/` (fetch with `tools/banglish/fetch_models.py`)
 - **JDK**: Gradle runs on JDK 17 or 21 (JDK 25 fails); unit tests run on JDK 21 (auto-downloaded toolchain)
 
@@ -31,7 +32,7 @@ not for the Play Store. It brings back features usually locked behind paid apps:
 | `ai-api` | AI engine interfaces, routing, fallbacks, model loader |
 | `ai-models` | IndicXlit transliterator, Banglish lexicon, dummy models for the other slots |
 | `adapters-messaging` | Notification listener, per-chat-app adapters, generic `NoticeParser` for any app |
-| `feature-context` | Context rules, places, offline map, keep-screen-on-outdoors |
+| `feature-context` | Context rules, places (Google Maps picker + Places search), keep-screen-on-outdoors |
 | `feature-autoreply` | Auto-reply and missed-call SMS |
 | `feature-voice` | Voice mode (reads notifications aloud: muted apps, block rules) and its tile |
 

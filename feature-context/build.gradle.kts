@@ -17,7 +17,9 @@ kapt {
 
 dependencies {
     api(project(":core"))
-    implementation(libs.maplibre)
+    implementation(libs.maps.compose)
+    implementation(libs.places)
+    implementation(libs.coroutines.play.services)
     implementation(libs.androidx.core.ktx)
     implementation(libs.work.runtime)
     implementation(platform(libs.compose.bom))

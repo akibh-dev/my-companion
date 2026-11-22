@@ -41,6 +41,10 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.MyCompanion">
+        <!-- Google Maps and Places for the place editor; MAPS_API_KEY in local.properties. -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${mapsApiKey}" />
 
         <activity
             android:name=".MainActivity"
