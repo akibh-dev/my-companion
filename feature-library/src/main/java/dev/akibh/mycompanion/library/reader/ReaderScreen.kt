@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,7 +21,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
@@ -30,7 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -47,8 +51,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -58,7 +66,6 @@ import dev.akibh.mycompanion.library.domain.BookFormat
 import dev.akibh.mycompanion.library.domain.fileSize
 import dev.akibh.mycompanion.library.ui.CardShape
 import dev.akibh.mycompanion.library.ui.DotButton
-import dev.akibh.mycompanion.library.ui.DotProgress
 import dev.akibh.mycompanion.library.ui.missingText
 import dev.akibh.mycompanion.ui.components.DotIcon
 import dev.akibh.mycompanion.ui.components.DotSymbol
@@ -288,13 +295,17 @@ private fun TopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            // Both pills are 56 dp with 4 dp around each 48 dp button, so a pressed button's circle is
+            // concentric with the pill's rounded end instead of cutting across it.
             Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                IconButton(onClick = onBack, Modifier.padding(4.dp)) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                }
             }
             // Where you are: the chapter (or the title when there is none), one line of small caps.
             SectionLabel(chapter, Modifier.weight(1f).padding(horizontal = 4.dp), maxLines = 1)
             Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                Row(Modifier.padding(horizontal = 4.dp)) {
+                Row(Modifier.padding(4.dp)) {
                     DotButton(DotSymbol.CONTENTS, "Contents and bookmarks", onContents)
                     if (searchable) DotButton(DotSymbol.SEARCH, "Search in book", onSearch)
                     DotButton(
@@ -311,10 +322,10 @@ private fun TopBar(
 }
 
 /**
- * One compact floating pill, like the Quran reader's zoom pill: position · dotted slider · red-dot
- * percentage. The chapter is in the top bar, so this stays a single 56 dp row in any orientation.
+ * One compact floating pill, like the Quran reader's zoom pill: position · dotted strip · red-dot
+ * percentage. Tap the position to type a page. Press the strip to grab the red dot: the strip grows,
+ * a bubble shows where you'd land, and sliding the finger up slows the dot for exact pages.
  */
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun ProgressBar(
     locator: Locator?,
@@ -324,53 +335,110 @@ private fun ProgressBar(
     onSeek: (Int) -> Unit,
 ) {
     var dragging by remember { mutableStateOf<Float?>(null) }
+    var speed by remember { mutableStateOf(1f) }
+    var askPage by remember { mutableStateOf(false) }
     val total = positions.size
     val position = locator?.locations?.position
-    val shownPosition = dragging?.let { (it * (total - 1)).roundToInt() + 1 } ?: position
     val unit = if (format == BookFormat.EPUB) "" else "p. "
-    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh, shadowElevation = 4.dp) {
-        Row(
-            Modifier.heightIn(min = 56.dp).padding(horizontal = 20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                if (total > 0 && shownPosition != null) "$unit$shownPosition / $total" else " ",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-            )
-            if (total > 1) {
-                Slider(
-                    value = dragging ?: ((position ?: 1) - 1f) / (total - 1),
-                    onValueChange = { dragging = it },
-                    onValueChangeFinished = {
-                        dragging?.let { onSeek((it * (total - 1)).roundToInt()) }
-                        dragging = null
-                    },
-                    modifier = Modifier.weight(1f).padding(horizontal = 14.dp),
-                    thumb = { Box(Modifier.size(16.dp).clip(CircleShape).background(CompanionRed)) },
-                    track = { slider ->
-                        val range = slider.valueRange.endInclusive - slider.valueRange.start
-                        DotProgress(
-                            (slider.value - slider.valueRange.start) / range,
-                            Modifier.padding(horizontal = 2.dp),
-                            color = MaterialTheme.colorScheme.onSurface,
-                            empty = MaterialTheme.colorScheme.onSurface.copy(alpha = .22f),
-                        )
-                    },
+    fun indexOf(value: Float) = (value * (total - 1)).roundToInt()
+    val shownPosition = dragging?.let { indexOf(it) + 1 } ?: position
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Where the dot would land, above the finger's way, while the strip is held.
+        AnimatedVisibility(dragging != null, enter = fadeIn(), exit = fadeOut()) {
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.inverseSurface) {
+                Text(
+                    listOfNotNull("$unit${shownPosition ?: ""} / $total", scrubSpeedLabel(speed)).joinToString("  ·  "),
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
-            } else {
-                Spacer(Modifier.weight(1f))
             }
-            Box(Modifier.size(6.dp).clip(CircleShape).background(CompanionRed))
-            Text(
-                "${((dragging?.toDouble() ?: progress) * 100).roundToInt()}%",
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.padding(start = 8.dp),
-                maxLines = 1,
-            )
+        }
+        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh, shadowElevation = 4.dp) {
+            Row(
+                Modifier.heightIn(min = 56.dp).padding(start = 8.dp, end = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    if (total > 0 && shownPosition != null) "$unit$shownPosition / $total" else " ",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable(enabled = total > 1, onClickLabel = "Go to page") { askPage = true }
+                        .heightIn(min = 48.dp)
+                        .wrapContentHeight()
+                        .padding(horizontal = 12.dp),
+                )
+                if (total > 1) {
+                    Scrubber(
+                        value = dragging ?: ((position ?: 1) - 1f) / (total - 1),
+                        expanded = dragging != null,
+                        onGrab = { speed = 1f },
+                        onChange = { value, newSpeed ->
+                            dragging = value
+                            speed = newSpeed
+                        },
+                        onRelease = {
+                            dragging?.let { onSeek(indexOf(it)) }
+                            dragging = null
+                        },
+                        modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
+                    )
+                } else {
+                    Spacer(Modifier.weight(1f))
+                }
+                Box(Modifier.size(6.dp).clip(CircleShape).background(CompanionRed))
+                Text(
+                    "${((dragging?.toDouble() ?: progress) * 100).roundToInt()}%",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(start = 8.dp),
+                    maxLines = 1,
+                )
+            }
         }
     }
+    if (askPage) {
+        GoToPageDialog(
+            total = total,
+            current = position,
+            label = if (format == BookFormat.EPUB) "Position" else "Page",
+            onGo = { page ->
+                askPage = false
+                onSeek(page - 1)
+            },
+            onDismiss = { askPage = false },
+        )
+    }
+}
+
+/** Type a page (or EPUB position) and jump there. */
+@Composable
+private fun GoToPageDialog(total: Int, current: Int?, label: String, onGo: (Int) -> Unit, onDismiss: () -> Unit) {
+    var text by remember { mutableStateOf("") }
+    val page = text.toIntOrNull()?.takeIf { it in 1..total }
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() } // the number pad opens straight away
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Go to ${label.lowercase()}") },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { new -> text = new.filter(Char::isDigit).take(6) },
+                label = { Text("$label (1–$total)") },
+                placeholder = current?.let { { Text("$it") } },
+                singleLine = true,
+                isError = text.isNotEmpty() && page == null,
+                modifier = Modifier.focusRequester(focus),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Go),
+                keyboardActions = KeyboardActions(onGo = { page?.let(onGo) }),
+            )
+        },
+        confirmButton = { TextButton(onClick = { page?.let(onGo) }, enabled = page != null) { Text("Go") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 private val MAX_BAR_WIDTH = 640.dp
