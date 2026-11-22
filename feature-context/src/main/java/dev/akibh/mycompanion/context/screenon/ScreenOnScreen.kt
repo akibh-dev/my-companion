@@ -2,31 +2,19 @@ package dev.akibh.mycompanion.context.screenon
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
@@ -37,6 +25,15 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.akibh.mycompanion.core.settings.Feature
 import dev.akibh.mycompanion.core.settings.Settings
 import dev.akibh.mycompanion.core.settings.SettingsStore
+import dev.akibh.mycompanion.ui.components.ChoiceChip
+import dev.akibh.mycompanion.ui.components.ChoiceRow
+import dev.akibh.mycompanion.ui.components.Note
+import dev.akibh.mycompanion.ui.components.PageMargin
+import dev.akibh.mycompanion.ui.components.PrimaryButton
+import dev.akibh.mycompanion.ui.components.Section
+import dev.akibh.mycompanion.ui.components.SectionCard
+import dev.akibh.mycompanion.ui.components.SectionGap
+import dev.akibh.mycompanion.ui.components.SwitchRow
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -109,69 +106,44 @@ fun ScreenOnScreen(
     Column(
         modifier
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(PageMargin),
+        verticalArrangement = Arrangement.spacedBy(SectionGap),
     ) {
-        ElevatedCard(Modifier.fillMaxWidth()) {
-            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Keep screen on outdoors", style = MaterialTheme.typography.titleMedium)
-                    Text(state.statusLine(), style = MaterialTheme.typography.bodySmall)
-                }
-                Switch(checked = state.enabled, onCheckedChange = onFeatureChange)
-            }
+        SectionCard {
+            SwitchRow(
+                title = "Keep screen on outdoors",
+                checked = state.enabled,
+                onCheckedChange = onFeatureChange,
+                summary = state.statusLine(),
+            )
         }
         if (!overlayAllowed) {
-            ElevatedCard(
-                Modifier.fillMaxWidth(),
-                colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-            ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Needs \"Display over other apps\"", style = MaterialTheme.typography.titleSmall)
-                    Text(
-                        "The screen is kept on by an invisible window. Without this access nothing happens.",
-                        style = MaterialTheme.typography.bodySmall,
+            Section("Permission") {
+                Text("Needs \"Display over other apps\"", style = MaterialTheme.typography.titleSmall)
+                Note("The screen is kept on by an invisible window. Without this access nothing happens.")
+                PrimaryButton(onClick = onAllowOverlay) { Text("Allow") }
+            }
+        }
+        Section("Sensitivity") {
+            ChoiceRow(Modifier.selectableGroup()) {
+                Sensitivity.entries.forEach { option ->
+                    ChoiceChip(
+                        label = option.title,
+                        selected = option == state.sensitivity,
+                        onClick = { onSensitivityChange(option) },
                     )
-                    Button(onClick = onAllowOverlay) { Text("Allow") }
                 }
             }
+            Note(state.sensitivity.description)
         }
-        Text("Sensitivity", style = MaterialTheme.typography.titleMedium)
-        Column(Modifier.selectableGroup()) {
-            Sensitivity.entries.forEach { option ->
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 48.dp)
-                        .selectable(
-                            selected = option == state.sensitivity,
-                            onClick = { onSensitivityChange(option) },
-                            role = Role.RadioButton,
-                        )
-                        .padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    RadioButton(selected = option == state.sensitivity, onClick = null)
-                    Column(Modifier.padding(start = 12.dp)) {
-                        Text(option.title, style = MaterialTheme.typography.bodyLarge)
-                        Text(
-                            option.description,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
+        Section("How it works") {
+            Note(
+                "While the screen is on, the phone checks whether you're outside (not at a saved place and " +
+                    "no saved place's Wi-Fi nearby) and whether you're holding it up towards your face. " +
+                    "When both are true for a moment, the screen stays on; put the phone down or walk in and " +
+                    "it times out as usual a few seconds later. With the screen off the sensors are off, " +
+                    "so it uses no battery in your pocket.",
+            )
         }
-        Text("How it works", style = MaterialTheme.typography.titleMedium)
-        Text(
-            "While the screen is on, the phone checks whether you're outside (not at a saved place and " +
-                "no saved place's Wi-Fi nearby) and whether you're holding it up towards your face. " +
-                "When both are true for a moment, the screen stays on; put the phone down or walk in and " +
-                "it times out as usual a few seconds later. With the screen off the sensors are off, " +
-                "so it uses no battery in your pocket.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }

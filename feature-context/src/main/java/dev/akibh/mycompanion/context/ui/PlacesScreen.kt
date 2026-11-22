@@ -10,7 +10,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,23 +21,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Button
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
@@ -53,8 +55,17 @@ import dev.akibh.mycompanion.context.domain.Place
 import dev.akibh.mycompanion.context.maps.MapPicker
 import dev.akibh.mycompanion.context.maps.PlaceSearch
 import dev.akibh.mycompanion.context.maps.PlaceSuggestion
-import dev.akibh.mycompanion.ui.components.ChoiceRow
+import dev.akibh.mycompanion.ui.components.AddButton
+import dev.akibh.mycompanion.ui.components.AddButtonClearance
+import dev.akibh.mycompanion.ui.components.DotSymbol
+import dev.akibh.mycompanion.ui.components.EmptyState
+import dev.akibh.mycompanion.ui.components.Note
+import dev.akibh.mycompanion.ui.components.PageMargin
+import dev.akibh.mycompanion.ui.components.PrimaryButton
 import dev.akibh.mycompanion.ui.components.SecondaryButton
+import dev.akibh.mycompanion.ui.components.Section
+import dev.akibh.mycompanion.ui.components.SectionCard
+import dev.akibh.mycompanion.ui.components.SectionGap
 import java.text.DateFormat
 import java.util.Date
 import javax.inject.Inject
@@ -74,15 +85,16 @@ import kotlinx.coroutines.launch
 
 @HiltViewModel
 class PlacesViewModel @Inject constructor(repository: ContextRepository) : ViewModel() {
-    val places: StateFlow<List<Place>> = repository.places.stateIn(
+    // null until the database answers, so the empty state doesn't flash on open.
+    val places: StateFlow<List<Place>?> = repository.places.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
-        emptyList()
+        null
     )
-    val runs: StateFlow<List<RuleRun>> = repository.runs.stateIn(
+    val runs: StateFlow<List<RuleRun>?> = repository.runs.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
-        emptyList()
+        null
     )
 }
 
@@ -96,35 +108,56 @@ fun PlacesRoute(
     val places by viewModel.places.collectAsStateWithLifecycle()
     Box(modifier.fillMaxSize()) {
         LazyColumn(
-            contentPadding = PaddingValues(16.dp, 16.dp, 16.dp, 96.dp),
+            contentPadding = PaddingValues(PageMargin, PageMargin, PageMargin, AddButtonClearance),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            if (places.isEmpty()) item { Text("No saved places yet. Add home or the office to use them in rules.") }
-            items(places, key = { it.id }) { place ->
-                ElevatedCard(Modifier.fillMaxWidth()) {
-                    ListItem(
-                        modifier = Modifier.clickable { onOpenPlace(place.id) },
-                        headlineContent = { Text(place.name) },
-                        supportingContent = {
-                            val wifi = place.wifiNames.takeIf { it.isNotEmpty() }
-                                ?.let { " · Wi-Fi ${it.joinToString()}" }
-                            Text(
-                                "%.5f, %.5f · %d m".format(place.latitude, place.longitude, place.radiusMeters) +
-                                    wifi.orEmpty()
-                            )
-                        },
+            if (places?.isEmpty() == true) {
+                item {
+                    EmptyState(
+                        symbol = DotSymbol.SEARCH,
+                        title = "No saved places yet",
+                        body = "Add home or the office to use them in rules.",
                     )
                 }
             }
+            items(places.orEmpty(), key = { it.id }) { place ->
+                val wifi = place.wifiNames.takeIf { it.isNotEmpty() }?.let { " · Wi-Fi ${it.joinToString()}" }
+                OpenRow(
+                    title = place.name,
+                    summary = "%.5f, %.5f · %d m".format(place.latitude, place.longitude, place.radiusMeters) +
+                        wifi.orEmpty(),
+                    onClick = { onOpenPlace(place.id) },
+                )
+            }
         }
-        ExtendedFloatingActionButton(
-            onClick = { onOpenPlace(null) },
-            icon = { Icon(Icons.Filled.Add, contentDescription = "Add place") },
-            text = { Text("Add place") },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp),
-        )
+        AddButton("Add place", onClick = { onOpenPlace(null) }, modifier = Modifier.align(Alignment.BottomEnd))
+    }
+}
+
+/** A card that opens something: title, a muted line, and a chevron that says "tap me". */
+@Composable
+internal fun OpenRow(title: String, summary: String, onClick: () -> Unit) {
+    SectionCard(
+        Modifier
+            .clip(MaterialTheme.shapes.large)
+            .clickable(onClick = onClick),
+        contentPadding = PaddingValues(start = 16.dp, top = 12.dp, end = 8.dp, bottom = 12.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    summary,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
@@ -132,19 +165,34 @@ fun PlacesRoute(
 @Composable
 fun RuleHistoryRoute(modifier: Modifier = Modifier, viewModel: PlacesViewModel = hiltViewModel()) {
     val runs by viewModel.runs.collectAsStateWithLifecycle()
+    runs?.let { RuleHistoryScreen(it, modifier) }
+}
+
+@Composable
+fun RuleHistoryScreen(runs: List<RuleRun>, modifier: Modifier = Modifier) {
     val format = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
     LazyColumn(
         modifier = modifier,
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        contentPadding = PaddingValues(PageMargin),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        if (runs.isEmpty()) item { Text("Nothing yet. Changes appear here when a rule starts or ends.") }
+        if (runs.isEmpty()) {
+            item {
+                EmptyState(
+                    symbol = DotSymbol.RULES,
+                    title = "Nothing yet",
+                    body = "Changes appear here when a rule starts or ends.",
+                )
+            }
+        }
         items(runs) { run ->
-            ListItem(
-                headlineContent = { Text(run.ruleName) },
-                supportingContent = { Text(run.changes) },
-                overlineContent = { Text(format.format(Date(run.time))) },
-            )
+            SectionCard {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Note(format.format(Date(run.time)))
+                    Text(run.ruleName, style = MaterialTheme.typography.titleSmall)
+                    Text(run.changes, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
         }
     }
 }
@@ -158,6 +206,15 @@ data class PlaceDraft(
     val message: String? = null,
 ) {
     val point: Pair<Double, Double>? get() = Geo.parse(coordinates)
+
+    /** Why it can't be saved yet, or null when it can. */
+    val problem: String?
+        get() = when {
+            name.isBlank() -> "Give the place a name"
+            point == null -> "Choose where it is: search, tap the map, or enter coordinates"
+            toPlace() == null -> "Those coordinates are out of range"
+            else -> null
+        }
 
     fun toPlace(): Place? {
         val (lat, lon) = point ?: return null
@@ -318,123 +375,169 @@ fun PlaceEditorRoute(
             viewModel.onMessage("Location permission is needed for this")
         }
     }
+    // No red before the user has done anything: problems show after a tap on Save.
+    var triedToSave by rememberSaveable { mutableStateOf(false) }
+    var nameEdited by rememberSaveable { mutableStateOf(false) }
+    val nameMissing = draft.name.isBlank() && (triedToSave || nameEdited)
+    val coordinatesWrong = draft.point == null && (triedToSave || draft.coordinates.isNotBlank())
+
     LazyColumn(
         modifier = modifier,
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(PageMargin),
+        verticalArrangement = Arrangement.spacedBy(SectionGap)
     ) {
         item {
-            OutlinedTextField(draft.name, viewModel::onName, label = {
-                Text("Name (e.g. Home, Office)")
-            }, singleLine = true, modifier = Modifier.fillMaxWidth())
-        }
-        if (viewModel.canSearch) {
-            item {
+            Section("Name and search") {
                 OutlinedTextField(
-                    value = query,
-                    onValueChange = viewModel::onQuery,
-                    label = { Text("Search for a place") },
-                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                    trailingIcon = {
-                        if (query.isNotEmpty()) {
-                            IconButton(onClick = { viewModel.onQuery("") }) {
-                                Icon(Icons.Filled.Close, contentDescription = "Clear search")
-                            }
-                        }
+                    draft.name,
+                    {
+                        nameEdited = true
+                        viewModel.onName(it)
                     },
-                    supportingText = {
-                        when (val state = results) {
-                            SearchState.Searching -> Text("Searching…")
-                            is SearchState.Failed -> Text(state.message)
-                            is SearchState.Results -> if (state.suggestions.isEmpty()) Text("No places found")
-                            SearchState.Idle -> Unit
-                        }
+                    label = { Text("Name (e.g. Home, Office)") },
+                    isError = nameMissing,
+                    supportingText = if (nameMissing) {
+                        { Text("Give the place a name") }
+                    } else {
+                        null
                     },
-                    isError = results is SearchState.Failed,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-            }
-            (results as? SearchState.Results)?.let { found ->
-                items(found.suggestions, key = { it.id }) { suggestion ->
-                    ListItem(
-                        headlineContent = { Text(suggestion.primary) },
-                        supportingContent = { if (suggestion.secondary.isNotBlank()) Text(suggestion.secondary) },
-                        modifier = Modifier.clickable {
-                            // Close the keyboard so the map and the rest of the form show.
-                            focus.clearFocus()
-                            viewModel.choose(suggestion)
+                if (viewModel.canSearch) {
+                    OutlinedTextField(
+                        value = query,
+                        onValueChange = viewModel::onQuery,
+                        label = { Text("Search for a place") },
+                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                        trailingIcon = {
+                            if (query.isNotEmpty()) {
+                                IconButton(onClick = { viewModel.onQuery("") }) {
+                                    Icon(Icons.Filled.Close, contentDescription = "Clear search")
+                                }
+                            }
                         },
+                        supportingText = {
+                            when (val state = results) {
+                                SearchState.Searching -> Text("Searching…")
+                                is SearchState.Failed -> Text(state.message)
+                                is SearchState.Results -> if (state.suggestions.isEmpty()) Text("No places found")
+                                SearchState.Idle -> Unit
+                            }
+                        },
+                        isError = results is SearchState.Failed,
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
                     )
+                    (results as? SearchState.Results)?.suggestions?.forEach { suggestion ->
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp)
+                                .clip(MaterialTheme.shapes.small)
+                                .clickable {
+                                    // Close the keyboard so the map and the rest of the form show.
+                                    focus.clearFocus()
+                                    viewModel.choose(suggestion)
+                                }
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            Text(suggestion.primary, style = MaterialTheme.typography.bodyLarge)
+                            if (suggestion.secondary.isNotBlank()) Note(suggestion.secondary)
+                        }
+                    }
                 }
             }
         }
         item {
-            MapPicker(
-                pin = draft.point,
-                radiusMeters = draft.radius,
-                others = places.filter { it.id != draft.id },
-                onPick = viewModel::onPick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(300.dp),
-            )
-        }
-        item {
-            OutlinedTextField(
-                draft.coordinates,
-                viewModel::onCoordinates,
-                label = { Text("Latitude, longitude") },
-                supportingText = {
-                    Text(
-                        draft.message ?: when {
-                            draft.coordinates.isNotBlank() && draft.point == null -> "e.g. 23.8103, 90.4125"
-                            viewModel.canSearch -> "Search, tap the map, use your location, or paste coordinates"
-                            else -> "Use your location or paste coordinates"
+            Section("Map and coordinates") {
+                MapPicker(
+                    pin = draft.point,
+                    radiusMeters = draft.radius,
+                    others = places.filter { it.id != draft.id },
+                    onPick = viewModel::onPick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(300.dp)
+                        .clip(MaterialTheme.shapes.medium),
+                )
+                OutlinedTextField(
+                    draft.coordinates,
+                    viewModel::onCoordinates,
+                    label = { Text("Latitude, longitude") },
+                    supportingText = {
+                        Text(
+                            draft.message ?: when {
+                                draft.coordinates.isNotBlank() && draft.point == null -> "e.g. 23.8103, 90.4125"
+                                viewModel.canSearch -> "Search, tap the map, use your location, or paste coordinates"
+                                else -> "Use your location or paste coordinates"
+                            }
+                        )
+                    },
+                    isError = coordinatesWrong,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                SecondaryButton(
+                    onClick = {
+                        val permission = Manifest.permission.ACCESS_FINE_LOCATION
+                        if (ContextCompat.checkSelfPermission(context, permission) ==
+                            PackageManager.PERMISSION_GRANTED
+                        ) {
+                            currentLocation(context, viewModel)
+                        } else {
+                            askLocation.launch(Manifest.permission.ACCESS_FINE_LOCATION)
                         }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Use my current location") }
+            }
+        }
+        item {
+            Section("Radius") {
+                Text("${draft.radius} m", style = MaterialTheme.typography.titleSmall)
+                Slider(
+                    value = draft.radius.toFloat(),
+                    onValueChange = { viewModel.onRadius((it / 10).roundToInt() * 10) },
+                    valueRange = Place.MIN_RADIUS.toFloat()..Place.MAX_RADIUS.toFloat(),
+                )
+            }
+        }
+        item {
+            Section(
+                "Wi-Fi",
+                note = "While one is in range you count as here, even with location off.",
+            ) {
+                OutlinedTextField(
+                    draft.wifiNames,
+                    viewModel::onWifi,
+                    label = { Text("Wi-Fi networks here (optional, comma separated)") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                val problem = draft.problem
+                if (triedToSave && problem != null) {
+                    Text(
+                        problem,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(horizontal = 8.dp),
                     )
-                },
-                isError = draft.coordinates.isNotBlank() && draft.point == null,
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-        item {
-            SecondaryButton(onClick = {
-                val permission = Manifest.permission.ACCESS_FINE_LOCATION
-                if (ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED) {
-                    currentLocation(context, viewModel)
-                } else {
-                    askLocation.launch(Manifest.permission.ACCESS_FINE_LOCATION)
                 }
-            }) { Text("Use my current location") }
-        }
-        item {
-            Text("Radius: ${draft.radius} m", style = MaterialTheme.typography.titleSmall)
-            Slider(
-                value = draft.radius.toFloat(),
-                onValueChange = { viewModel.onRadius((it / 10).roundToInt() * 10) },
-                valueRange = Place.MIN_RADIUS.toFloat()..Place.MAX_RADIUS.toFloat(),
-            )
-        }
-        item {
-            OutlinedTextField(
-                draft.wifiNames,
-                viewModel::onWifi,
-                label = { Text("Wi-Fi networks here (optional, comma separated)") },
-                supportingText = { Text("While one is in range you count as here, even with location off") },
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-        item {
-            ChoiceRow {
-                Button(
-                    onClick = { viewModel.save(onDone) },
-                    enabled = draft.toPlace() != null,
-                    modifier = Modifier.heightIn(min = 48.dp),
-                ) { Text("Save") }
+                PrimaryButton(onClick = {
+                    triedToSave = true
+                    if (problem == null) viewModel.save(onDone)
+                }) { Text("Save") }
                 if (!viewModel.isNew) {
-                    SecondaryButton(onClick = { viewModel.delete(onDone) }, destructive = true) { Text("Delete") }
+                    SecondaryButton(
+                        onClick = { viewModel.delete(onDone) },
+                        destructive = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Delete") }
                 }
             }
         }

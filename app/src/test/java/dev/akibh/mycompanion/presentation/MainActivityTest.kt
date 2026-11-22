@@ -75,7 +75,7 @@ class MainActivityTest {
         compose.waitUntilAtLeastOneExists(hasText("No one here yet"), timeoutMillis = 10_000)
 
         compose.onNodeWithContentDescription("Reminders").performClick()
-        compose.onNodeWithText("Create a reminder").performClick()
+        compose.onNodeWithContentDescription("Add reminder").performClick()
         compose.onNodeWithText("Send now").assertIsDisplayed()
         compose.onNodeWithContentDescription("Drag handle").performSemanticsAction(SemanticsActions.Dismiss)
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Nothing scheduled"))

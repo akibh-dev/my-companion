@@ -71,9 +71,9 @@ import dev.akibh.mycompanion.library.data.ReaderLook
 import dev.akibh.mycompanion.library.data.Spacing
 import dev.akibh.mycompanion.library.domain.BookFormat
 import dev.akibh.mycompanion.library.reader.BookSearch.MAX_HITS
-import dev.akibh.mycompanion.library.ui.SectionLabel
 import dev.akibh.mycompanion.ui.components.ChoiceChip
 import dev.akibh.mycompanion.ui.components.ChoiceRow
+import dev.akibh.mycompanion.ui.components.SectionLabel
 import dev.akibh.mycompanion.ui.theme.CompanionRed
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay

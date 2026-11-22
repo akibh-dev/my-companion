@@ -37,6 +37,11 @@ import dev.akibh.mycompanion.quran.domain.GoTo
 import dev.akibh.mycompanion.quran.domain.GoToParser
 import dev.akibh.mycompanion.quran.domain.MushafScript
 import dev.akibh.mycompanion.quran.domain.Surah
+import dev.akibh.mycompanion.ui.components.DotSymbol
+import dev.akibh.mycompanion.ui.components.EmptyState
+import dev.akibh.mycompanion.ui.components.Note
+import dev.akibh.mycompanion.ui.components.PageMargin
+import dev.akibh.mycompanion.ui.components.SectionLabel
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.FlowPreview
@@ -156,10 +161,9 @@ fun QuranSearchRoute(
             label = { Text("Arabic words, 2:255, a surah, page 50, juz 30") },
         )
         when (val r = results) {
-            SearchResults.Idle -> Text(
+            SearchResults.Idle -> Note(
                 "Type Arabic with or without harakat (الرحمن finds ٱلرَّحۡمَٰنِ), or where to go.",
-                Modifier.padding(horizontal = 16.dp),
-                style = MaterialTheme.typography.bodyMedium,
+                Modifier.padding(horizontal = PageMargin + 8.dp),
             )
 
             SearchResults.Searching -> LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 16.dp))
@@ -175,15 +179,27 @@ fun QuranSearchRoute(
                 }
                 if (r.jumps.isEmpty() || r.total > 0) {
                     item(key = "count") {
-                        Text(
-                            when {
-                                r.total == 0 -> "No ayah has these words"
-                                r.total > r.ayahs.size -> "${r.total} ayahs, showing the first ${r.ayahs.size}"
-                                else -> "${r.total} ayahs"
-                            },
-                            Modifier.padding(16.dp),
-                            style = MaterialTheme.typography.labelLarge,
-                        )
+                        if (r.total == 0) {
+                            EmptyState(
+                                symbol = DotSymbol.SEARCH,
+                                title = "No ayah has these words",
+                                body = "Try fewer or shorter words; each one matches as a word start.",
+                            )
+                        } else {
+                            SectionLabel(
+                                if (r.total > r.ayahs.size) {
+                                    "${r.total} ayahs, showing the first ${r.ayahs.size}"
+                                } else {
+                                    "${r.total} ayahs"
+                                },
+                                Modifier.padding(
+                                    start = PageMargin + 8.dp,
+                                    end = PageMargin,
+                                    top = 16.dp,
+                                    bottom = 8.dp
+                                ),
+                            )
+                        }
                     }
                 }
                 items(r.ayahs, key = { it.id }) { ayah ->

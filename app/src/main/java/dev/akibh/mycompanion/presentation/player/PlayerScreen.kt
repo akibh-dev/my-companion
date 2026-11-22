@@ -68,13 +68,11 @@ import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.text
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -91,7 +89,10 @@ import dev.akibh.mycompanion.domain.model.Video
 import dev.akibh.mycompanion.presentation.common.OutlinedStateTextField
 import dev.akibh.mycompanion.ui.components.DotIcon
 import dev.akibh.mycompanion.ui.components.DotSymbol
+import dev.akibh.mycompanion.ui.components.EmptyState
+import dev.akibh.mycompanion.ui.components.PageMargin
 import dev.akibh.mycompanion.ui.components.SecondaryButton
+import dev.akibh.mycompanion.ui.components.SectionLabel
 import dev.akibh.mycompanion.ui.components.rememberChromeListState
 import dev.akibh.mycompanion.ui.theme.CompanionRed
 import java.util.Locale
@@ -173,7 +174,7 @@ fun PlayerScreen(
     LazyColumn(
         state = rememberChromeListState(),
         modifier = modifier,
-        contentPadding = PaddingValues(start = 24.dp, top = 12.dp, end = 24.dp, bottom = 144.dp),
+        contentPadding = PaddingValues(start = PageMargin, top = 12.dp, end = PageMargin, bottom = 144.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
@@ -517,25 +518,10 @@ private fun SectionTabs(current: PlayerSection, actions: PlayerActions) {
     }
 }
 
-/** Small spaced-out caps, used for list headings on this page. */
-@Composable
-internal fun SectionLabel(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text.uppercase(Locale.getDefault()),
-        style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.4.sp),
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        // Shown in caps, but screen readers (and tests) get the words as written, not spelled-out capitals.
-        modifier = modifier.clearAndSetSemantics {
-            this.text = AnnotatedString(text)
-            heading()
-        },
-    )
-}
-
 private fun LazyListScope.queueItems(playback: PlaybackState, actions: PlayerActions) {
     if (playback.queue.isEmpty()) {
         item {
-            EmptyState("Nothing in the queue", "Share a video from YouTube, or paste a link above.")
+            EmptyState(DotSymbol.NOTE, "Nothing in the queue", "Share a video from YouTube, or paste a link above.")
         }
         return
     }
@@ -784,7 +770,13 @@ private fun LazyListScope.playlistDetail(open: OpenPlaylist, actions: PlayerActi
         }
     }
     if (open.items.isEmpty()) {
-        item { EmptyState("This playlist is empty", "Share a YouTube video to My Companion and choose this playlist.") }
+        item {
+            EmptyState(
+                DotSymbol.NOTE,
+                "This playlist is empty",
+                "Share a YouTube video to My Companion and choose this playlist."
+            )
+        }
         return
     }
     itemsIndexed(open.items, key = { _, item -> "item-${item.id}" }) { index, item ->
@@ -822,24 +814,5 @@ private fun PlaylistMenu(playlist: Playlist, actions: PlayerActions) {
                 },
             )
         }
-    }
-}
-
-/** A dotted note over a short title and a hint, for empty lists. */
-@Composable
-internal fun EmptyState(title: String, body: String) {
-    Column(
-        Modifier.fillMaxWidth().padding(vertical = 28.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        DotIcon(DotSymbol.NOTE, Modifier.size(44.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(title, style = MaterialTheme.typography.titleMedium)
-        Text(
-            body,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-        )
     }
 }

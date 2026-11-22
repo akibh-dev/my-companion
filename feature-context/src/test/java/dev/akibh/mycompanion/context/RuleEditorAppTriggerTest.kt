@@ -92,6 +92,7 @@ class RuleEditorAppTriggerTest {
         compose.onNodeWithText("OK").performClick()
         compose.onNodeWithText("Using Maps").assertIsDisplayed()
 
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Add a change"))
         compose.onNodeWithText("Add a change").performClick()
         compose.onNodeWithText("Sound mode").performClick()
         compose.onNodeWithText("OK").performClick()

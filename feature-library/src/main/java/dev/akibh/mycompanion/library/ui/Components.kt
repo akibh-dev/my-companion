@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -20,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -48,16 +50,55 @@ import kotlin.math.sin
 val CardShape = RoundedCornerShape(26.dp)
 val CoverShape = RoundedCornerShape(10.dp)
 
-/** Small spaced capitals above a group: "SHELVES". */
+/**
+ * A number set with − and +: one grey pill like a SecondaryButton, each button a 48 dp target
+ * carrying its own TalkBack label.
+ */
 @Composable
-fun SectionLabel(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text.uppercase(),
-        modifier = modifier,
-        style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.6.sp),
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
+fun Stepper(
+    value: String,
+    onMinus: () -> Unit,
+    onPlus: () -> Unit,
+    minusLabel: String,
+    plusLabel: String,
+    modifier: Modifier = Modifier,
+    minusEnabled: Boolean = true,
+    plusEnabled: Boolean = true,
+) {
+    Row(
+        modifier
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = STEPPER_TINT)),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        StepButton("−", minusLabel, minusEnabled, onMinus)
+        Text(
+            value,
+            Modifier.widthIn(min = 56.dp),
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center,
+        )
+        StepButton("+", plusLabel, plusEnabled, onPlus)
+    }
 }
+
+@Composable
+private fun StepButton(symbol: String, description: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = description }
+            .alpha(if (enabled) 1f else .38f),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(symbol, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+    }
+}
+
+/** The same grey as a SecondaryButton: a tint of the text colour, so it shows on any surface. */
+private const val STEPPER_TINT = .10f
 
 /** A thin progress line drawn as dots, filled up to [progress]. */
 @Composable

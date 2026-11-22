@@ -1,6 +1,5 @@
 package dev.akibh.mycompanion.library.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,15 +11,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -36,6 +32,9 @@ import dev.akibh.mycompanion.library.domain.ReadingStats
 import dev.akibh.mycompanion.library.domain.ReadingStatus
 import dev.akibh.mycompanion.ui.components.ChoiceChip
 import dev.akibh.mycompanion.ui.components.ChoiceRow
+import dev.akibh.mycompanion.ui.components.PageMargin
+import dev.akibh.mycompanion.ui.components.Section
+import dev.akibh.mycompanion.ui.components.SectionGap
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -62,10 +61,10 @@ fun ReadingStatsRoute(modifier: Modifier = Modifier, viewModel: ReadingStatsView
         modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+            .padding(horizontal = PageMargin, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(SectionGap),
     ) {
-        Card {
+        Section("Today") {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(contentAlignment = Alignment.Center) {
                     DotRing(
@@ -86,41 +85,39 @@ fun ReadingStatsRoute(modifier: Modifier = Modifier, viewModel: ReadingStatsView
                 }
             }
         }
-        Card {
-            SectionLabel("Last 30 days")
-            DotBars(
-                current.recent.map { it / 60 },
-                Modifier
-                    .fillMaxWidth()
-                    .height(96.dp)
-                    .padding(top = 12.dp)
-                    .semantics { contentDescription = "Minutes read on each of the last 30 days" },
-            )
-            Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
-                Text(
-                    "${ReadingStats.CHART_DAYS} days ago",
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.weight(1f)
+        Section("Last 30 days") {
+            Column {
+                DotBars(
+                    current.recent.map { it / 60 },
+                    Modifier
+                        .fillMaxWidth()
+                        .height(96.dp)
+                        .semantics { contentDescription = "Minutes read on each of the last 30 days" },
                 )
-                Text("Today", style = MaterialTheme.typography.labelSmall)
+                Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
+                    Text(
+                        "${ReadingStats.CHART_DAYS} days ago",
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text("Today", style = MaterialTheme.typography.labelSmall)
+                }
             }
-            Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
                 Figure(readTime(current.recent.sum()).replace("not read yet", "0 min"), "In 30 days")
                 Figure(readTime(current.totalSeconds).replace("not read yet", "0 min"), "All time")
             }
         }
         val books = current.goal.booksPerYear
-        Card {
-            SectionLabel("This year")
+        Section("This year") {
             Figure(
                 if (books > 0) "${current.finishedThisYear} of $books" else "${current.finishedThisYear}",
                 if (current.finishedThisYear == 1) "book finished" else "books finished",
             )
-            if (books > 0) DotProgress(current.finishedThisYear.toFloat() / books, Modifier.padding(top = 8.dp))
+            if (books > 0) DotProgress(current.finishedThisYear.toFloat() / books)
         }
-        Card {
-            SectionLabel("Daily goal")
-            ChoiceRow(Modifier.padding(top = 10.dp)) {
+        Section("Daily goal") {
+            ChoiceRow {
                 listOf(0, 10, 20, 30, 45, 60).forEach { minutes ->
                     ChoiceChip(
                         if (minutes == 0) "Off" else "$minutes min",
@@ -129,42 +126,18 @@ fun ReadingStatsRoute(modifier: Modifier = Modifier, viewModel: ReadingStatsView
                     )
                 }
             }
-            SectionLabel("Books this year", Modifier.padding(top = 18.dp))
-            val stepperColors = IconButtonDefaults.filledTonalIconButtonColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                contentColor = MaterialTheme.colorScheme.onSurface,
+        }
+        Section("Books this year", note = "How many books to finish this year. Off hides the goal.") {
+            Stepper(
+                value = if (books == 0) "Off" else "$books",
+                onMinus = { viewModel.setGoal(current.goal.copy(booksPerYear = (books - 1).coerceAtLeast(0))) },
+                onPlus = { viewModel.setGoal(current.goal.copy(booksPerYear = books + 1)) },
+                minusLabel = "Fewer books",
+                plusLabel = "More books",
+                minusEnabled = books > 0,
             )
-            Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                FilledTonalIconButton(
-                    onClick = { viewModel.setGoal(current.goal.copy(booksPerYear = (books - 1).coerceAtLeast(0))) },
-                    modifier = Modifier.semantics { contentDescription = "Fewer books" },
-                    enabled = books > 0,
-                    colors = stepperColors,
-                ) { Text("−", style = MaterialTheme.typography.titleMedium) }
-                Text(
-                    if (books == 0) "Off" else "$books",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(horizontal = 24.dp),
-                )
-                FilledTonalIconButton(
-                    onClick = { viewModel.setGoal(current.goal.copy(booksPerYear = books + 1)) },
-                    modifier = Modifier.semantics { contentDescription = "More books" },
-                    colors = stepperColors,
-                ) { Text("+", style = MaterialTheme.typography.titleMedium) }
-            }
         }
     }
-}
-
-@Composable
-private fun Card(content: @Composable () -> Unit) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .clip(CardShape)
-            .background(MaterialTheme.colorScheme.surfaceContainer)
-            .padding(20.dp),
-    ) { content() }
 }
 
 @Composable

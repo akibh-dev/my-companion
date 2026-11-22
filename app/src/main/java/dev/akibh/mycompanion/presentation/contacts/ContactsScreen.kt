@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -18,13 +17,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -32,7 +29,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -51,13 +47,17 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.akibh.mycompanion.R
 import dev.akibh.mycompanion.domain.model.Contact
+import dev.akibh.mycompanion.ui.components.AddButton
+import dev.akibh.mycompanion.ui.components.AddButtonClearance
+import dev.akibh.mycompanion.ui.components.DotSymbol
 import dev.akibh.mycompanion.ui.components.DotText
+import dev.akibh.mycompanion.ui.components.EmptyState
+import dev.akibh.mycompanion.ui.components.PageMargin
 import dev.akibh.mycompanion.ui.components.SecondaryButton
 import dev.akibh.mycompanion.ui.components.rememberChromeListState
 import dev.akibh.mycompanion.ui.theme.CompanionRed
@@ -79,10 +79,20 @@ fun ContactsScreen(
     Box(modifier.fillMaxSize()) {
         when {
             state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-            state.contacts.isEmpty() -> EmptyContacts(onAddClick, Modifier.align(Alignment.Center))
+            state.contacts.isEmpty() -> EmptyState(
+                DotSymbol.VOICE,
+                "No one here yet",
+                "Add the people you call most. Then one tap starts a WhatsApp call.",
+                Modifier.align(Alignment.Center),
+            )
             else -> LazyColumn(
                 state = rememberChromeListState(),
-                contentPadding = PaddingValues(start = 24.dp, top = 12.dp, end = 24.dp, bottom = 144.dp),
+                contentPadding = PaddingValues(
+                    start = PageMargin,
+                    top = 12.dp,
+                    end = PageMargin,
+                    bottom = ADD_BUTTON_LIFT + AddButtonClearance,
+                ),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item {
@@ -104,7 +114,7 @@ fun ContactsScreen(
                     )
                 }
                 if (filtered.isEmpty()) {
-                    item { Text("No matching people", modifier = Modifier.padding(vertical = 24.dp)) }
+                    item { EmptyState(DotSymbol.SEARCH, "No matching people", "Try part of a name or number.") }
                 }
                 items(filtered, key = { it.id }) { contact ->
                     ContactCard(
@@ -120,46 +130,13 @@ fun ContactsScreen(
             }
         }
 
-        if (!state.loading && state.contacts.isNotEmpty()) {
-            ExtendedFloatingActionButton(
+        if (!state.loading) {
+            // Lifted above the floating nav bar.
+            AddButton(
+                "Add person",
                 onClick = onAddClick,
-                // The FAB hides its text from TalkBack (clearAndSetSemantics), so the icon carries the name.
-                icon = { Icon(Icons.Filled.Add, contentDescription = "Add person") },
-                text = { Text("Add person") },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 136.dp),
+                modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = ADD_BUTTON_LIFT),
             )
-        }
-    }
-}
-
-@Composable
-private fun EmptyContacts(onAddClick: () -> Unit, modifier: Modifier = Modifier) {
-    Column(
-        modifier.padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Icon(
-            Icons.Filled.Person,
-            contentDescription = null,
-            modifier = Modifier.size(56.dp),
-            tint = MaterialTheme.colorScheme.primary,
-        )
-        Spacer(Modifier.height(16.dp))
-        Text("No one here yet", style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(4.dp))
-        Text(
-            "Add the people you call most. Then one tap starts a WhatsApp call.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(24.dp))
-        Button(onClick = onAddClick) {
-            Icon(Icons.Filled.Add, contentDescription = null)
-            Spacer(Modifier.size(8.dp))
-            Text("Add person")
         }
     }
 }
@@ -297,3 +274,6 @@ fun initials(name: String): String {
     val letters = if (words.size == 1) words.first().take(1) else words.first().take(1) + words.last().take(1)
     return letters.uppercase()
 }
+
+/** Lifts the add button above the floating nav bar (with its own 16 dp margin: 136 dp from the bottom). */
+private val ADD_BUTTON_LIFT = 120.dp

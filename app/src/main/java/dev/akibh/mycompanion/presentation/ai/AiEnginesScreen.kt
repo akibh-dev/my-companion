@@ -2,24 +2,19 @@ package dev.akibh.mycompanion.presentation.ai
 
 import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -37,7 +32,12 @@ import dev.akibh.mycompanion.ai.Transliterator
 import dev.akibh.mycompanion.core.settings.AiEngine
 import dev.akibh.mycompanion.core.settings.Settings
 import dev.akibh.mycompanion.core.settings.SettingsStore
+import dev.akibh.mycompanion.ui.components.Note
+import dev.akibh.mycompanion.ui.components.PageMargin
 import dev.akibh.mycompanion.ui.components.SecondaryButton
+import dev.akibh.mycompanion.ui.components.Section
+import dev.akibh.mycompanion.ui.components.SectionGap
+import dev.akibh.mycompanion.ui.components.SwitchRow
 import java.io.File
 import java.util.Locale
 import javax.inject.Inject
@@ -124,14 +124,14 @@ fun AiEnginesRoute(modifier: Modifier = Modifier, viewModel: AiEnginesViewModel 
     val outputs by viewModel.outputs.collectAsStateWithLifecycle()
     LazyColumn(
         modifier = modifier,
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(start = PageMargin, top = 8.dp, end = PageMargin, bottom = SectionGap),
+        verticalArrangement = Arrangement.spacedBy(SectionGap),
     ) {
         item {
-            Text(
+            Note(
                 "Each feature works with a built-in fallback. Switch an engine to its model to try it; " +
                     "Banglish uses offline IndicXlit; the other model slots are placeholders.",
-                style = MaterialTheme.typography.bodyMedium,
+                Modifier.padding(horizontal = 8.dp),
             )
         }
         item { BanglishPreviewCard() }
@@ -158,33 +158,27 @@ private fun EngineCard(
     onRun: (String) -> Unit,
 ) {
     var input by remember(engine) { mutableStateOf(SAMPLES.getValue(engine)) }
-    ElevatedCard(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(engine.title, style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        when {
-                            !installed -> "No model installed: fallback only"
-                            useModel && engine == AiEngine.TRANSLITERATOR -> "Using offline IndicXlit"
-                            useModel -> "Using the model (dummy)"
-                            else -> "Using the fallback"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Switch(checked = useModel, onCheckedChange = onUseModel, enabled = installed)
-            }
-            if (engine != AiEngine.SPEECH_RECOGNIZER) {
-                OutlinedTextField(value = input, onValueChange = {
-                    input = it
-                }, label = { Text("Sample input") }, modifier = Modifier.fillMaxWidth())
-            }
-            SecondaryButton(onClick = { onRun(input) }) {
-                Text(if (engine == AiEngine.SPEECH_RECOGNIZER) "Run on a sample recording" else "Run")
-            }
-            output?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+    Section(engine.title) {
+        SwitchRow(
+            title = "Use the model",
+            checked = useModel,
+            onCheckedChange = onUseModel,
+            enabled = installed,
+            summary = when {
+                !installed -> "No model installed: fallback only"
+                useModel && engine == AiEngine.TRANSLITERATOR -> "Using offline IndicXlit"
+                useModel -> "Using the model (dummy)"
+                else -> "Using the fallback"
+            },
+        )
+        if (engine != AiEngine.SPEECH_RECOGNIZER) {
+            OutlinedTextField(value = input, onValueChange = {
+                input = it
+            }, label = { Text("Sample input") }, modifier = Modifier.fillMaxWidth())
         }
+        SecondaryButton(onClick = { onRun(input) }) {
+            Text(if (engine == AiEngine.SPEECH_RECOGNIZER) "Run on a sample recording" else "Run")
+        }
+        output?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
     }
 }

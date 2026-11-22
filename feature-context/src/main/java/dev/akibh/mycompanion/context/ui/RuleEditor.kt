@@ -6,24 +6,24 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import android.text.format.DateFormat
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
@@ -34,8 +34,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -57,7 +60,11 @@ import dev.akibh.mycompanion.context.domain.Trigger
 import dev.akibh.mycompanion.context.domain.VolumeStream
 import dev.akibh.mycompanion.ui.components.ChoiceChip
 import dev.akibh.mycompanion.ui.components.ChoiceRow
+import dev.akibh.mycompanion.ui.components.PageMargin
+import dev.akibh.mycompanion.ui.components.PrimaryButton
 import dev.akibh.mycompanion.ui.components.SecondaryButton
+import dev.akibh.mycompanion.ui.components.Section
+import dev.akibh.mycompanion.ui.components.SectionGap
 import java.time.DayOfWeek
 import java.time.LocalTime
 import javax.inject.Inject
@@ -171,58 +178,89 @@ fun RuleEditorRoute(
     var editingTrigger by remember { mutableStateOf<Pair<Int?, Trigger>?>(null) }
     var editingAction by remember { mutableStateOf<Pair<Int?, RuleAction>?>(null) }
 
+    // No red before the user has done anything: problems show after a tap on Save, and the name's
+    // after it was typed in and cleared again.
+    var triedToSave by rememberSaveable { mutableStateOf(false) }
+    var nameEdited by rememberSaveable { mutableStateOf(false) }
+    val nameMissing = draft.name.isBlank() && (triedToSave || nameEdited)
+
     LazyColumn(
         modifier = modifier,
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(PageMargin),
+        verticalArrangement = Arrangement.spacedBy(SectionGap),
     ) {
         item {
-            OutlinedTextField(
-                value = draft.name,
-                onValueChange = viewModel::onName,
-                label = { Text("Rule name") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-        item { Text("When (all of these)", style = MaterialTheme.typography.titleMedium) }
-        itemsIndexed(draft.triggers) { index, trigger ->
-            Line(
-                Describe.trigger(trigger, placesById),
-                { editingTrigger = index to trigger }
-            ) { viewModel.onRemoveTrigger(index) }
-        }
-        item {
-            AddMenu(
-                "Add a \"when\"",
-                TRIGGER_KINDS.map { (label, make) -> label to { editingTrigger = null to make(places) } }
-            )
-        }
-        item { Text("Then change", style = MaterialTheme.typography.titleMedium) }
-        itemsIndexed(draft.actions) { index, action ->
-            Line(Describe.action(action), { editingAction = index to action }) { viewModel.onRemoveAction(index) }
+            Section("Name") {
+                OutlinedTextField(
+                    value = draft.name,
+                    onValueChange = {
+                        nameEdited = true
+                        viewModel.onName(it)
+                    },
+                    label = { Text("Rule name") },
+                    isError = nameMissing,
+                    supportingText = if (nameMissing) {
+                        { Text("Give the rule a name") }
+                    } else {
+                        null
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
         item {
-            AddMenu("Add a change", ACTION_KINDS.map { (label, make) -> label to { editingAction = null to make() } })
+            Section("When, all of these") {
+                draft.triggers.forEachIndexed { index, trigger ->
+                    Line(
+                        Describe.trigger(trigger, placesById),
+                        { editingTrigger = index to trigger }
+                    ) { viewModel.onRemoveTrigger(index) }
+                }
+                AddMenu(
+                    "Add a \"when\"",
+                    TRIGGER_KINDS.map { (label, make) -> label to { editingTrigger = null to make(places) } }
+                )
+            }
         }
         item {
-            Text(
-                "When the rule stops applying, changed settings go back to how they were, " +
+            Section(
+                "Then change",
+                note = "When the rule stops applying, changed settings go back to how they were, " +
                     "unless you changed them yourself.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            ) {
+                draft.actions.forEachIndexed { index, action ->
+                    Line(Describe.action(action), { editingAction = index to action }) {
+                        viewModel.onRemoveAction(index)
+                    }
+                }
+                AddMenu(
+                    "Add a change",
+                    ACTION_KINDS.map { (label, make) -> label to { editingAction = null to make() } }
+                )
+            }
         }
         item {
-            draft.problem?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            ChoiceRow {
-                Button(
-                    onClick = { viewModel.save(onDone) },
-                    enabled = draft.problem == null,
-                    modifier = Modifier.heightIn(min = 48.dp),
-                ) { Text("Save") }
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                val problem = draft.problem
+                if (triedToSave && problem != null) {
+                    Text(
+                        problem,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                    )
+                }
+                PrimaryButton(onClick = {
+                    triedToSave = true
+                    if (problem == null) viewModel.save(onDone)
+                }) { Text("Save") }
                 if (!viewModel.isNew) {
-                    SecondaryButton(onClick = { viewModel.delete(onDone) }, destructive = true) { Text("Delete") }
+                    SecondaryButton(
+                        onClick = { viewModel.delete(onDone) },
+                        destructive = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Delete") }
                 }
             }
         }
@@ -264,30 +302,36 @@ private val ACTION_KINDS: List<Pair<String, () -> RuleAction>> = listOf(
     "Brightness" to { RuleAction.Brightness(50) },
 )
 
+/** One "when" or change inside its section: tap to edit, × to remove. */
 @Composable
 private fun Line(text: String, onClick: () -> Unit, onRemove: () -> Unit) {
-    ElevatedCard(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
-        ListItem(
-            headlineContent = { Text(text) },
-            trailingContent = {
-                IconButton(
-                    onClick = onRemove
-                ) { Icon(Icons.Filled.Close, contentDescription = "Remove $text") }
-            },
-        )
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clip(MaterialTheme.shapes.small)
+            .clickable(onClick = onClick)
+            .padding(start = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        IconButton(onClick = onRemove) { Icon(Icons.Filled.Close, contentDescription = "Remove $text") }
     }
 }
 
 @Composable
 private fun AddMenu(label: String, options: List<Pair<String, () -> Unit>>) {
     var open by remember { mutableStateOf(false) }
-    SecondaryButton(onClick = { open = true }) { Text(label) }
-    DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-        options.forEach { (text, pick) ->
-            DropdownMenuItem(text = { Text(text) }, onClick = {
-                open = false
-                pick()
-            })
+    // The Box anchors the menu to the button.
+    Box {
+        SecondaryButton(onClick = { open = true }) { Text(label) }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            options.forEach { (text, pick) ->
+                DropdownMenuItem(text = { Text(text) }, onClick = {
+                    open = false
+                    pick()
+                })
+            }
         }
     }
 }

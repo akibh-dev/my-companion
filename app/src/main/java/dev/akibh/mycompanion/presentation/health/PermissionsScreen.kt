@@ -11,7 +11,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,10 +18,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -42,7 +37,13 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import dev.akibh.mycompanion.core.permissions.Requirement
+import dev.akibh.mycompanion.ui.components.Note
+import dev.akibh.mycompanion.ui.components.PageMargin
+import dev.akibh.mycompanion.ui.components.PrimaryButton
 import dev.akibh.mycompanion.ui.components.SecondaryButton
+import dev.akibh.mycompanion.ui.components.SectionCard
+import dev.akibh.mycompanion.ui.components.SectionGap
+import dev.akibh.mycompanion.ui.components.SectionLabel
 import dev.akibh.mycompanion.ui.theme.CompanionRed
 
 /**
@@ -71,70 +72,77 @@ fun PermissionsScreen(
             it to it.isGranted(context)
         }.sortedWith(compareBy({ it.second }, { it.first.feature?.ordinal ?: -1 }))
     }
+    val (granted, missing) = sorted.partition { it.second }
+    val onOpen: (Requirement) -> Unit = { requirement ->
+        val needed = requirement.runtimePermissions.filter { p ->
+            ContextCompat.checkSelfPermission(context, p) != PackageManager.PERMISSION_GRANTED
+        }
+        if (needed.isEmpty()) {
+            open(context, requirement)
+        } else {
+            asking = requirement
+            ask.launch(needed.toTypedArray())
+        }
+    }
     LazyColumn(
         modifier = modifier,
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(start = PageMargin, top = 8.dp, end = PageMargin, bottom = SectionGap),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Text(
-                "Granted ${sorted.count { it.second }} of ${sorted.size}. Each feature only works with its own.",
-                style = MaterialTheme.typography.bodyMedium,
+            Note(
+                "Granted ${granted.size} of ${sorted.size}. Each feature only works with its own.",
+                Modifier.padding(horizontal = 8.dp),
             )
         }
-        if (onReady != null && sorted.all { it.second }) {
+        if (onReady != null && missing.isEmpty()) {
             item(key = "ready") { ReadyCard(onReady) }
         }
-        items(sorted, key = { it.first.id }) { (requirement, granted) ->
-            RequirementCard(requirement, granted) {
-                val missing = requirement.runtimePermissions.filter { p ->
-                    ContextCompat.checkSelfPermission(context, p) != PackageManager.PERMISSION_GRANTED
-                }
-                if (missing.isEmpty()) {
-                    open(context, requirement)
-                } else {
-                    asking = requirement
-                    ask.launch(missing.toTypedArray())
-                }
+        if (missing.isNotEmpty()) {
+            item(key = "label-missing") { GroupLabel("Needs your OK") }
+            items(missing, key = { it.first.id }) { (requirement, _) ->
+                RequirementCard(requirement, granted = false) { onOpen(requirement) }
+            }
+        }
+        if (granted.isNotEmpty()) {
+            item(key = "label-granted") { GroupLabel("Granted") }
+            items(granted, key = { it.first.id }) { (requirement, _) ->
+                RequirementCard(requirement, granted = true) { onOpen(requirement) }
             }
         }
     }
 }
 
 @Composable
+private fun GroupLabel(text: String) {
+    SectionLabel(text, Modifier.padding(start = 8.dp, top = SectionGap - 12.dp))
+}
+
+@Composable
 private fun ReadyCard(onReady: () -> Unit) {
-    Card(
-        Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-    ) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                buildAnnotatedString {
-                    append("Ready to roll")
-                    withStyle(SpanStyle(color = CompanionRed)) { append(".") }
-                },
-                style = MaterialTheme.typography.headlineSmall,
-            )
-            Text(
-                "Everything is granted, so every feature can do its job.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Button(
-                onClick = onReady,
-                modifier = Modifier
-                    .padding(top = 8.dp)
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp),
-            ) { Text("Let's go") }
+    SectionCard(contentPadding = PaddingValues(20.dp)) {
+        Text(
+            buildAnnotatedString {
+                append("Ready to roll")
+                withStyle(SpanStyle(color = CompanionRed)) { append(".") }
+            },
+            style = MaterialTheme.typography.headlineSmall,
+        )
+        Text(
+            "Everything is granted, so every feature can do its job.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        PrimaryButton(onClick = onReady, modifier = Modifier.padding(top = 8.dp).heightIn(min = 56.dp)) {
+            Text("Let's go")
         }
     }
 }
 
 @Composable
 private fun RequirementCard(requirement: Requirement, granted: Boolean, onOpen: () -> Unit) {
-    ElevatedCard(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    SectionCard {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Icon(
                 if (granted) Icons.Filled.CheckCircle else Icons.Filled.Warning,
                 contentDescription = if (granted) "Granted" else "Not granted",

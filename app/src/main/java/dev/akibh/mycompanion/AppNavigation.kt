@@ -136,6 +136,7 @@ fun CompanionRoot(
         homeLinks + listOf(
             HomeLink("Permissions & health", "What each feature needs, and what's missing", PERMISSIONS_ROUTE),
             HomeLink("Log", "What the app did, kept on this phone", "log"),
+            HomeLink("AI engines", "Offline models, their fallbacks and the Banglish preview", AI_ROUTE),
         )
     }
     val entry by navController.currentBackStackEntryAsState()

@@ -77,7 +77,7 @@ class RemindersScreenTest {
                 )
             }
         }
-        if (openEditor) compose.onNodeWithText("Create a reminder").performClick()
+        if (openEditor) compose.onNodeWithContentDescription("Add reminder").performClick()
     }
 
     @Test
@@ -243,11 +243,11 @@ class RemindersScreenTest {
         show(RemindersUiState(presets = presets), openEditor = false)
         compose.onNodeWithText("Nothing scheduled").assertIsDisplayed()
         compose.onNodeWithText("Title").assertDoesNotExist()
-        compose.onNodeWithText("Create a reminder").performClick()
+        compose.onNodeWithContentDescription("Add reminder").performClick()
         compose.onNodeWithText("Title").performTextInput("A little break")
         compose.onNodeWithContentDescription("Drag handle").performSemanticsAction(SemanticsActions.Dismiss)
         compose.onNodeWithText("Title").assertDoesNotExist()
-        compose.onNodeWithText("Create a reminder").performClick()
+        compose.onNodeWithContentDescription("Add reminder").performClick()
         compose.onNodeWithText("A little break").assertIsDisplayed()
     }
 }

@@ -14,8 +14,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -62,6 +65,7 @@ import dev.akibh.mycompanion.core.settings.Feature
 import dev.akibh.mycompanion.ui.components.DotIcon
 import dev.akibh.mycompanion.ui.components.DotSymbol
 import dev.akibh.mycompanion.ui.components.DotText
+import dev.akibh.mycompanion.ui.components.PageMargin
 import dev.akibh.mycompanion.ui.components.rememberChromeListState
 import dev.akibh.mycompanion.ui.theme.CompanionRed
 import java.text.DateFormat
@@ -118,8 +122,7 @@ fun HomeScreen(
             onToggle = { onFeatureChange(feature, it) },
         )
     } + HomeTileSpec(title = "Quran", symbol = DotSymbol.BOOK, onOpen = { onOpen(QURAN_ROUTE) }) +
-        HomeTileSpec(title = "Library", symbol = DotSymbol.SHELF, onOpen = { onOpen(LIBRARY_ROUTE) }) +
-        HomeTileSpec(title = "AI engines", symbol = DotSymbol.SPARK, onOpen = { onOpen(AI_ROUTE) })
+        HomeTileSpec(title = "Library", symbol = DotSymbol.SHELF, onOpen = { onOpen(LIBRARY_ROUTE) })
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val hour by produceState(initialValue = LocalTime.now().hour, key1 = lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -134,10 +137,18 @@ fun HomeScreen(
         in 12..16 -> "Good afternoon,"
         else -> "Good evening,"
     }
+    // The floating nav bar (76 dp + 12 dp margins) sits above the system bar, so the last row of
+    // tiles needs that much room, plus the system bar's own height, to scroll fully clear of it.
+    val systemBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     LazyColumn(
         state = rememberChromeListState(),
         modifier = modifier,
-        contentPadding = PaddingValues(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 144.dp),
+        contentPadding = PaddingValues(
+            start = PageMargin,
+            top = 24.dp,
+            end = PageMargin,
+            bottom = NAV_BAR_CLEARANCE + systemBar,
+        ),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
@@ -194,7 +205,7 @@ fun HomeScreen(
 /**
  * A big Home tile. With [onToggle] it is a feature switch: the whole tile toggles, filled (inverse)
  * when on, with the dotted icon red while the feature is running, and the arrow opens its screen.
- * Without [onToggle] (a tool such as AI engines) the whole tile simply opens [onOpen].
+ * Without [onToggle] (a place such as Quran or Library) the whole tile simply opens [onOpen].
  */
 private data class HomeTileSpec(
     val title: String,
@@ -429,3 +440,6 @@ const val LIBRARY_ROUTE = "library"
 private const val WORDMARK_COLUMNS = 66f
 
 private const val HEARTBEAT_REST_MILLIS = 3_200L
+
+/** Floating nav bar (76 dp tall, 12 dp margin above and below) plus breathing room. */
+private val NAV_BAR_CLEARANCE = 124.dp

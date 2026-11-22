@@ -36,7 +36,9 @@ import dev.akibh.mycompanion.domain.model.PlaybackHistoryEntry
 import dev.akibh.mycompanion.domain.model.Playlist
 import dev.akibh.mycompanion.ui.components.DotIcon
 import dev.akibh.mycompanion.ui.components.DotSymbol
+import dev.akibh.mycompanion.ui.components.EmptyState
 import dev.akibh.mycompanion.ui.components.SecondaryButton
+import dev.akibh.mycompanion.ui.components.SectionLabel
 import dev.akibh.mycompanion.ui.theme.CompanionRed
 import java.time.Instant
 import java.time.LocalDate
@@ -63,7 +65,7 @@ internal fun LazyListScope.historyItems(
         }
     }
     if (history.isEmpty()) {
-        item { EmptyState("No history yet", "Videos appear here after you listen for five seconds.") }
+        item { EmptyState(DotSymbol.NOTE, "No history yet", "Videos appear here after you listen for five seconds.") }
         return
     }
     val zone = ZoneId.systemDefault()
