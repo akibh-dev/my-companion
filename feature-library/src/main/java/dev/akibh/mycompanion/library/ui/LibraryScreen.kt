@@ -522,7 +522,9 @@ private fun BookTile(book: Book, availability: Availability, onOpen: () -> Unit,
     Column(
         Modifier
             .clip(CoverShape)
-            .combinedClickable(onClick = onOpen, onLongClick = onDetails, onLongClickLabel = "Details"),
+            .combinedClickable(onClick = onOpen, onLongClick = onDetails, onLongClickLabel = "Details")
+            // Keep the text and progress dots above the ripple's rounded bottom corners, which clip.
+            .padding(bottom = 10.dp),
     ) {
         Box {
             Cover(book, Modifier.fillMaxWidth())
