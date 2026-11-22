@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -27,13 +28,16 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +47,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -59,6 +66,7 @@ import dev.akibh.mycompanion.ui.components.DotIcon
 import dev.akibh.mycompanion.ui.components.DotSymbol
 import dev.akibh.mycompanion.ui.components.DotText
 import dev.akibh.mycompanion.ui.components.SecondaryButton
+import dev.akibh.mycompanion.ui.components.SectionLabel
 import dev.akibh.mycompanion.ui.theme.CompanionRed
 import kotlin.math.roundToInt
 import org.json.JSONObject
@@ -67,10 +75,14 @@ import org.readium.r2.shared.publication.Locator
 
 internal enum class ReaderSheet { CONTENTS, SEARCH, LOOK }
 
-/** Everything drawn over the Readium page: bars, sheets, the missing-file screen. */
+/**
+ * Everything drawn over the Readium page: bars, sheets, the missing-file screen. [pageColor] is the
+ * page's own background (black, white or sepia); the bars fade into it so they never sit on text.
+ */
 @Composable
 internal fun ReaderScreen(
     viewModel: BookReaderViewModel,
+    pageColor: Color,
     onBack: () -> Unit,
     onGo: (Locator) -> Unit,
     onGoLink: (Link) -> Unit,
@@ -87,23 +99,31 @@ internal fun ReaderScreen(
             viewModel.messageShown()
         }
     }
-    Box(Modifier.fillMaxSize()) {
-        when (val current = state) {
-            ReaderState.Loading -> Box(
-                Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
-                contentAlignment = Alignment.Center,
-            ) { CircularProgressIndicator(color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            is ReaderState.Unavailable -> Unavailable(
-                book = current.book,
-                availability = current.availability,
-                onBack = onBack,
-                onLocate = onLocate,
-                onRetry = viewModel::retry,
-                onRemove = { viewModel.remove(onBack) },
+    // This view has no Surface behind it, so text and icons would default to black and vanish on a
+    // dark page. Give them the page's ink instead.
+    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
+        Box(Modifier.fillMaxSize()) {
+            when (val current = state) {
+                ReaderState.Loading -> Box(
+                    Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+                    contentAlignment = Alignment.Center,
+                ) { CircularProgressIndicator(color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                is ReaderState.Unavailable -> Unavailable(
+                    book = current.book,
+                    availability = current.availability,
+                    onBack = onBack,
+                    onLocate = onLocate,
+                    onRetry = viewModel::retry,
+                    onRemove = { viewModel.remove(onBack) },
+                )
+                is ReaderState.Ready ->
+                    Chrome(viewModel, current.session.book, pageColor, onBack, onGo, onGoLink, onSearchHit)
+            }
+            SnackbarHost(
+                snackbar,
+                Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 132.dp),
             )
-            is ReaderState.Ready -> Chrome(viewModel, current.session.book, onBack, onGo, onGoLink, onSearchHit)
         }
-        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 120.dp))
     }
     relink?.let { (uri, check) ->
         AlertDialog(
@@ -121,10 +141,18 @@ internal fun ReaderScreen(
     }
 }
 
+/**
+ * The reading controls, shown by a tap in the middle of the page:
+ * - top: a round back button, chapter (small caps) over the title, and one pill of actions;
+ * - bottom: a pill with the position, the red-dot percentage and a dotted slider through the book.
+ * A fade from the page colour sits behind both, so the controls are on a calm background in any
+ * theme, portrait or landscape, paged or scrolled. Both stay no wider than [MAX_BAR_WIDTH].
+ */
 @Composable
 private fun Chrome(
     viewModel: BookReaderViewModel,
     book: Book,
+    pageColor: Color,
     onBack: () -> Unit,
     onGo: (Locator) -> Unit,
     onGoLink: (Link) -> Unit,
@@ -141,61 +169,55 @@ private fun Chrome(
     val hereBookmark = here?.let { spot -> bookmarks.firstOrNull { sameSpot(it.locator, spot) } }
 
     Box(Modifier.fillMaxSize()) {
+        // Fades behind the bars. Plain backgrounds don't take touches, so the page still gets its taps.
+        AnimatedVisibility(visible, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxSize()) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(SCRIM_TOP)
+                        .background(Brush.verticalGradient(listOf(pageColor, pageColor.copy(alpha = 0f)))),
+                )
+                Spacer(Modifier.weight(1f))
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(SCRIM_BOTTOM)
+                        .background(Brush.verticalGradient(listOf(pageColor.copy(alpha = 0f), pageColor))),
+                )
+            }
+        }
+
         AnimatedVisibility(
             visible,
             enter = fadeIn() + slideInVertically { -it / 2 },
             exit = fadeOut() + slideOutVertically { -it / 2 },
             modifier = Modifier.align(Alignment.TopCenter),
         ) {
-            Row(
-                Modifier
-                    .statusBarsPadding()
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                    .fillMaxWidth()
-                    .clip(CardShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = .97f))
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
-                Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
-                    Text(
-                        book.title,
-                        style = MaterialTheme.typography.titleSmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    val chapter = here?.title?.takeIf { it.isNotBlank() }
-                    if (chapter != null) {
-                        Text(
-                            chapter,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+            TopBar(
+                bookmarked = hereBookmark != null,
+                searchable = viewModel.searchable,
+                onBack = onBack,
+                onContents = { sheet = ReaderSheet.CONTENTS },
+                onSearch = { sheet = ReaderSheet.SEARCH },
+                onBookmark = {
+                    if (hereBookmark != null) {
+                        viewModel.removeBookmark(hereBookmark.id)
+                    } else {
+                        viewModel.bookmarkHere(defaultBookmarkLabel(here, book.format))
                     }
-                }
-                DotButton(DotSymbol.CONTENTS, "Contents and bookmarks", { sheet = ReaderSheet.CONTENTS })
-                if (viewModel.searchable) DotButton(DotSymbol.SEARCH, "Search in book", { sheet = ReaderSheet.SEARCH })
-                DotButton(
-                    if (hereBookmark != null) DotSymbol.BOOKMARKED else DotSymbol.BOOKMARK,
-                    if (hereBookmark != null) "Remove bookmark" else "Bookmark this page",
-                    {
-                        if (hereBookmark != null) {
-                            viewModel.removeBookmark(hereBookmark.id)
-                        } else {
-                            viewModel.bookmarkHere(defaultBookmarkLabel(here, book.format))
-                        }
-                    },
-                    active = hereBookmark != null,
-                )
-                DotButton(DotSymbol.TYPE, "Look", { sheet = ReaderSheet.LOOK })
-            }
+                },
+                onLook = { sheet = ReaderSheet.LOOK },
+            )
         }
 
         Column(
-            Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(12.dp),
+            Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(horizontal = 12.dp, vertical = 12.dp)
+                .widthIn(max = MAX_BAR_WIDTH)
+                .fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (finishPrompt) FinishPrompt(onAnswer = viewModel::markFinished)
@@ -205,6 +227,8 @@ private fun Chrome(
                 exit = fadeOut() + slideOutVertically { it / 2 },
             ) {
                 ProgressBar(
+                    title = book.title,
+                    chapter = here?.title?.takeIf { it.isNotBlank() },
                     locator = here,
                     positions = positions,
                     progress = here?.let(viewModel::progress) ?: book.progress,
@@ -246,10 +270,53 @@ private fun Chrome(
     }
 }
 
-/** The page counter and a slider through the book. */
+@Composable
+private fun TopBar(
+    bookmarked: Boolean,
+    searchable: Boolean,
+    onBack: () -> Unit,
+    onContents: () -> Unit,
+    onSearch: () -> Unit,
+    onBookmark: () -> Unit,
+    onLook: () -> Unit,
+) {
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+        Row(
+            Modifier
+                .statusBarsPadding()
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .widthIn(max = MAX_BAR_WIDTH)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+            }
+            Spacer(Modifier.weight(1f))
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                Row(Modifier.padding(horizontal = 4.dp)) {
+                    DotButton(DotSymbol.CONTENTS, "Contents and bookmarks", onContents)
+                    if (searchable) DotButton(DotSymbol.SEARCH, "Search in book", onSearch)
+                    DotButton(
+                        if (bookmarked) DotSymbol.BOOKMARKED else DotSymbol.BOOKMARK,
+                        if (bookmarked) "Remove bookmark" else "Bookmark this page",
+                        onBookmark,
+                        active = bookmarked,
+                    )
+                    DotButton(DotSymbol.TYPE, "Look", onLook)
+                }
+            }
+        }
+    }
+}
+
+/** The position, the percentage (with the red dot) and a dotted slider through the book. */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun ProgressBar(
+    title: String,
+    chapter: String?,
     locator: Locator?,
     positions: List<Locator>,
     progress: Double,
@@ -259,47 +326,83 @@ private fun ProgressBar(
     var dragging by remember { mutableStateOf<Float?>(null) }
     val total = positions.size
     val position = locator?.locations?.position
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .clip(CardShape)
-            .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = .97f))
-            .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 4.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+    Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+        Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 4.dp)) {
             val shownPosition = dragging?.let { (it * (total - 1)).roundToInt() + 1 } ?: position
             val unit = if (format == BookFormat.EPUB) "" else "Page "
-            Text(
-                if (total > 0 && shownPosition != null) "$unit$shownPosition / $total" else " ",
-                style = MaterialTheme.typography.labelLarge,
-            )
-            Spacer(Modifier.weight(1f))
-            Box(Modifier.size(6.dp).clip(CircleShape).background(CompanionRed))
-            Text(
-                "${((dragging?.toDouble() ?: progress) * 100).roundToInt()}%",
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.padding(start = 8.dp),
-            )
-        }
-        if (total > 1) {
-            Slider(
-                value = dragging ?: ((position ?: 1) - 1f) / (total - 1),
-                onValueChange = { dragging = it },
-                onValueChangeFinished = {
-                    dragging?.let { onSeek((it * (total - 1)).roundToInt()) }
-                    dragging = null
-                },
-                thumb = { Box(Modifier.size(18.dp).clip(CircleShape).background(CompanionRed)) },
-                track = { slider ->
-                    val range = slider.valueRange.endInclusive - slider.valueRange.start
-                    DotProgress((slider.value - slider.valueRange.start) / range, Modifier.padding(horizontal = 2.dp))
-                },
-            )
-        } else {
-            Spacer(Modifier.heightIn(min = 12.dp))
+            val where: @Composable () -> Unit = {
+                Text(
+                    if (total > 0 && shownPosition != null) "$unit$shownPosition / $total" else " ",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            val percent: @Composable () -> Unit = {
+                Box(Modifier.size(6.dp).clip(CircleShape).background(CompanionRed))
+                Text(
+                    "${((dragging?.toDouble() ?: progress) * 100).roundToInt()}%",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            }
+            // Chapter (small caps) over the book's title. On a short (landscape) screen they share
+            // one row with the position, so the pill stays low and the page stays visible.
+            val short = LocalConfiguration.current.screenHeightDp < SHORT_SCREEN_DP
+            if (short) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    TitleBlock(title, chapter, Modifier.weight(1f))
+                    where()
+                    Row(verticalAlignment = Alignment.CenterVertically) { percent() }
+                }
+            } else {
+                TitleBlock(title, chapter, Modifier.padding(bottom = 6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    where()
+                    Spacer(Modifier.weight(1f))
+                    percent()
+                }
+            }
+            if (total > 1) {
+                Slider(
+                    value = dragging ?: ((position ?: 1) - 1f) / (total - 1),
+                    onValueChange = { dragging = it },
+                    onValueChangeFinished = {
+                        dragging?.let { onSeek((it * (total - 1)).roundToInt()) }
+                        dragging = null
+                    },
+                    thumb = { Box(Modifier.size(18.dp).clip(CircleShape).background(CompanionRed)) },
+                    track = { slider ->
+                        val range = slider.valueRange.endInclusive - slider.valueRange.start
+                        DotProgress(
+                            (slider.value - slider.valueRange.start) / range,
+                            Modifier.padding(horizontal = 2.dp),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            empty = MaterialTheme.colorScheme.onSurface.copy(alpha = .22f),
+                        )
+                    },
+                )
+            } else {
+                Spacer(Modifier.heightIn(min = 12.dp))
+            }
         }
     }
 }
+
+@Composable
+private fun TitleBlock(title: String, chapter: String?, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        if (chapter != null) SectionLabel(chapter)
+        Text(title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+private const val SHORT_SCREEN_DP = 480
+private val MAX_BAR_WIDTH = 640.dp
+private val SCRIM_TOP = 140.dp
+private val SCRIM_BOTTOM = 200.dp
 
 @Composable
 private fun FinishPrompt(onAnswer: (Boolean) -> Unit) {
@@ -307,7 +410,7 @@ private fun FinishPrompt(onAnswer: (Boolean) -> Unit) {
         Modifier
             .fillMaxWidth()
             .clip(CardShape)
-            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

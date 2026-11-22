@@ -88,3 +88,15 @@ Every screen is now built from the same few pieces in `design/.../ui/components/
 - Fixes in the same pass: forms show errors only after Save is tapped (not on open); AI engines moved from Home to Settings → Developer; the Log is grouped by hour with readable rows; Keep screen on uses choice chips; the Quran reader's view and script choices are two separate pills, and its zoom pill floats over the page only while it is touched, fading out 1.5 s after (always shown with TalkBack); tappable rows inside cards are inset so the ripple's rounded corners don't clip text.
 
 Verified on the CMF Phone 1 in light and dark: all 27 screens, the reminder sheet, the floating zoom pill (hidden → shown on scroll → hidden). 756 unit tests, lint and ktlint passed.
+
+### Book reader controls — 22 November 2026
+
+The reader's controls had no Surface behind them, so their text and icons fell back to black and almost vanished on a dark page; both bars also sat straight over running text. Now:
+
+- Content colour is the page's ink (`LocalContentColor` = `onBackground`), in every page theme (Auto, Light, Sepia, Dark).
+- Top: a round back button on the left and one opaque pill of actions (contents, search, bookmark, look) on the right.
+- Bottom: one opaque pill with the chapter (small caps) over the book title, the position, the red-dot percentage and the dotted slider (unread dots at 22% ink so the track is visible). On short screens (landscape) the title shares a row with the position so the pill stays low.
+- Behind both, a fade from the page's own colour (black, white or sepia), so the bars never sit on text. The fades are plain backgrounds and take no touches.
+- Bars are at most 640 dp wide and centred, for landscape.
+
+Checked on the CMF Phone 1: dark and light, paged and scroll layouts, portrait and landscape.
