@@ -63,7 +63,7 @@ fun ChoiceChip(
     val role = if (multiple) Role.Checkbox else Role.RadioButton
     val colors = MaterialTheme.colorScheme
     val container by animateColorAsState(
-        if (selected) colors.onSurface else colors.surfaceContainerHigh,
+        if (selected) colors.onSurface else colors.onSurface.copy(alpha = UNSELECTED_TINT),
         tween(CHOICE_MILLIS),
         label = "choice container",
     )
@@ -134,7 +134,7 @@ fun SecondaryButton(
         modifier = modifier.heightIn(min = 48.dp),
         enabled = enabled,
         colors = ButtonDefaults.filledTonalButtonColors(
-            containerColor = colors.surfaceContainerHighest,
+            containerColor = colors.onSurface.copy(alpha = BUTTON_TINT),
             contentColor = if (destructive) colors.error else colors.onSurface,
         ),
         contentPadding = PaddingValues(horizontal = 22.dp, vertical = 12.dp),
@@ -144,3 +144,8 @@ fun SecondaryButton(
 
 const val CHOICE_DOT_TAG = "choice-selected-dot"
 private const val CHOICE_MILLIS = 160
+
+// Tints of the text colour rather than fixed greys, so an unselected choice or a secondary button is
+// always a visible step away from whatever it sits on (the page, a card, a sheet), in light and dark.
+private const val UNSELECTED_TINT = .07f
+private const val BUTTON_TINT = .10f
