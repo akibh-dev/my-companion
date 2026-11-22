@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
@@ -341,7 +341,7 @@ private fun TabHeader(title: String) {
             .background(MaterialTheme.colorScheme.background)
             .windowInsetsPadding(WindowInsets.statusBars)
             .padding(start = 24.dp, top = 24.dp, end = 24.dp)
-            .height(52.dp)
+            .heightIn(min = 52.dp)
             .semantics { heading() },
         contentAlignment = Alignment.CenterStart,
     ) {

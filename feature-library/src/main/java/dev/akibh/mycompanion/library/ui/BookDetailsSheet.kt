@@ -2,8 +2,6 @@ package dev.akibh.mycompanion.library.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -19,7 +17,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -40,13 +37,16 @@ import dev.akibh.mycompanion.library.domain.Label
 import dev.akibh.mycompanion.library.domain.LabelKind
 import dev.akibh.mycompanion.library.domain.fileSize
 import dev.akibh.mycompanion.library.reader.TextDialog
+import dev.akibh.mycompanion.ui.components.ChoiceChip
+import dev.akibh.mycompanion.ui.components.ChoiceRow
+import dev.akibh.mycompanion.ui.components.SecondaryButton
 import dev.akibh.mycompanion.ui.theme.CompanionRed
 import java.text.DateFormat
 import java.util.Date
 import kotlin.math.roundToInt
 
 /** Everything about one book: status, shelves, tags, the file, and the ways to fix or remove it. */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun BookDetailsSheet(
     book: Book,
@@ -106,9 +106,9 @@ internal fun BookDetailsSheet(
             }
 
             SectionLabel("Status", Modifier.padding(top = 8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ChoiceRow {
                 BookStatus.entries.forEach { status ->
-                    Pill(status.label, book.status == status, { viewModel.setStatus(book, status) })
+                    ChoiceChip(status.label, book.status == status, { viewModel.setStatus(book, status) })
                 }
             }
             LabelGroup("Shelves", LabelKind.SHELF, labels, book, viewModel) { newLabel = LabelKind.SHELF }
@@ -123,9 +123,9 @@ internal fun BookDetailsSheet(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onLocate) { Text("Link another file") }
-                OutlinedButton(onClick = { confirmRemove = true }) { Text("Remove", color = CompanionRed) }
+            ChoiceRow {
+                SecondaryButton(onClick = onLocate) { Text("Link another file") }
+                SecondaryButton(onClick = { confirmRemove = true }, destructive = true) { Text("Remove") }
             }
         }
     }
@@ -183,7 +183,6 @@ internal fun BookDetailsSheet(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun LabelGroup(
     title: String,
@@ -194,16 +193,17 @@ private fun LabelGroup(
     onNew: () -> Unit,
 ) {
     SectionLabel(title, Modifier.padding(top = 8.dp))
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    ChoiceRow {
         labels.filter { it.kind == kind }.forEach { label ->
             val on = label.id in book.labels
-            Pill(
+            ChoiceChip(
                 if (kind == LabelKind.TAG) "#${label.name}" else label.name,
                 on,
-                { viewModel.setLabel(book, label, !on) }
+                { viewModel.setLabel(book, label, !on) },
+                multiple = true,
             )
         }
-        Pill(if (kind == LabelKind.SHELF) "+ Shelf" else "+ Tag", false, onNew)
+        SecondaryButton(onClick = onNew) { Text(if (kind == LabelKind.SHELF) "+ Shelf" else "+ Tag") }
     }
 }
 

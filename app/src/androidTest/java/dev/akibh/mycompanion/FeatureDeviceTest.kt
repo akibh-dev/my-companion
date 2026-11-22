@@ -140,7 +140,7 @@ class FeatureDeviceTest {
     @Test
     fun voiceModeShowsPrivacyAndTestControls() {
         openHome("Voice mode")
-        compose.onNodeWithText("Read messages aloud").assertExists()
+        compose.onNodeWithText("Read notifications aloud").assertExists()
         compose.onNodeWithText("Where").assertExists()
         scrollTo("Read a test message")
         compose.onNodeWithText("Read a test message").performClick()

@@ -1,8 +1,6 @@
 package dev.akibh.mycompanion.presentation.reminders
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,7 +12,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -29,27 +27,21 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -82,8 +74,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.akibh.mycompanion.R
 import dev.akibh.mycompanion.presentation.common.OutlinedStateTextField
+import dev.akibh.mycompanion.ui.components.ChoiceChip
+import dev.akibh.mycompanion.ui.components.ChoiceRow
 import dev.akibh.mycompanion.ui.components.DotIcon
 import dev.akibh.mycompanion.ui.components.DotSymbol
+import dev.akibh.mycompanion.ui.components.SecondaryButton
 import dev.akibh.mycompanion.ui.components.rememberChromeListState
 import dev.akibh.mycompanion.ui.theme.CompanionRed
 import java.time.DayOfWeek
@@ -319,34 +314,23 @@ private fun ComposerSections(
         )
     }
     FormSection("When") {
-        ChipRow {
+        ChoiceRow(Modifier.fillMaxWidth()) {
             state.presets.forEach { chip ->
-                FilterChip(
-                    colors = choiceChipColors(),
+                ChoiceChip(
+                    label = chip.label,
                     selected = chip.selected,
                     onClick = { onChoiceChange(chip.choice) },
-                    label = { Text(chip.label) },
                 )
             }
-            FilterChip(
-                colors = choiceChipColors(),
+            ChoiceChip(
+                label = if (form.choice is WhenChoice.At) state.pickedTimeLabel else "Pick time",
                 selected = form.choice is WhenChoice.At,
                 onClick = onPickTime,
-                label = { Text(if (form.choice is WhenChoice.At) state.pickedTimeLabel else "Pick time") },
-                leadingIcon = {
-                    Icon(
-                        painterResource(R.drawable.ic_schedule),
-                        contentDescription = null,
-                        Modifier.size(18.dp)
-                    )
-                },
             )
-            FilterChip(
-                colors = choiceChipColors(),
+            ChoiceChip(
+                label = if (form.choice is WhenChoice.OnDateTime) state.pickedTimeLabel else "Pick date",
                 selected = form.choice is WhenChoice.OnDateTime,
                 onClick = onPickDateTime,
-                label = { Text(if (form.choice is WhenChoice.OnDateTime) state.pickedTimeLabel else "Pick date") },
-                leadingIcon = { Icon(Icons.Filled.DateRange, contentDescription = null, Modifier.size(18.dp)) },
             )
         }
         if (state.nextOccurrences.isNotEmpty()) {
@@ -383,7 +367,7 @@ private fun SubmitBar(state: RemindersUiState, title: TextFieldState, message: T
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 16.dp)
-                .height(56.dp),
+                .heightIn(min = 56.dp),
         ) {
             Icon(
                 Icons.Filled.Notifications,
@@ -404,7 +388,6 @@ private fun SubmitBar(state: RemindersUiState, title: TextFieldState, message: T
 }
 
 /** Never / every day / on chosen days / every month / every few hours, plus the details for the choice. */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RepeatPicker(
     state: RemindersUiState,
@@ -415,39 +398,32 @@ private fun RepeatPicker(
     onCustomUnitChange: (RepeatUnit) -> Unit,
 ) {
     val form = state.form
-    ChipRow {
+    ChoiceRow(Modifier.fillMaxWidth()) {
         RepeatChoice.entries.forEach { choice ->
-            FilterChip(
-                colors = choiceChipColors(),
+            ChoiceChip(
+                label = choice.label,
                 selected = form.repeat == choice,
                 onClick = { onRepeatChange(choice) },
-                label = { Text(choice.label) },
-                leadingIcon = if (choice == RepeatChoice.NEVER) {
-                    null
-                } else {
-                    { Icon(Icons.Filled.Refresh, contentDescription = null, Modifier.size(18.dp)) }
-                },
             )
         }
     }
     when (form.repeat) {
-        RepeatChoice.DAYS -> ChipRow {
+        RepeatChoice.DAYS -> ChoiceRow(Modifier.fillMaxWidth()) {
             state.dayChips.forEach { chip ->
-                FilterChip(
-                    colors = choiceChipColors(),
+                ChoiceChip(
+                    label = chip.label,
                     selected = chip.selected,
                     onClick = { onDayToggle(chip.day) },
-                    label = { Text(chip.label) },
+                    multiple = true,
                 )
             }
         }
-        RepeatChoice.EVERY -> ChipRow {
+        RepeatChoice.EVERY -> ChoiceRow(Modifier.fillMaxWidth()) {
             state.everyChips.forEach { chip ->
-                FilterChip(
-                    colors = choiceChipColors(),
+                ChoiceChip(
+                    label = chip.label,
                     selected = chip.selected,
                     onClick = { onEveryChange(chip.minutes) },
-                    label = { Text(chip.label) }
                 )
             }
         }
@@ -461,13 +437,12 @@ private fun RepeatPicker(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.fillMaxWidth(),
             )
-            ChipRow {
+            ChoiceRow(Modifier.fillMaxWidth()) {
                 RepeatUnit.entries.forEach { unit ->
-                    FilterChip(
-                        colors = choiceChipColors(),
+                    ChoiceChip(
+                        label = unit.title,
                         selected = unit == form.customUnit,
                         onClick = { onCustomUnitChange(unit) },
-                        label = { Text(unit.title) }
                     )
                 }
             }
@@ -489,22 +464,13 @@ private fun RepeatPicker(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun ChipRow(content: @Composable () -> Unit) {
-    FlowRow(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) { content() }
-}
-
 /** Optionally attach a "Call <person>" button to the notification. */
 @Composable
 private fun CallButtonPicker(state: RemindersUiState, onContactChange: (Long?) -> Unit) {
     var open by remember { mutableStateOf(false) }
     val selected = state.contacts.firstOrNull { it.id == state.form.contactId }
     Box {
-        OutlinedButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth()) {
+        SecondaryButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Filled.Call, contentDescription = null)
             Spacer(Modifier.size(8.dp))
             Text(selected?.let { "Call button: ${it.name}" } ?: "Add a call button (optional)")
@@ -532,7 +498,7 @@ private fun CallButtonPicker(state: RemindersUiState, onContactChange: (Long?) -
 
 /**
  * One scheduled reminder: the time large on the left, what it's about on the right, and the repeat and
- * call button as small pills. Tapping the card edits it; the soonest one is filled, like an active tile.
+ * call button as small labels. Tapping the card edits it; the soonest one is filled, like an active tile.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -582,8 +548,8 @@ private fun UpcomingRow(reminder: UpcomingReminder, next: Boolean, onTogglePause
             if (reminder.paused || reminder.repeatText != null || reminder.contactName != null) {
                 FlowRow(
                     Modifier.padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     if (reminder.paused) InfoPill(painterResource(R.drawable.ic_pause), "Paused", content)
                     reminder.repeatText?.let { InfoPill(painterResource(R.drawable.ic_repeat), it, content) }
@@ -597,14 +563,14 @@ private fun UpcomingRow(reminder: UpcomingReminder, next: Boolean, onTogglePause
                 }
             }
         }
-        // A round dotted play/pause control, centred on the card's height.
+        // A round dotted play/pause control on a soft borderless disc, centred on the card's height.
         Box(
             Modifier
                 .padding(start = 8.dp)
                 .align(Alignment.CenterVertically)
-                .size(46.dp)
+                .size(48.dp)
                 .clip(CircleShape)
-                .border(1.dp, content.copy(alpha = .22f), CircleShape)
+                .background(content.copy(alpha = .12f))
                 .clickable(onClick = onTogglePause)
                 .semantics {
                     contentDescription = if (reminder.paused) "Resume ${reminder.title}" else "Pause ${reminder.title}"
@@ -621,13 +587,11 @@ private fun UpcomingRow(reminder: UpcomingReminder, next: Boolean, onTogglePause
     }
 }
 
-/** A small outlined label on a reminder card, e.g. the repeat or the call button. */
+/** A small status label on a reminder card, e.g. the repeat or the call button: icon and text, no pill. */
 @Composable
 private fun InfoPill(icon: Painter, text: String, color: Color) {
     Row(
-        Modifier
-            .border(1.dp, color.copy(alpha = .28f), CircleShape)
-            .padding(horizontal = 10.dp, vertical = 4.dp),
+        Modifier.padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
@@ -642,16 +606,15 @@ private fun ManageSection(paused: Boolean, onTogglePause: () -> Unit, onDelete: 
     var confirming by remember { mutableStateOf(false) }
     FormSection("Manage") {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedButton(onClick = onTogglePause, modifier = Modifier.weight(1f).height(52.dp)) {
+            SecondaryButton(onClick = onTogglePause, modifier = Modifier.weight(1f).heightIn(min = 52.dp)) {
                 DotIcon(if (paused) DotSymbol.PLAY else DotSymbol.PAUSE, Modifier.size(18.dp))
                 Spacer(Modifier.size(8.dp))
                 Text(if (paused) "Resume" else "Pause")
             }
-            OutlinedButton(
+            SecondaryButton(
                 onClick = { confirming = true },
-                modifier = Modifier.weight(1f).height(52.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = .5f)),
+                modifier = Modifier.weight(1f).heightIn(min = 52.dp),
+                destructive = true,
             ) {
                 Icon(Icons.Filled.Delete, contentDescription = null, Modifier.size(18.dp))
                 Spacer(Modifier.size(8.dp))
@@ -674,11 +637,3 @@ private fun ManageSection(paused: Boolean, onTogglePause: () -> Unit, onDelete: 
         )
     }
 }
-
-/** Selected choices are filled with the primary colour (black, white in dark mode), like Home's active tiles. */
-@Composable
-private fun choiceChipColors() = FilterChipDefaults.filterChipColors(
-    selectedContainerColor = MaterialTheme.colorScheme.primary,
-    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
-)

@@ -18,7 +18,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -54,6 +53,7 @@ import dev.akibh.mycompanion.quran.domain.KhatmStatus
 import dev.akibh.mycompanion.quran.domain.QuranReminder
 import dev.akibh.mycompanion.quran.domain.Surah
 import dev.akibh.mycompanion.quran.domain.arabicDigits
+import dev.akibh.mycompanion.ui.components.SecondaryButton
 import java.time.LocalTime
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
@@ -179,7 +179,7 @@ fun QuranHomeScreen(
                             }
                         }
                     } ?: Box(Modifier.weight(1f))
-                    OutlinedButton(onClick = onSearch, modifier = Modifier.align(Alignment.CenterVertically)) {
+                    SecondaryButton(onClick = onSearch, modifier = Modifier.align(Alignment.CenterVertically)) {
                         Text("Search")
                     }
                 }

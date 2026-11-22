@@ -5,7 +5,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,9 +21,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,6 +36,7 @@ import dev.akibh.mycompanion.domain.model.PlaybackHistoryEntry
 import dev.akibh.mycompanion.domain.model.Playlist
 import dev.akibh.mycompanion.ui.components.DotIcon
 import dev.akibh.mycompanion.ui.components.DotSymbol
+import dev.akibh.mycompanion.ui.components.SecondaryButton
 import dev.akibh.mycompanion.ui.theme.CompanionRed
 import java.time.Instant
 import java.time.LocalDate
@@ -59,7 +57,9 @@ internal fun LazyListScope.historyItems(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f).padding(start = 4.dp),
             )
-            if (history.isNotEmpty()) TextButton(onClick = actions::onClearHistory) { Text("Clear history") }
+            if (history.isNotEmpty()) {
+                SecondaryButton(onClick = actions::onClearHistory, destructive = true) { Text("Clear history") }
+            }
         }
     }
     if (history.isEmpty()) {
@@ -156,11 +156,7 @@ private fun HistoryRow(
 
 @Composable
 private fun HistoryPill(label: String, accent: Boolean = false, onClick: () -> Unit) {
-    OutlinedButton(
-        onClick = onClick,
-        contentPadding = PaddingValues(horizontal = 14.dp),
-        modifier = Modifier.height(36.dp),
-    ) {
+    SecondaryButton(onClick = onClick) {
         DotIcon(
             DotSymbol.PLAY,
             Modifier.size(12.dp),

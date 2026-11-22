@@ -6,17 +6,14 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import android.text.format.DateFormat
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
@@ -24,12 +21,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -60,6 +55,9 @@ import dev.akibh.mycompanion.context.domain.RuleAction
 import dev.akibh.mycompanion.context.domain.SoundMode
 import dev.akibh.mycompanion.context.domain.Trigger
 import dev.akibh.mycompanion.context.domain.VolumeStream
+import dev.akibh.mycompanion.ui.components.ChoiceChip
+import dev.akibh.mycompanion.ui.components.ChoiceRow
+import dev.akibh.mycompanion.ui.components.SecondaryButton
 import java.time.DayOfWeek
 import java.time.LocalTime
 import javax.inject.Inject
@@ -217,9 +215,15 @@ fun RuleEditorRoute(
         }
         item {
             draft.problem?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { viewModel.save(onDone) }, enabled = draft.problem == null) { Text("Save") }
-                if (!viewModel.isNew) OutlinedButton(onClick = { viewModel.delete(onDone) }) { Text("Delete") }
+            ChoiceRow {
+                Button(
+                    onClick = { viewModel.save(onDone) },
+                    enabled = draft.problem == null,
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) { Text("Save") }
+                if (!viewModel.isNew) {
+                    SecondaryButton(onClick = { viewModel.delete(onDone) }, destructive = true) { Text("Delete") }
+                }
             }
         }
     }
@@ -277,7 +281,7 @@ private fun Line(text: String, onClick: () -> Unit, onRemove: () -> Unit) {
 @Composable
 private fun AddMenu(label: String, options: List<Pair<String, () -> Unit>>) {
     var open by remember { mutableStateOf(false) }
-    OutlinedButton(onClick = { open = true }) { Text(label) }
+    SecondaryButton(onClick = { open = true }) { Text(label) }
     DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
         options.forEach { (text, pick) ->
             DropdownMenuItem(text = { Text(text) }, onClick = {
@@ -309,14 +313,14 @@ private fun TriggerDialog(initial: Trigger, places: List<Place>, onDismiss: () -
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 when (val t = trigger) {
                     is Trigger.TimeWindow -> {
-                        Chips(DayOfWeek.entries, { Describe.short(it) }, { it in t.days }) { day ->
+                        Chips(DayOfWeek.entries, { Describe.short(it) }, { it in t.days }, multiple = true) { day ->
                             trigger = t.copy(days = if (day in t.days) t.days - day else t.days + day)
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(
+                        ChoiceRow {
+                            SecondaryButton(
                                 onClick = { pickTime(context, t.start) { trigger = t.copy(start = it) } }
                             ) { Text("From ${t.start}") }
-                            OutlinedButton(
+                            SecondaryButton(
                                 onClick = { pickTime(context, t.end) { trigger = t.copy(end = it) } }
                             ) { Text("To ${t.end}") }
                         }
@@ -429,12 +433,16 @@ private fun ActionDialog(initial: RuleAction, onDismiss: () -> Unit, onSave: (Ru
 }
 
 @Composable
-private fun <T> Chips(items: List<T>, label: (T) -> String, selected: (T) -> Boolean, onClick: (T) -> Unit) {
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+private fun <T> Chips(
+    items: List<T>,
+    label: (T) -> String,
+    selected: (T) -> Boolean,
+    multiple: Boolean = false,
+    onClick: (T) -> Unit,
+) {
+    ChoiceRow {
         items.forEach { item ->
-            FilterChip(selected = selected(item), onClick = {
-                onClick(item)
-            }, label = { Text(label(item)) })
+            ChoiceChip(label = label(item), selected = selected(item), onClick = { onClick(item) }, multiple = multiple)
         }
     }
 }
@@ -463,7 +471,7 @@ private fun AppPicker(selected: String, onPick: (InstalledApp) -> Unit) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.error,
         )
-        OutlinedButton(onClick = {
+        SecondaryButton(onClick = {
             context.startActivity(
                 Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, Uri.fromParts("package", context.packageName, null))
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
@@ -481,13 +489,9 @@ private fun AppPicker(selected: String, onPick: (InstalledApp) -> Unit) {
     when {
         apps == null -> Text("Loading apps…")
         shown.isEmpty() -> Text("No app matches")
-        else -> LazyColumn(Modifier.heightIn(max = 280.dp)) {
+        else -> LazyColumn(Modifier.heightIn(max = 280.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(shown, key = { it.packageName }) { app ->
-                FilterChip(
-                    selected = app.packageName == selected,
-                    onClick = { onPick(app) },
-                    label = { Text(app.label) },
-                )
+                ChoiceChip(label = app.label, selected = app.packageName == selected, onClick = { onPick(app) })
             }
         }
     }

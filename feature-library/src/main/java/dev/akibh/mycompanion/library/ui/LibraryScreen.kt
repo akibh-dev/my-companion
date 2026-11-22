@@ -73,9 +73,11 @@ import dev.akibh.mycompanion.library.domain.SortOrder
 import dev.akibh.mycompanion.library.domain.fileSize
 import dev.akibh.mycompanion.library.reader.BookReaderActivity
 import dev.akibh.mycompanion.library.reader.TextDialog
+import dev.akibh.mycompanion.ui.components.ChoiceChip
 import dev.akibh.mycompanion.ui.components.DotIcon
 import dev.akibh.mycompanion.ui.components.DotSymbol
 import dev.akibh.mycompanion.ui.components.DotText
+import dev.akibh.mycompanion.ui.components.SecondaryButton
 import dev.akibh.mycompanion.ui.theme.CompanionRed
 import kotlin.math.roundToInt
 
@@ -239,10 +241,11 @@ private fun LibraryContent(
                 onGrid = viewModel::setGrid,
             )
         }
+        // A long filter bar at the top of the list: it scrolls sideways instead of wrapping.
         item(span = { GridItemSpan(maxLineSpan) }) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 item {
-                    Pill(
+                    ChoiceChip(
                         "All · ${state.all.size}",
                         state.filter.view == LibraryView.All,
                         { viewModel.setView(LibraryView.All) }
@@ -250,33 +253,34 @@ private fun LibraryContent(
                 }
                 items(BookStatus.entries.toList()) { status ->
                     val count = state.all.count { it.status == status }
-                    Pill(
+                    ChoiceChip(
                         "${status.label} · $count",
                         state.filter.view == LibraryView.Status(status),
                         { viewModel.setView(LibraryView.Status(status)) },
-                        dot = status == BookStatus.READING && count > 0,
                     )
                 }
                 items(state.shelves, key = { it.id }) { shelf ->
-                    Pill(
+                    ChoiceChip(
                         shelf.name,
                         state.filter.view == LibraryView.Shelf(shelf.id),
                         { viewModel.setView(LibraryView.Shelf(shelf.id)) },
                         onLongClick = { labelMenu = shelf },
+                        onLongClickLabel = "Edit shelf",
                     )
                 }
-                item { Pill("+ Shelf", false, { newLabel = LabelKind.SHELF }) }
+                item { SecondaryButton(onClick = { newLabel = LabelKind.SHELF }) { Text("+ Shelf") } }
             }
         }
         if (state.tags.isNotEmpty()) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(state.tags, key = { it.id }) { tag ->
-                        Pill(
+                        ChoiceChip(
                             "#${tag.name}",
                             state.filter.tag == tag.id,
                             { viewModel.setTag(if (state.filter.tag == tag.id) null else tag.id) },
                             onLongClick = { labelMenu = tag },
+                            onLongClickLabel = "Edit tag",
                         )
                     }
                 }
@@ -478,7 +482,7 @@ private fun SearchRow(
                 )
             }
             if (text.isNotEmpty()) {
-                IconButton(onClick = { onText("") }, Modifier.size(32.dp)) {
+                IconButton(onClick = { onText("") }) {
                     Icon(Icons.Filled.Close, contentDescription = "Clear", Modifier.size(18.dp))
                 }
             }

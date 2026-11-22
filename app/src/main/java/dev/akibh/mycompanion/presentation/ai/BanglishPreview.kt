@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -23,6 +22,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.akibh.mycompanion.ai.models.IndicXlitPrototype
 import dev.akibh.mycompanion.ai.models.TransliterationPreview
+import dev.akibh.mycompanion.ui.components.SecondaryButton
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -70,7 +70,7 @@ fun BanglishPreviewCard(viewModel: BanglishPreviewViewModel = hiltViewModel()) {
                 enabled = !running,
                 modifier = Modifier.fillMaxWidth(),
             )
-            FilledTonalButton(onClick = { viewModel.preview(input) }, enabled = !running && input.isNotBlank()) {
+            SecondaryButton(onClick = { viewModel.preview(input) }, enabled = !running && input.isNotBlank()) {
                 Text(if (running) "Converting…" else "Preview Bangla")
             }
             val result = (state as? BanglishPreviewState.Finished)?.result

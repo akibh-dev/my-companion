@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -35,12 +36,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -85,6 +84,9 @@ import dev.akibh.mycompanion.quran.domain.MushafScript
 import dev.akibh.mycompanion.quran.domain.ReadingMode
 import dev.akibh.mycompanion.quran.domain.Surah
 import dev.akibh.mycompanion.quran.domain.arabicDigits
+import dev.akibh.mycompanion.ui.components.ChoiceChip
+import dev.akibh.mycompanion.ui.components.ChoiceRow
+import dev.akibh.mycompanion.ui.components.SecondaryButton
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -129,31 +131,21 @@ private fun ReaderScreen(state: ReaderState.Ready, viewModel: ReaderViewModel, m
 
 @Composable
 private fun ReaderControls(state: ReaderState.Ready, viewModel: ReaderViewModel) {
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        SingleChoiceSegmentedButtonRow(Modifier.weight(1f)) {
-            listOf(ReadingMode.MUSHAF to "Page", ReadingMode.AYAH_LIST to "Ayahs").forEachIndexed { i, (mode, label) ->
-                SegmentedButton(
+    ChoiceRow(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
+        // Two separate choices (view, then script); each pair stays together when the row wraps.
+        Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(ReadingMode.MUSHAF to "Page", ReadingMode.AYAH_LIST to "Ayahs").forEach { (mode, label) ->
+                ChoiceChip(
+                    label,
                     selected = state.prefs.mode == mode,
                     onClick = { viewModel.setMode(mode) },
-                    shape = SegmentedButtonDefaults.itemShape(i, 2),
                     enabled = mode != ReadingMode.MUSHAF || state.hasPages,
-                ) { Text(label) }
+                )
             }
         }
-        SingleChoiceSegmentedButtonRow(Modifier.weight(1f)) {
-            listOf(
-                MushafScript.MADANI to "Madani",
-                MushafScript.INDOPAK to "Indo-Pak"
-            ).forEachIndexed { i, (script, label) ->
-                SegmentedButton(
-                    selected = state.prefs.script == script,
-                    onClick = { viewModel.setScript(script) },
-                    shape = SegmentedButtonDefaults.itemShape(i, 2),
-                ) { Text(label) }
+        Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(MushafScript.MADANI to "Madani", MushafScript.INDOPAK to "Indo-Pak").forEach { (script, label) ->
+                ChoiceChip(label, selected = state.prefs.script == script, onClick = { viewModel.setScript(script) })
             }
         }
     }
@@ -526,23 +518,29 @@ private fun AyahSheet(range: IntRange, state: ReaderState.Ready, viewModel: Read
                             lineHeight = 40.sp
                         )
                     }
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    FlowRow(
+                        Modifier.padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         if (ayah.id in bookmarked) {
-                            TextButton(onClick = { viewModel.removeBookmark(ayah.id) }) { Text("Remove bookmark") }
+                            SecondaryButton(onClick = { viewModel.removeBookmark(ayah.id) }, destructive = true) {
+                                Text("Remove bookmark")
+                            }
                         } else {
-                            TextButton(onClick = { noteFor = ayah }) { Text("Bookmark") }
+                            SecondaryButton(onClick = { noteFor = ayah }) { Text("Bookmark") }
                         }
-                        TextButton(onClick = {
+                        SecondaryButton(onClick = {
                             scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Ayah", quoted))) }
                         }) { Text("Copy") }
-                        TextButton(onClick = {
+                        SecondaryButton(onClick = {
                             val send = Intent(
                                 Intent.ACTION_SEND
                             ).setType("text/plain").putExtra(Intent.EXTRA_TEXT, quoted)
                             context.startActivity(Intent.createChooser(send, null))
                         }) { Text("Share") }
                         if (state.prefs.mode == ReadingMode.MUSHAF) {
-                            TextButton(onClick = {
+                            SecondaryButton(onClick = {
                                 viewModel.onAyahShown(ayah.id)
                                 viewModel.setMode(ReadingMode.AYAH_LIST)
                                 onDismiss()
@@ -567,6 +565,10 @@ private fun ZoomBar(state: ReaderState.Ready, viewModel: ReaderViewModel) {
     fun set(next: Float) = if (page) viewModel.setPageZoom(next) else viewModel.setTextScale(next)
     val min = if (page) 1f else MIN_TEXT_SCALE
     val max = if (page) MAX_PAGE_ZOOM else MAX_TEXT_SCALE
+    val colors = IconButtonDefaults.filledTonalIconButtonColors(
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    )
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -575,11 +577,13 @@ private fun ZoomBar(state: ReaderState.Ready, viewModel: ReaderViewModel) {
         FilledTonalIconButton(
             onClick = { set((value / ZOOM_STEP).coerceAtLeast(min)) },
             enabled = value > min,
+            colors = colors,
             modifier = Modifier.semantics { contentDescription = if (page) "Zoom out" else "Smaller text" },
         ) { Text("−", style = MaterialTheme.typography.titleLarge) }
         FilledTonalIconButton(
             onClick = { set((value * ZOOM_STEP).coerceAtMost(max)) },
             enabled = value < max,
+            colors = colors,
             modifier = Modifier.semantics { contentDescription = if (page) "Zoom in" else "Larger text" },
         ) { Text("+", style = MaterialTheme.typography.titleLarge) }
         Text("${(value * 100).roundToInt()}%", style = MaterialTheme.typography.labelMedium)

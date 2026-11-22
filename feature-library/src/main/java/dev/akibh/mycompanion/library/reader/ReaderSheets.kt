@@ -1,13 +1,10 @@
 package dev.akibh.mycompanion.library.reader
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -31,6 +28,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -56,6 +54,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -71,8 +71,9 @@ import dev.akibh.mycompanion.library.data.ReaderLook
 import dev.akibh.mycompanion.library.data.Spacing
 import dev.akibh.mycompanion.library.domain.BookFormat
 import dev.akibh.mycompanion.library.reader.BookSearch.MAX_HITS
-import dev.akibh.mycompanion.library.ui.Pill
 import dev.akibh.mycompanion.library.ui.SectionLabel
+import dev.akibh.mycompanion.ui.components.ChoiceChip
+import dev.akibh.mycompanion.ui.components.ChoiceRow
 import dev.akibh.mycompanion.ui.theme.CompanionRed
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
@@ -284,7 +285,7 @@ internal fun SearchSheet(viewModel: BookReaderViewModel, onGo: (Locator) -> Unit
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun LookSheet(viewModel: BookReaderViewModel, format: BookFormat, onDismiss: () -> Unit) {
     val look by viewModel.look.collectAsStateWithLifecycle()
@@ -299,6 +300,10 @@ internal fun LookSheet(viewModel: BookReaderViewModel, format: BookFormat, onDis
             when (format) {
                 BookFormat.EPUB -> {
                     SectionLabel("Text size")
+                    val stepperColors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                    )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         FilledTonalIconButton(
                             onClick = {
@@ -306,7 +311,9 @@ internal fun LookSheet(viewModel: BookReaderViewModel, format: BookFormat, onDis
                                     look.copy(fontScale = (look.fontScale - FONT_STEP).coerceAtLeast(MIN_FONT))
                                 )
                             },
+                            modifier = Modifier.semantics { contentDescription = "Smaller text" },
                             enabled = look.fontScale > MIN_FONT,
+                            colors = stepperColors,
                         ) { Text("A−", style = MaterialTheme.typography.labelLarge) }
                         Text(
                             "${(look.fontScale * 100).roundToInt()}%",
@@ -320,60 +327,53 @@ internal fun LookSheet(viewModel: BookReaderViewModel, format: BookFormat, onDis
                                     look.copy(fontScale = (look.fontScale + FONT_STEP).coerceAtMost(MAX_FONT))
                                 )
                             },
+                            modifier = Modifier.semantics { contentDescription = "Larger text" },
                             enabled = look.fontScale < MAX_FONT,
+                            colors = stepperColors,
                         ) { Text("A+", style = MaterialTheme.typography.titleMedium) }
                     }
                     SectionLabel("Page")
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+                    ChoiceRow {
                         PageTheme.entries.forEach { theme ->
-                            ThemeSwatch(theme, look.theme == theme) { set(look.copy(theme = theme)) }
+                            ChoiceChip(theme.label, look.theme == theme, { set(look.copy(theme = theme)) })
                         }
                     }
                     SectionLabel("Font")
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+                    ChoiceRow {
                         BookFont.entries.forEach { font ->
-                            Pill(font.label, look.font == font, { set(look.copy(font = font)) })
+                            ChoiceChip(font.label, look.font == font, { set(look.copy(font = font)) })
                         }
                     }
                     SectionLabel("Spacing")
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+                    ChoiceRow {
                         Spacing.entries.forEach { spacing ->
-                            Pill(spacing.label, look.spacing == spacing, { set(look.copy(spacing = spacing)) })
+                            ChoiceChip(spacing.label, look.spacing == spacing, { set(look.copy(spacing = spacing)) })
                         }
                     }
                     SectionLabel("Layout")
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Pill("Pages", !look.scroll, { set(look.copy(scroll = false)) })
-                        Pill("Scroll", look.scroll, { set(look.copy(scroll = true)) })
+                    ChoiceRow {
+                        ChoiceChip("Pages", !look.scroll, { set(look.copy(scroll = false)) })
+                        ChoiceChip("Scroll", look.scroll, { set(look.copy(scroll = true)) })
                     }
                 }
                 BookFormat.PDF -> {
                     SectionLabel("Fit")
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Pill("Whole page", !look.pdfFitWidth, { set(look.copy(pdfFitWidth = false)) })
-                        Pill("Page width", look.pdfFitWidth, { set(look.copy(pdfFitWidth = true)) })
+                    ChoiceRow {
+                        ChoiceChip("Whole page", !look.pdfFitWidth, { set(look.copy(pdfFitWidth = false)) })
+                        ChoiceChip("Page width", look.pdfFitWidth, { set(look.copy(pdfFitWidth = true)) })
                     }
                     SectionLabel("Turn pages")
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Pill("Scroll down", look.pdfVertical, { set(look.copy(pdfVertical = true)) })
-                        Pill("Swipe across", !look.pdfVertical, { set(look.copy(pdfVertical = false)) })
+                    ChoiceRow {
+                        ChoiceChip("Scroll down", look.pdfVertical, { set(look.copy(pdfVertical = true)) })
+                        ChoiceChip("Swipe across", !look.pdfVertical, { set(look.copy(pdfVertical = false)) })
                     }
                     ControlsTheme(look, set)
                 }
                 BookFormat.CBZ -> {
                     SectionLabel("Direction")
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Pill("Left to right", !look.comicRtl, { set(look.copy(comicRtl = false)) })
-                        Pill("Right to left (manga)", look.comicRtl, { set(look.copy(comicRtl = true)) })
+                    ChoiceRow {
+                        ChoiceChip("Left to right", !look.comicRtl, { set(look.copy(comicRtl = false)) })
+                        ChoiceChip("Right to left (manga)", look.comicRtl, { set(look.copy(comicRtl = true)) })
                     }
                     ControlsTheme(look, set)
                 }
@@ -391,40 +391,13 @@ internal fun LookSheet(viewModel: BookReaderViewModel, format: BookFormat, onDis
 }
 
 /** PDF and comic pages keep their own colours; this only sets the controls around them. */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ControlsTheme(look: ReaderLook, set: (ReaderLook) -> Unit) {
     SectionLabel("Controls")
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    ChoiceRow {
         listOf(PageTheme.AUTO, PageTheme.LIGHT, PageTheme.DARK).forEach { theme ->
-            Pill(theme.label, look.theme == theme, { set(look.copy(theme = theme)) })
+            ChoiceChip(theme.label, look.theme == theme, { set(look.copy(theme = theme)) })
         }
-    }
-}
-
-@Composable
-private fun ThemeSwatch(theme: PageTheme, selected: Boolean, onClick: () -> Unit) {
-    val (paper, ink) = when (theme) {
-        PageTheme.AUTO -> MaterialTheme.colorScheme.background to MaterialTheme.colorScheme.onBackground
-        PageTheme.LIGHT -> Color(0xFFFFFFFF) to Color(0xFF121212)
-        PageTheme.SEPIA -> Color(0xFFFAF4E8) to Color(0xFF121212)
-        PageTheme.DARK -> Color(0xFF000000) to Color(0xFFFEFEFE)
-    }
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            Modifier
-                .size(52.dp)
-                .clip(CircleShape)
-                .background(paper)
-                .border(
-                    if (selected) 2.dp else 1.dp,
-                    if (selected) CompanionRed else MaterialTheme.colorScheme.outlineVariant,
-                    CircleShape,
-                )
-                .clickable(onClick = onClick),
-            contentAlignment = Alignment.Center,
-        ) { Text("Aa", color = ink, style = MaterialTheme.typography.titleSmall) }
-        Text(theme.label, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 4.dp))
     }
 }
 

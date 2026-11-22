@@ -12,7 +12,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -21,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.akibh.mycompanion.ui.components.SecondaryButton
 import java.time.LocalDate
 
 /** Settings → "Export & backup": connects [ExportScreen] to the system file picker. */
@@ -83,10 +83,10 @@ fun ExportScreen(
             body = "The feature switches, voice mode and auto-reply settings in one small file. Restoring " +
                 "replaces your current settings.",
         ) {
-            OutlinedButton(onClick = onExportSettings, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
+            SecondaryButton(onClick = onExportSettings, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
                 Text("Save settings…")
             }
-            OutlinedButton(onClick = onRestore, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
+            SecondaryButton(onClick = onRestore, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
                 Text("Restore settings…")
             }
         }

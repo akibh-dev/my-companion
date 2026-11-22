@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -35,7 +36,6 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.sp
 import dev.akibh.mycompanion.R
 import dev.akibh.mycompanion.domain.model.Contact
 import dev.akibh.mycompanion.ui.components.DotText
+import dev.akibh.mycompanion.ui.components.SecondaryButton
 import dev.akibh.mycompanion.ui.components.rememberChromeListState
 import dev.akibh.mycompanion.ui.theme.CompanionRed
 
@@ -201,12 +202,12 @@ private fun ContactCard(
                 }
                 ContactMenu(contact.name, canPinShortcut, onEdit, onDelete, onPinShortcut)
             }
-            // Voice is the everyday action, so it gets the filled button; video sits beside it, outlined.
+            // Voice is the everyday action, so it gets the filled button; video sits beside it as a grey pill.
             Row(
                 Modifier.fillMaxWidth().padding(end = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Button(onClick = onCall, modifier = Modifier.weight(1f).height(52.dp)) {
+                Button(onClick = onCall, modifier = Modifier.weight(1f).heightIn(min = 52.dp)) {
                     Icon(
                         Icons.Filled.Call,
                         contentDescription = "Call ${contact.name} on WhatsApp",
@@ -216,7 +217,7 @@ private fun ContactCard(
                     Spacer(Modifier.size(8.dp))
                     Text("Voice call", style = MaterialTheme.typography.labelLarge)
                 }
-                OutlinedButton(onClick = onVideoCall, modifier = Modifier.weight(1f).height(52.dp)) {
+                SecondaryButton(onClick = onVideoCall, modifier = Modifier.weight(1f).heightIn(min = 52.dp)) {
                     Icon(
                         painterResource(R.drawable.ic_video_call),
                         contentDescription = "Video call ${contact.name} on WhatsApp",

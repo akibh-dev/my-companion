@@ -3,7 +3,6 @@ package dev.akibh.mycompanion.library.ui
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -28,7 +26,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -50,46 +47,6 @@ import kotlin.math.sin
 /** The approved card: a quiet rounded surface. */
 val CardShape = RoundedCornerShape(26.dp)
 val CoverShape = RoundedCornerShape(10.dp)
-
-/**
- * A monochrome pill: inverse when [selected], quiet otherwise (Nothing-style segmented choices).
- * [dot] adds the red "active" dot.
- */
-@Composable
-fun Pill(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    onLongClick: (() -> Unit)? = null,
-    dot: Boolean = false,
-) {
-    val colors = MaterialTheme.colorScheme
-    val click = if (onLongClick == null) {
-        Modifier.clickable(role = Role.Tab, onClick = onClick)
-    } else {
-        Modifier.combinedClickable(role = Role.Tab, onClick = onClick, onLongClick = onLongClick)
-    }
-    Row(
-        modifier
-            .heightIn(min = 40.dp)
-            .clip(CircleShape)
-            .background(if (selected) colors.primary else colors.surfaceContainer)
-            .then(click)
-            .semantics { this.selected = selected }
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        if (dot) Box(Modifier.size(6.dp).clip(CircleShape).background(CompanionRed))
-        Text(
-            label,
-            style = MaterialTheme.typography.labelLarge,
-            color = if (selected) colors.onPrimary else colors.onSurface,
-            maxLines = 1,
-        )
-    }
-}
 
 /** Small spaced capitals above a group: "SHELVES". */
 @Composable
@@ -229,7 +186,7 @@ fun CoverBadge(text: String, alert: Boolean, modifier: Modifier = Modifier) {
     }
 }
 
-/** A round dotted icon button for the reader's and library's bars. */
+/** A round dotted icon button for the reader's and library's bars: a 48dp touch target. */
 @Composable
 fun DotButton(
     symbol: DotSymbol,
@@ -240,7 +197,7 @@ fun DotButton(
 ) {
     Box(
         modifier
-            .size(44.dp)
+            .size(48.dp)
             .clip(CircleShape)
             .clickable(role = Role.Button, onClick = onClick)
             .semantics { contentDescription = description },

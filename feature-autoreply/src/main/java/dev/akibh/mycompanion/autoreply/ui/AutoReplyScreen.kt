@@ -1,6 +1,5 @@
 package dev.akibh.mycompanion.autoreply.ui
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -9,13 +8,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
@@ -47,6 +43,9 @@ import dev.akibh.mycompanion.core.settings.Settings
 import dev.akibh.mycompanion.core.settings.SettingsStore
 import dev.akibh.mycompanion.core.time.Clock
 import dev.akibh.mycompanion.messaging.ChatApp
+import dev.akibh.mycompanion.ui.components.ChoiceChip
+import dev.akibh.mycompanion.ui.components.ChoiceRow
+import dev.akibh.mycompanion.ui.components.SecondaryButton
 import java.text.DateFormat
 import java.util.Date
 import javax.inject.Inject
@@ -153,20 +152,16 @@ fun AutoReplyRoute(
                 else -> "Busy until " + DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(s.busyUntil))
             }
             Text(busyText, style = MaterialTheme.typography.bodyMedium)
-            ChipRow(
+            ChoiceRow {
                 listOf(
                     0 to "Off",
                     30 to "30 min",
                     60 to "1 h",
                     120 to "2 h",
                     null to "Until off"
-                ),
-                { (_, l) -> l },
-                {
-                    false
+                ).forEach { (minutes, label) ->
+                    SecondaryButton(onClick = { viewModel.onBusy(minutes) }) { Text(label) }
                 }
-            ) { (m, _) ->
-                viewModel.onBusy(m)
             }
         }
         item {
@@ -188,7 +183,7 @@ fun AutoReplyRoute(
             }
         }
         item {
-            OutlinedButton(onClick = {
+            SecondaryButton(onClick = {
                 editing = ReplyTemplate(name = "", text = "", context = ReplyContext.Busy)
             }) { Text("Add reply") }
         }
@@ -244,7 +239,7 @@ fun AutoReplyRoute(
         }
         item {
             Section("Apps")
-            ChipRow(ChatApp.entries, { it.title }, { it in s.apps }) { app ->
+            ChipRow(ChatApp.entries, { it.title }, { it in s.apps }, multiple = true) { app ->
                 viewModel.update { it.copy(apps = if (app in it.apps) it.apps - app else it.apps + app) }
             }
         }
@@ -262,9 +257,9 @@ fun AutoReplyRoute(
             }
         }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onOpenLog) { Text("Reply log") }
-                OutlinedButton(onClick = onOpenSelfTest) { Text("Chat app self-test") }
+            ChoiceRow {
+                SecondaryButton(onClick = onOpenLog) { Text("Reply log") }
+                SecondaryButton(onClick = onOpenSelfTest) { Text("Chat app self-test") }
             }
         }
     }
@@ -340,7 +335,9 @@ private fun TemplateDialog(
         },
         dismissButton = {
             Row {
-                onDelete?.let { TextButton(onClick = it) { Text("Delete") } }
+                onDelete?.let {
+                    TextButton(onClick = it) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                }
                 TextButton(onClick = onDismiss) { Text("Cancel") }
             }
         },
@@ -361,12 +358,16 @@ internal fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> U
 }
 
 @Composable
-internal fun <T> ChipRow(items: List<T>, label: (T) -> String, selected: (T) -> Boolean, onClick: (T) -> Unit) {
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+internal fun <T> ChipRow(
+    items: List<T>,
+    label: (T) -> String,
+    selected: (T) -> Boolean,
+    multiple: Boolean = false,
+    onClick: (T) -> Unit,
+) {
+    ChoiceRow {
         items.forEach { item ->
-            FilterChip(selected = selected(item), onClick = {
-                onClick(item)
-            }, label = { Text(label(item)) })
+            ChoiceChip(label = label(item), selected = selected(item), onClick = { onClick(item) }, multiple = multiple)
         }
     }
 }

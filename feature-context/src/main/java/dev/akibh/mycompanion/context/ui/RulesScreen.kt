@@ -1,5 +1,6 @@
 package dev.akibh.mycompanion.context.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,25 +10,28 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -41,6 +45,9 @@ import dev.akibh.mycompanion.context.domain.Rule
 import dev.akibh.mycompanion.core.settings.Feature
 import dev.akibh.mycompanion.core.settings.Settings
 import dev.akibh.mycompanion.core.settings.SettingsStore
+import dev.akibh.mycompanion.ui.components.ChoiceRow
+import dev.akibh.mycompanion.ui.components.SecondaryButton
+import dev.akibh.mycompanion.ui.theme.CompanionRed
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -121,9 +128,9 @@ fun RulesRoute(
                 }
             }
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onOpenPlaces) { Text("Saved places") }
-                    OutlinedButton(onClick = onOpenHistory) { Text("History") }
+                ChoiceRow {
+                    SecondaryButton(onClick = onOpenPlaces) { Text("Saved places") }
+                    SecondaryButton(onClick = onOpenHistory) { Text("History") }
                 }
             }
             if (state.rules.isEmpty()) {
@@ -185,7 +192,7 @@ private fun RuleCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(rule.name, style = MaterialTheme.typography.titleMedium)
-                    if (active) AssistChip(onClick = onOpen, label = { Text("Active now") })
+                    if (active) ActiveNow()
                 }
                 Text(
                     "When " + rule.triggers.joinToString(" and ") { Describe.trigger(it, places) },
@@ -198,7 +205,11 @@ private fun RuleCard(
                 )
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Switch(checked = rule.enabled, onCheckedChange = onEnabledChange)
+                Switch(
+                    checked = rule.enabled,
+                    onCheckedChange = onEnabledChange,
+                    modifier = Modifier.semantics { contentDescription = "${rule.name} enabled" },
+                )
                 Row {
                     IconButton(onClick = { onMove(true) }, enabled = canMoveUp) {
                         Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Move ${rule.name} up")
@@ -209,5 +220,14 @@ private fun RuleCard(
                 }
             }
         }
+    }
+}
+
+/** A quiet status: red signal dot and a small label, no border so it never reads as a button. */
+@Composable
+private fun ActiveNow() {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Box(Modifier.size(6.dp).clip(CircleShape).background(CompanionRed))
+        Text("Active now", style = MaterialTheme.typography.labelMedium)
     }
 }

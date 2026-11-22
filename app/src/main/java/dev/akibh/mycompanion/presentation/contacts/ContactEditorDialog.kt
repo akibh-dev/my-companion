@@ -11,7 +11,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -21,6 +20,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import dev.akibh.mycompanion.presentation.common.OutlinedStateTextField
+import dev.akibh.mycompanion.ui.components.SecondaryButton
 
 @Composable
 fun ContactEditorDialog(
@@ -62,7 +62,7 @@ fun ContactEditorForm(
     onPhoneEdited: () -> Unit = {},
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        OutlinedButton(onClick = onPickFromPhonebook, modifier = Modifier.fillMaxWidth()) {
+        SecondaryButton(onClick = onPickFromPhonebook, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Filled.AccountCircle, contentDescription = null)
             Spacer(Modifier.size(8.dp))
             Text("Choose from phone contacts")
