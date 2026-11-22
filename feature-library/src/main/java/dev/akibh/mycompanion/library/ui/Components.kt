@@ -102,8 +102,12 @@ private const val STEPPER_TINT = .10f
 
 /** A thin progress line drawn as dots, filled up to [progress]. */
 @Composable
-fun DotProgress(progress: Float, modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.primary) {
-    val empty = MaterialTheme.colorScheme.outlineVariant
+fun DotProgress(
+    progress: Float,
+    modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.primary,
+    empty: Color = MaterialTheme.colorScheme.outlineVariant,
+) {
     Canvas(modifier.height(4.dp).fillMaxWidth()) {
         val step = 6.dp.toPx()
         val count = (size.width / step).toInt().coerceAtLeast(1)

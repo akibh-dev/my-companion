@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -81,9 +82,12 @@ class BookReaderActivity : AppCompatActivity() {
             setContent {
                 val look by viewModel.look.collectAsStateWithLifecycle()
                 val night by systemDark.collectAsStateWithLifecycle()
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                val format = (state as? ReaderState.Ready)?.session?.book?.format
                 CompanionTheme(darkTheme = Navigators.pageIsDark(look, night)) {
                     ReaderScreen(
                         viewModel = viewModel,
+                        pageColor = Color(Navigators.pageColor(look, night, format)),
                         onBack = ::finish,
                         onGo = ::go,
                         onGoLink = ::go,

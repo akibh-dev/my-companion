@@ -31,6 +31,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.text
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.util.Locale
@@ -53,11 +54,13 @@ val PageMargin = 16.dp
 
 /** Small spaced capitals above a group ("WHERE"). Screen readers hear the words as written. */
 @Composable
-fun SectionLabel(text: String, modifier: Modifier = Modifier) {
+fun SectionLabel(text: String, modifier: Modifier = Modifier, maxLines: Int = Int.MAX_VALUE) {
     Text(
         text.uppercase(Locale.getDefault()),
         style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.4.sp),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = maxLines,
+        overflow = TextOverflow.Ellipsis,
         modifier = modifier.clearAndSetSemantics {
             this.text = AnnotatedString(text)
             heading()
