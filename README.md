@@ -107,8 +107,13 @@ Or download `my-companion-debug-apk` from the latest green **Android CI** run (A
 # Full check, same as CI (use --max-workers=3 on <= 16 GB RAM)
 ./gradlew ktlintCheck testDebugUnitTest lintDebug assembleDebug --continue
 
-# Instrumented tests (phone or emulator)
-./gradlew connectedAndroidTest
+# Instrumented tests on the phone, keeping the app's data.
+# Never use `./gradlew connectedAndroidTest`: it uninstalls the app afterwards and deletes its data.
+./gradlew assembleDebug assembleDebugAndroidTest
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb shell am instrument -w dev.akibh.mycompanion.test/androidx.test.runner.AndroidJUnitRunner
+# one class: add  -e class dev.akibh.mycompanion.FeatureDeviceTest
 ```
 
 ## 🎯 Current Status

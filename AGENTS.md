@@ -103,8 +103,13 @@ python3 tools/quran/fetch_sources.py && python3 tools/quran/build_quran_db.py
 # Single module tests
 ./gradlew :feature-context:testDebugUnitTest
 
-# Instrumented tests on the phone
-./gradlew connectedAndroidTest
+# Instrumented tests on the phone, keeping the app's data.
+# Never use `./gradlew connectedAndroidTest`: it uninstalls the app afterwards and deletes its data.
+./gradlew assembleDebug assembleDebugAndroidTest
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb shell am instrument -w dev.akibh.mycompanion.test/androidx.test.runner.AndroidJUnitRunner
+# one class: add  -e class dev.akibh.mycompanion.FeatureDeviceTest
 ```
 
 `adb` lives at `~/Android/Sdk/platform-tools/adb` (not on PATH by default). The phone usually
