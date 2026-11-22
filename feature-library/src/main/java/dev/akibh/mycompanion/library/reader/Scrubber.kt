@@ -19,8 +19,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -166,37 +164,36 @@ internal fun Scrubber(
         val filled = (drawn.coerceIn(0f, 1f) * count).toInt()
         // While held the curve sits under the finger; otherwise under the dot.
         val centre = if (expanded) fingerX else drawn * size.width
-        // The peak rides just above the fingertip, so the finger never covers the dots or the page;
-        // the higher the push, the taller and wider the curve and the bigger the dots near its top.
-        val reach = (y - fingerY + ABOVE_FINGER.toPx()).coerceIn(BELL_MIN.toPx(), BELL_MAX.toPx())
+        // The red dot sits at the fingertip; the higher the push, the taller and wider the curve.
+        val reach = (y - fingerY).coerceIn(BELL_MIN.toPx(), BELL_MAX.toPx())
         val height = reach * lift
-        val tall = (height / BELL_MAX.toPx()).coerceIn(0f, 1f)
         val sigma = BELL_SIGMA.toPx() + height * .1f
         fun rise(x: Float) = height * bell(x - centre, sigma)
 
-        // A faint guide along the curve, like the rail behind the dots.
-        if (lift > .02f) {
-            val guide = Path()
-            var x = 0f
-            guide.moveTo(0f, y - rise(0f))
-            while (x <= size.width) {
-                guide.lineTo(x, y - rise(x))
-                x += 4.dp.toPx()
-            }
-            drawPath(guide, ink.copy(alpha = .12f * lift), style = Stroke(1.dp.toPx()))
-        }
-
+        // Dots grow and fade the higher they ride on the curve. Up there they'd overlap, so a dot is
+        // skipped when it would touch the last one drawn: the curve stays a calm row of beads.
+        val tallest = BELL_MAX.toPx()
+        var lastX = Float.NEGATIVE_INFINITY
+        var lastY = 0f
+        var lastRadius = 0f
         repeat(count) { i ->
             val x = i * step + step / 2
-            val near = bell(x - centre, sigma * 1.3f)
-            // Fisheye: dots near the finger grow; more when the curve is up.
-            val radius = (1.6f + .8f * grow + (2f + 2.4f * tall) * lift * near).dp.toPx()
-            drawCircle(if (i < filled) ink else empty, radius = radius, center = Offset(x, y - rise(x)))
+            val dotY = y - rise(x)
+            val up = (rise(x) / tallest).coerceIn(0f, 1f)
+            val radius = (1.6f + .8f * grow + (1.2f + 7f * up) * lift).dp.toPx()
+            val gap = kotlin.math.hypot(x - lastX, dotY - lastY)
+            if (gap >= (radius + lastRadius) * DOT_SPACING) {
+                val color = if (i < filled) ink else empty
+                drawCircle(color.copy(alpha = color.alpha * (1f - .6f * up)), radius, Offset(x, dotY))
+                lastX = x
+                lastY = dotY
+                lastRadius = radius
+            }
         }
 
         val thumbX = if (expanded && lift > .02f) centre else drawn * size.width
         val thumbY = y - rise(thumbX)
-        val thumbRadius = (8f + 5f * grow + (2f + 2f * tall) * lift).dp.toPx()
+        val thumbRadius = (8f + 5f * grow).dp.toPx()
         drawCircle(CompanionRed, radius = thumbRadius, center = Offset(thumbX, thumbY))
 
         // The page under the finger, over the red dot, while held.
@@ -207,7 +204,8 @@ internal fun Scrubber(
             val w = text.size.width + padX * 2
             val h = text.size.height + padY * 2
             val left = (thumbX - w / 2).coerceIn(-step, size.width - w + step)
-            val top = thumbY - thumbRadius - 10.dp.toPx() - h
+            // High enough to clear the fingertip resting on the red dot.
+            val top = thumbY - thumbRadius - LABEL_CLEARANCE.toPx() - h
             drawRoundRect(tipColor, Offset(left, top), Size(w, h), CornerRadius(h / 2))
             drawText(text, topLeft = Offset(left + padX, top + padY))
         }
@@ -219,7 +217,8 @@ private val THUMB_SLOP = 24.dp
 private val BELL_SIGMA = 26.dp
 private val BELL_MIN = 40.dp
 private val BELL_MAX = 220.dp
-private val ABOVE_FINGER = 48.dp
+private val LABEL_CLEARANCE = 52.dp
+private const val DOT_SPACING = 1.25f
 private const val LIFT_START_DP = 16f
 private const val LIFT_RANGE_DP = 64f
 private const val SLOW_DP_PER_MS = .15f
