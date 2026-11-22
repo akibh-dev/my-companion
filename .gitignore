@@ -103,3 +103,7 @@ ai-models/src/main/assets/indicxlit/*.download
 tools/quran/sources/
 tools/quran/.venv/
 feature-quran/src/main/assets/quran/
+
+# Python bytecode from the tools/ scripts
+__pycache__/
+*.pyc
