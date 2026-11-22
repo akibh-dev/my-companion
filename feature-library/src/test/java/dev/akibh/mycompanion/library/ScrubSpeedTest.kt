@@ -1,31 +1,31 @@
 package dev.akibh.mycompanion.library
 
 import com.google.common.truth.Truth.assertThat
-import dev.akibh.mycompanion.library.reader.bell
-import dev.akibh.mycompanion.library.reader.bellLift
 import dev.akibh.mycompanion.library.reader.fineAcceleration
+import dev.akibh.mycompanion.library.reader.pushedUp
+import dev.akibh.mycompanion.library.reader.tickOffsetDegrees
 import org.junit.Test
 
 class ScrubSpeedTest {
 
     @Test
-    fun theCurveRisesOnlyOnceTheFingerIsPushedUp() {
-        assertThat(bellLift(0f)).isEqualTo(0f)
-        assertThat(bellLift(-40f)).isEqualTo(0f) // below the strip stays flat
-        assertThat(bellLift(48f)).isWithin(.01f).of(.5f)
-        assertThat(bellLift(300f)).isEqualTo(1f)
+    fun theDialOpensOnlyOnceTheFingerIsPushedUp() {
+        assertThat(pushedUp(0f)).isFalse()
+        assertThat(pushedUp(-60f)).isFalse() // dragging down never opens it
+        assertThat(pushedUp(30f)).isTrue()
     }
 
     @Test
-    fun theBellPeaksUnderTheFingerAndFadesToTheSides() {
-        assertThat(bell(0f, 26f)).isEqualTo(1f)
-        assertThat(bell(26f, 26f)).isLessThan(.7f)
-        assertThat(bell(-26f, 26f)).isEqualTo(bell(26f, 26f))
-        assertThat(bell(120f, 26f)).isLessThan(.01f)
+    fun thePageUnderTheMarkerIsAtTheTopAndNeighboursSpreadEvenly() {
+        assertThat(tickOffsetDegrees(10, 10f)).isEqualTo(0f)
+        assertThat(tickOffsetDegrees(11, 10f)).isEqualTo(-tickOffsetDegrees(9, 10f))
+        assertThat(tickOffsetDegrees(11, 10f)).isGreaterThan(0f)
+        // Halfway between two pages, both sit either side of the marker.
+        assertThat(tickOffsetDegrees(10, 10.5f)).isLessThan(0f)
     }
 
     @Test
-    fun slowMovesArePageByPageAndFlicksAccelerate() {
+    fun slowTurnsArePageByPageAndFlicksAccelerate() {
         assertThat(fineAcceleration(.05f)).isEqualTo(1f)
         assertThat(fineAcceleration(-.05f)).isEqualTo(1f)
         assertThat(fineAcceleration(.6f)).isGreaterThan(2f)

@@ -12,10 +12,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -171,6 +174,7 @@ private fun Chrome(
     val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
     val finishPrompt by viewModel.finishPrompt.collectAsStateWithLifecycle()
     var sheet by rememberSaveable { mutableStateOf<ReaderSheet?>(null) }
+    val dial = remember { PageDial() }
 
     val here = locator
     val hereBookmark = here?.let { spot -> bookmarks.firstOrNull { sameSpot(it.locator, spot) } }
@@ -219,6 +223,15 @@ private fun Chrome(
             )
         }
 
+        // The page dial rises behind the pill (drawn first, so the pill stays on top of it).
+        PageDialOverlay(
+            dial = dial,
+            total = positions.size,
+            unit = if (book.format == BookFormat.EPUB) "" else "p. ",
+            titleAt = { index -> positions.getOrNull(index)?.title },
+            bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + DIAL_ABOVE_NAV,
+        )
+
         Column(
             Modifier
                 .align(Alignment.BottomCenter)
@@ -235,6 +248,7 @@ private fun Chrome(
                 exit = fadeOut() + slideOutVertically { it / 2 },
             ) {
                 ProgressBar(
+                    dial = dial,
                     locator = here,
                     positions = positions,
                     progress = here?.let(viewModel::progress) ?: book.progress,
@@ -330,6 +344,7 @@ private fun TopBar(
  */
 @Composable
 private fun ProgressBar(
+    dial: PageDial,
     locator: Locator?,
     positions: List<Locator>,
     progress: Double,
@@ -380,8 +395,7 @@ private fun ProgressBar(
                 value = dragging ?: pending ?: (((position ?: 1) - 1f) / (total - 1)),
                 steps = total - 1,
                 expanded = dragging != null,
-                label = "$unit${shownPosition ?: ""}",
-                onGrab = {},
+                dial = dial,
                 onChange = { dragging = it },
                 onRelease = {
                     dragging?.let {
@@ -446,6 +460,9 @@ private fun GoToPageDialog(total: Int, current: Int?, label: String, onGo: (Int)
 }
 
 private const val PENDING_SEEK_MILLIS = 1500L
+
+/** Pill (56) + its padding (12) + a gap (8): where the dial's lower edge sits above the nav bar. */
+private val DIAL_ABOVE_NAV = 76.dp
 private val MAX_BAR_WIDTH = 640.dp
 private val SCRIM_TOP = 140.dp
 private val SCRIM_BOTTOM = 130.dp
