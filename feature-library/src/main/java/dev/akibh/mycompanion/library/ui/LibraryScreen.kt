@@ -32,7 +32,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -73,11 +72,16 @@ import dev.akibh.mycompanion.library.domain.SortOrder
 import dev.akibh.mycompanion.library.domain.fileSize
 import dev.akibh.mycompanion.library.reader.BookReaderActivity
 import dev.akibh.mycompanion.library.reader.TextDialog
+import dev.akibh.mycompanion.ui.components.AddButton
+import dev.akibh.mycompanion.ui.components.AddButtonClearance
 import dev.akibh.mycompanion.ui.components.ChoiceChip
 import dev.akibh.mycompanion.ui.components.DotIcon
 import dev.akibh.mycompanion.ui.components.DotSymbol
-import dev.akibh.mycompanion.ui.components.DotText
+import dev.akibh.mycompanion.ui.components.EmptyState
+import dev.akibh.mycompanion.ui.components.PageMargin
+import dev.akibh.mycompanion.ui.components.PrimaryButton
 import dev.akibh.mycompanion.ui.components.SecondaryButton
+import dev.akibh.mycompanion.ui.components.SectionLabel
 import dev.akibh.mycompanion.ui.theme.CompanionRed
 import kotlin.math.roundToInt
 
@@ -130,13 +134,10 @@ fun LibraryRoute(onStats: () -> Unit, modifier: Modifier = Modifier, viewModel: 
             viewModel = viewModel,
         )
         if (state.all.isNotEmpty()) {
-            ExtendedFloatingActionButton(
+            AddButton(
+                label = "Add books",
                 onClick = { add.launch(BookFormat.PICKER_TYPES) },
-                icon = { DotIcon(DotSymbol.PLUS, Modifier.size(20.dp)) },
-                text = { Text("Add books") },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(20.dp),
+                modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding(),
             )
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 88.dp))
@@ -212,7 +213,7 @@ private fun LibraryContent(
     var newLabel by remember { mutableStateOf<LabelKind?>(null) }
     LazyVerticalGrid(
         columns = if (state.grid) GridCells.Adaptive(104.dp) else GridCells.Fixed(1),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 120.dp),
+        contentPadding = PaddingValues(start = PageMargin, end = PageMargin, top = 4.dp, bottom = AddButtonClearance),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalArrangement = Arrangement.spacedBy(if (state.grid) 18.dp else 10.dp),
         modifier = Modifier.fillMaxSize(),
@@ -288,11 +289,10 @@ private fun LibraryContent(
         }
         if (state.shown.isEmpty()) {
             item(span = { GridItemSpan(maxLineSpan) }) {
-                Text(
-                    "No books here.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 24.dp),
+                EmptyState(
+                    symbol = DotSymbol.BOOK,
+                    title = "No books here",
+                    body = "Nothing matches this shelf, tag or search. Pick All or clear the search.",
                 )
             }
         }
@@ -327,28 +327,13 @@ private fun LibraryContent(
 
 @Composable
 private fun EmptyLibrary(onAdd: () -> Unit) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(top = 24.dp)
-            .clip(CardShape)
-            .background(MaterialTheme.colorScheme.surfaceContainer)
-            .padding(28.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        DotIcon(DotSymbol.SHELF, Modifier.size(72.dp))
-        DotText("No books yet", Modifier.padding(top = 24.dp))
-        Text(
-            "Download PDF, EPUB or CBZ comic files with your browser, then add them here. " +
-                "Books stay where they are: the library links to them and remembers your place.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 12.dp),
-        )
-        androidx.compose.material3.Button(onClick = onAdd, Modifier.padding(top = 20.dp).fillMaxWidth()) {
-            Text("Add books")
-        }
-    }
+    EmptyState(
+        symbol = DotSymbol.SHELF,
+        title = "No books yet",
+        body = "Download PDF, EPUB or CBZ comic files with your browser, then add them here. " +
+            "Books stay where they are: the library links to them and remembers your place.",
+        action = { PrimaryButton(onClick = onAdd) { Text("Add books") } },
+    )
 }
 
 @Composable

@@ -5,12 +5,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -25,13 +25,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -74,11 +72,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.akibh.mycompanion.R
 import dev.akibh.mycompanion.presentation.common.OutlinedStateTextField
+import dev.akibh.mycompanion.ui.components.AddButton
+import dev.akibh.mycompanion.ui.components.AddButtonClearance
 import dev.akibh.mycompanion.ui.components.ChoiceChip
 import dev.akibh.mycompanion.ui.components.ChoiceRow
 import dev.akibh.mycompanion.ui.components.DotIcon
 import dev.akibh.mycompanion.ui.components.DotSymbol
+import dev.akibh.mycompanion.ui.components.EmptyState
+import dev.akibh.mycompanion.ui.components.Note
+import dev.akibh.mycompanion.ui.components.PageMargin
+import dev.akibh.mycompanion.ui.components.PrimaryButton
 import dev.akibh.mycompanion.ui.components.SecondaryButton
+import dev.akibh.mycompanion.ui.components.Section
+import dev.akibh.mycompanion.ui.components.SectionGap
+import dev.akibh.mycompanion.ui.components.SectionLabel
 import dev.akibh.mycompanion.ui.components.rememberChromeListState
 import dev.akibh.mycompanion.ui.theme.CompanionRed
 import java.time.DayOfWeek
@@ -122,67 +129,61 @@ fun RemindersScreen(
             handledSubmission = submissionCount
         }
     }
-    LazyColumn(
-        state = rememberChromeListState(),
-        modifier = modifier,
-        contentPadding = PaddingValues(start = 24.dp, top = 12.dp, end = 24.dp, bottom = 144.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        item {
-            Text(
-                "For the things worth coming back to.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        if (!notificationsAllowed) {
-            item { NotificationsOffBanner(onAllowNotifications) }
-        }
-        if (!preciseTimingAllowed) {
-            item { Text("Precise timing is unavailable. Reminders may arrive later than the selected time.") }
-        }
-        item {
-            Button(onClick = { creating = true }, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Filled.Add, contentDescription = null)
-                Spacer(Modifier.size(8.dp))
-                Text("Create a reminder")
-            }
-        }
-        item {
-            Text(
-                "Upcoming",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-        }
-        if (state.upcoming.isEmpty()) {
+    Box(modifier.fillMaxSize()) {
+        LazyColumn(
+            state = rememberChromeListState(),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = PageMargin,
+                top = 12.dp,
+                end = PageMargin,
+                // Room for the add button, which itself floats above the nav bar.
+                bottom = ADD_BUTTON_LIFT + AddButtonClearance,
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             item {
-                Column(
-                    Modifier.fillMaxWidth().padding(vertical = 36.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    DotIcon(DotSymbol.BELL, Modifier.size(48.dp))
-                    Text("Nothing scheduled", style = MaterialTheme.typography.titleLarge)
-                    Text(
+                Text(
+                    "For the things worth coming back to.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (!notificationsAllowed) {
+                item { NotificationsOffBanner(onAllowNotifications) }
+            }
+            if (!preciseTimingAllowed) {
+                item { Note("Precise timing is unavailable. Reminders may arrive later than the selected time.") }
+            }
+            item {
+                SectionLabel("Upcoming", Modifier.padding(start = 8.dp, top = SectionGap - 12.dp))
+            }
+            if (state.upcoming.isEmpty()) {
+                item {
+                    EmptyState(
+                        DotSymbol.BELL,
+                        "Nothing scheduled",
                         "Set a little nudge for later.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                // The soonest reminder that will actually ring is the one highlighted.
+                val nextId = state.upcoming.firstOrNull { !it.paused }?.id
+                items(state.upcoming, key = { it.id }) { reminder ->
+                    UpcomingRow(
+                        reminder,
+                        next = reminder.id == nextId,
+                        onTogglePause = { onTogglePause(reminder.id) },
+                        onEdit = { onEditReminder(reminder.id) }
                     )
                 }
             }
-        } else {
-            // The soonest reminder that will actually ring is the one highlighted.
-            val nextId = state.upcoming.firstOrNull { !it.paused }?.id
-            items(state.upcoming, key = { it.id }) { reminder ->
-                UpcomingRow(
-                    reminder,
-                    next = reminder.id == nextId,
-                    onTogglePause = { onTogglePause(reminder.id) },
-                    onEdit = { onEditReminder(reminder.id) }
-                )
-            }
         }
+        AddButton(
+            "Add reminder",
+            onClick = { creating = true },
+            modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = ADD_BUTTON_LIFT),
+        )
     }
     if (creating || state.form.editingId != null) {
         val dismiss = {
@@ -258,28 +259,6 @@ private fun NotificationsOffBanner(onAllow: () -> Unit) {
     }
 }
 
-/** A labelled group of the reminder form, on its own rounded surface. */
-@Composable
-private fun FormSection(label: String, content: @Composable ColumnScope.() -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 8.dp).semantics { heading() },
-        )
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .clip(MaterialTheme.shapes.extraLarge)
-                .background(MaterialTheme.colorScheme.surfaceContainer)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            content = content,
-        )
-    }
-}
-
 @Composable
 private fun ComposerSections(
     state: RemindersUiState,
@@ -297,7 +276,7 @@ private fun ComposerSections(
     soundContent: @Composable () -> Unit,
 ) {
     val form = state.form
-    FormSection("What") {
+    Section("What") {
         OutlinedStateTextField(
             state = title,
             label = "Title",
@@ -313,7 +292,7 @@ private fun ComposerSections(
             modifier = Modifier.fillMaxWidth(),
         )
     }
-    FormSection("When") {
+    Section("When") {
         ChoiceRow(Modifier.fillMaxWidth()) {
             state.presets.forEach { chip ->
                 ChoiceChip(
@@ -341,10 +320,10 @@ private fun ComposerSections(
             )
         }
     }
-    FormSection("Repeat") {
+    Section("Repeat") {
         RepeatPicker(state, onRepeatChange, onDayToggle, onEveryChange, onCustomNumberChange, onCustomUnitChange)
     }
-    FormSection(if (state.contacts.isNotEmpty()) "Sound & call" else "Sound") {
+    Section(if (state.contacts.isNotEmpty()) "Sound & call" else "Sound") {
         soundContent()
         if (state.contacts.isNotEmpty()) CallButtonPicker(state, onContactChange)
     }
@@ -361,11 +340,10 @@ private fun SubmitBar(state: RemindersUiState, title: TextFieldState, message: T
     val canSubmit = form.canSubmit(title.text, message.text) && state.validationMessage == null
     Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background)) {
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Button(
+        PrimaryButton(
             onClick = onSubmit,
             enabled = canSubmit,
             modifier = Modifier
-                .fillMaxWidth()
                 .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 16.dp)
                 .heightIn(min = 56.dp),
         ) {
@@ -604,7 +582,7 @@ private fun InfoPill(icon: Painter, text: String, color: Color) {
 @Composable
 private fun ManageSection(paused: Boolean, onTogglePause: () -> Unit, onDelete: () -> Unit) {
     var confirming by remember { mutableStateOf(false) }
-    FormSection("Manage") {
+    Section("Manage") {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             SecondaryButton(onClick = onTogglePause, modifier = Modifier.weight(1f).heightIn(min = 52.dp)) {
                 DotIcon(if (paused) DotSymbol.PLAY else DotSymbol.PAUSE, Modifier.size(18.dp))
@@ -637,3 +615,6 @@ private fun ManageSection(paused: Boolean, onTogglePause: () -> Unit, onDelete: 
         )
     }
 }
+
+/** Lifts the add button above the floating nav bar, as on People. */
+private val ADD_BUTTON_LIFT = 120.dp

@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -20,7 +18,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.akibh.mycompanion.ui.components.Note
+import dev.akibh.mycompanion.ui.components.PageMargin
+import dev.akibh.mycompanion.ui.components.PrimaryButton
 import dev.akibh.mycompanion.ui.components.SecondaryButton
+import dev.akibh.mycompanion.ui.components.Section
+import dev.akibh.mycompanion.ui.components.SectionGap
 import java.time.LocalDate
 
 /** Settings → "Export & backup": connects [ExportScreen] to the system file picker. */
@@ -61,28 +64,27 @@ fun ExportScreen(
     Column(
         modifier
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(start = PageMargin, top = 8.dp, end = PageMargin, bottom = SectionGap),
+        verticalArrangement = Arrangement.spacedBy(SectionGap),
     ) {
-        Section(
-            title = "Export my data",
-            body = "Saves one ZIP file with your people, reminders, playlists, rules, places, auto-reply " +
-                "templates and settings as readable JSON, wherever you choose.",
-        ) {
-            Button(onClick = onExportAll, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
+        Section("Export my data", note = "The exported file itself is not encrypted.") {
+            Text(
+                "Saves one ZIP file with your people, reminders, playlists, rules, places, auto-reply " +
+                    "templates and settings as readable JSON, wherever you choose.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            PrimaryButton(onClick = onExportAll, enabled = !state.busy) {
                 Text("Export my data…")
             }
-            Text(
-                "The exported file itself is not encrypted.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
         Section(
-            title = "Settings backup",
-            body = "The feature switches, voice mode and auto-reply settings in one small file. Restoring " +
-                "replaces your current settings.",
+            "Settings backup",
+            note = "Restoring replaces your current settings.",
         ) {
+            Text(
+                "The feature switches, voice mode and auto-reply settings in one small file.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
             SecondaryButton(onClick = onExportSettings, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
                 Text("Save settings…")
             }
@@ -90,7 +92,7 @@ fun ExportScreen(
                 Text("Restore settings…")
             }
         }
-        state.status?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+        state.status?.let { Note(it, Modifier.padding(horizontal = 8.dp)) }
     }
 
     state.pendingRestore?.let { bundle ->
@@ -101,17 +103,6 @@ fun ExportScreen(
             confirmButton = { TextButton(onClick = onConfirmRestore) { Text("Replace") } },
             dismissButton = { TextButton(onClick = onCancelRestore) { Text("Cancel") } },
         )
-    }
-}
-
-@Composable
-private fun Section(title: String, body: String, content: @Composable () -> Unit) {
-    ElevatedCard(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(body, style = MaterialTheme.typography.bodyMedium)
-            content()
-        }
     }
 }
 

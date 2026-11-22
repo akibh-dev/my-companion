@@ -51,7 +51,7 @@ class ContactsScreenTest {
         show(ContactsUiState(contacts = emptyList(), loading = false))
 
         compose.onNodeWithText("No one here yet").assertIsDisplayed()
-        compose.onNodeWithText("Add person").performClick()
+        compose.onNodeWithContentDescription("Add person").performClick()
 
         assertThat(events).containsExactly("add")
     }

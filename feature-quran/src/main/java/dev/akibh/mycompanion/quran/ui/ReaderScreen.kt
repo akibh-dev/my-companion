@@ -2,9 +2,17 @@ package dev.akibh.mycompanion.quran.ui
 
 import android.content.ClipData
 import android.content.Intent
+import android.view.accessibility.AccessibilityManager
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -20,23 +28,26 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -49,6 +60,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -57,6 +69,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ClipEntry
@@ -65,10 +81,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -84,10 +102,10 @@ import dev.akibh.mycompanion.quran.domain.MushafScript
 import dev.akibh.mycompanion.quran.domain.ReadingMode
 import dev.akibh.mycompanion.quran.domain.Surah
 import dev.akibh.mycompanion.quran.domain.arabicDigits
-import dev.akibh.mycompanion.ui.components.ChoiceChip
-import dev.akibh.mycompanion.ui.components.ChoiceRow
 import dev.akibh.mycompanion.ui.components.SecondaryButton
+import dev.akibh.mycompanion.ui.theme.CompanionRed
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
@@ -112,17 +130,52 @@ private fun ReaderScreen(state: ReaderState.Ready, viewModel: ReaderViewModel, m
         onDispose { view.keepScreenOn = false }
     }
     var sheet by remember { mutableStateOf<IntRange?>(null) }
+    // The zoom pill floats over the text only while a finger is on the page, and for a moment after,
+    // so the page is clear while reading. With TalkBack it stays, since hidden controls can't be found.
+    val talkBack = remember {
+        view.context.getSystemService(AccessibilityManager::class.java)?.isTouchExplorationEnabled == true
+    }
+    var touching by remember { mutableStateOf(false) }
+    var releases by remember { mutableIntStateOf(0) }
+    var showZoom by remember { mutableStateOf(false) }
+    LaunchedEffect(touching, releases) {
+        if (touching) {
+            showZoom = true
+        } else if (releases > 0) {
+            delay(ZOOM_HIDE_MILLIS)
+            showZoom = false
+        }
+    }
     Column(modifier.fillMaxSize()) {
         ReaderControls(state, viewModel)
-        Box(Modifier.weight(1f)) {
+        Box(
+            Modifier
+                .weight(1f)
+                .pointerInput(Unit) {
+                    // Only watches (Initial pass, nothing consumed): page turns, scrolls and pinches work as before.
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            val down = event.changes.any { it.pressed }
+                            if (touching && !down) releases++
+                            touching = down
+                        }
+                    }
+                },
+        ) {
             key(state.generation, state.prefs.script, state.prefs.mode) {
                 when (state.prefs.mode) {
                     ReadingMode.MUSHAF -> MushafPager(state, viewModel, onLongPress = { sheet = it })
                     ReadingMode.AYAH_LIST -> AyahList(state, viewModel, onLongPress = { sheet = it })
                 }
             }
+            FloatingZoom(
+                visible = showZoom || talkBack,
+                state = state,
+                viewModel = viewModel,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
+            )
         }
-        ZoomBar(state, viewModel)
     }
     sheet?.let { range ->
         AyahSheet(range, state, viewModel, onDismiss = { sheet = null })
@@ -131,21 +184,67 @@ private fun ReaderScreen(state: ReaderState.Ready, viewModel: ReaderViewModel, m
 
 @Composable
 private fun ReaderControls(state: ReaderState.Ready, viewModel: ReaderViewModel) {
-    ChoiceRow(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
-        // Two separate choices (view, then script); each pair stays together when the row wraps.
-        Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(ReadingMode.MUSHAF to "Page", ReadingMode.AYAH_LIST to "Ayahs").forEach { (mode, label) ->
-                ChoiceChip(
+    // Two separate controls: how the text is shown (view) at the start, which mushaf (script) at the end.
+    FlowRow(
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Segmented(
+            options = listOf(ReadingMode.MUSHAF to "Page", ReadingMode.AYAH_LIST to "Ayahs"),
+            selected = state.prefs.mode,
+            onSelect = viewModel::setMode,
+            enabled = { mode -> mode != ReadingMode.MUSHAF || state.hasPages },
+        )
+        Segmented(
+            options = listOf(MushafScript.MADANI to "Madani", MushafScript.INDOPAK to "Indo-Pak"),
+            selected = state.prefs.script,
+            onSelect = viewModel::setScript,
+        )
+    }
+}
+
+/**
+ * One choice of a few, drawn as a single grey pill with the chosen segment in ink (and the choice's
+ * red dot), so each set reads as one control and two sets side by side read as two.
+ */
+@Composable
+private fun <T> Segmented(
+    options: List<Pair<T, String>>,
+    selected: T,
+    onSelect: (T) -> Unit,
+    enabled: (T) -> Boolean = { true },
+) {
+    val colors = MaterialTheme.colorScheme
+    Row(
+        Modifier
+            .selectableGroup()
+            .clip(CircleShape)
+            .background(colors.onSurface.copy(alpha = CONTROL_TINT))
+            .padding(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        options.forEach { (value, label) ->
+            val on = value == selected
+            val active = enabled(value)
+            Row(
+                Modifier
+                    .heightIn(min = 40.dp)
+                    .clip(CircleShape)
+                    .background(if (on) colors.onSurface else Color.Transparent)
+                    .selectable(selected = on, enabled = active, role = Role.RadioButton, onClick = { onSelect(value) })
+                    .alpha(if (active) 1f else DISABLED_ALPHA)
+                    .padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                if (on) Box(Modifier.size(6.dp).clip(CircleShape).background(CompanionRed))
+                Text(
                     label,
-                    selected = state.prefs.mode == mode,
-                    onClick = { viewModel.setMode(mode) },
-                    enabled = mode != ReadingMode.MUSHAF || state.hasPages,
+                    color = if (on) colors.surface else colors.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
                 )
-            }
-        }
-        Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(MushafScript.MADANI to "Madani", MushafScript.INDOPAK to "Indo-Pak").forEach { (script, label) ->
-                ChoiceChip(label, selected = state.prefs.script == script, onClick = { viewModel.setScript(script) })
             }
         }
     }
@@ -554,9 +653,22 @@ private fun AyahSheet(range: IntRange, state: ReaderState.Ready, viewModel: Read
     }
 }
 
+/** The zoom pill fading and sliding in and out (outside the Column, so the plain AnimatedVisibility is used). */
+@Composable
+private fun FloatingZoom(visible: Boolean, state: ReaderState.Ready, viewModel: ReaderViewModel, modifier: Modifier) {
+    AnimatedVisibility(
+        visible = visible,
+        modifier = modifier,
+        enter = fadeIn(tween(150)) + slideInVertically(tween(200)) { it / 2 },
+        exit = fadeOut(tween(250)) + slideOutVertically(tween(250)) { it / 2 },
+    ) {
+        ZoomBar(state, viewModel)
+    }
+}
+
 /**
- * A slim bar under the page: − and + on the left for zoom (pages) or text size (ayah list), for when
- * pinching is awkward, and how big it is now. Below the text, so it never covers a line.
+ * A floating pill over the page: − and + for zoom (pages) or text size (ayah list), for when pinching
+ * is awkward, and how big it is now. Shown only while the page is being touched (see ReaderScreen).
  */
 @Composable
 private fun ZoomBar(state: ReaderState.Ready, viewModel: ReaderViewModel) {
@@ -565,30 +677,55 @@ private fun ZoomBar(state: ReaderState.Ready, viewModel: ReaderViewModel) {
     fun set(next: Float) = if (page) viewModel.setPageZoom(next) else viewModel.setTextScale(next)
     val min = if (page) 1f else MIN_TEXT_SCALE
     val max = if (page) MAX_PAGE_ZOOM else MAX_TEXT_SCALE
-    val colors = IconButtonDefaults.filledTonalIconButtonColors(
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-    )
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        FilledTonalIconButton(
-            onClick = { set((value / ZOOM_STEP).coerceAtLeast(min)) },
-            enabled = value > min,
-            colors = colors,
-            modifier = Modifier.semantics { contentDescription = if (page) "Zoom out" else "Smaller text" },
-        ) { Text("−", style = MaterialTheme.typography.titleLarge) }
-        FilledTonalIconButton(
-            onClick = { set((value * ZOOM_STEP).coerceAtMost(max)) },
-            enabled = value < max,
-            colors = colors,
-            modifier = Modifier.semantics { contentDescription = if (page) "Zoom in" else "Larger text" },
-        ) { Text("+", style = MaterialTheme.typography.titleLarge) }
-        Text("${(value * 100).roundToInt()}%", style = MaterialTheme.typography.labelMedium)
+    // An opaque pill (it sits over text): − · size · +, each button a full 48 dp target.
+    Box(contentAlignment = Alignment.Center) {
+        Row(
+            Modifier
+                .shadow(6.dp, CircleShape)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ZoomStep(
+                symbol = "−",
+                label = if (page) "Zoom out" else "Smaller text",
+                enabled = value > min,
+                onClick = { set((value / ZOOM_STEP).coerceAtLeast(min)) },
+            )
+            Text(
+                "${(value * 100).roundToInt()}%",
+                Modifier.widthIn(min = 52.dp),
+                style = MaterialTheme.typography.labelLarge,
+                textAlign = TextAlign.Center,
+            )
+            ZoomStep(
+                symbol = "+",
+                label = if (page) "Zoom in" else "Larger text",
+                enabled = value < max,
+                onClick = { set((value * ZOOM_STEP).coerceAtMost(max)) },
+            )
+        }
     }
 }
+
+@Composable
+private fun ZoomStep(symbol: String, label: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = label }
+            .alpha(if (enabled) 1f else DISABLED_ALPHA),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(symbol, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+    }
+}
+
+/** The same grey as a SecondaryButton: a tint of the text colour, so it shows on any surface. */
+private const val CONTROL_TINT = .10f
+private const val DISABLED_ALPHA = .38f
 
 @Composable
 private fun BookmarkDialog(title: String, onSave: (String) -> Unit, onDismiss: () -> Unit) {
@@ -633,6 +770,7 @@ private const val JUSTIFY_FROM = 0.82f
 /** A plain space between words, as a fraction of the font size. */
 private const val WORD_GAP = 0.28f
 private const val ZOOM_STEP = 1.15f
+private const val ZOOM_HIDE_MILLIS = 1500L
 
 /** Nastaleeq words sit close together; an en space keeps them apart (and still lets lines break). */
 private const val WIDE_SPACE = "\u2002"

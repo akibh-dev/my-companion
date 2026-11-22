@@ -66,7 +66,7 @@ class FeatureDeviceTest {
     @Test
     fun reminderFieldsKeepRapidInputAfterFocusChanges() {
         compose.onNodeWithContentDescription("Reminders").performClick()
-        compose.onNodeWithText("Create a reminder").performClick()
+        compose.onNodeWithContentDescription("Add reminder").performClick()
         repeat(5) { attempt ->
             val title = "Typing replay $attempt"
             val message = "Stay hydrated $attempt"

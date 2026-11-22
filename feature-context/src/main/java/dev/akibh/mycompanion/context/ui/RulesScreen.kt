@@ -8,18 +8,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -45,8 +41,17 @@ import dev.akibh.mycompanion.context.domain.Rule
 import dev.akibh.mycompanion.core.settings.Feature
 import dev.akibh.mycompanion.core.settings.Settings
 import dev.akibh.mycompanion.core.settings.SettingsStore
+import dev.akibh.mycompanion.ui.components.AddButton
+import dev.akibh.mycompanion.ui.components.AddButtonClearance
 import dev.akibh.mycompanion.ui.components.ChoiceRow
+import dev.akibh.mycompanion.ui.components.DotSymbol
+import dev.akibh.mycompanion.ui.components.EmptyState
+import dev.akibh.mycompanion.ui.components.PageMargin
 import dev.akibh.mycompanion.ui.components.SecondaryButton
+import dev.akibh.mycompanion.ui.components.SectionCard
+import dev.akibh.mycompanion.ui.components.SectionGap
+import dev.akibh.mycompanion.ui.components.SectionLabel
+import dev.akibh.mycompanion.ui.components.SwitchRow
 import dev.akibh.mycompanion.ui.theme.CompanionRed
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
@@ -60,6 +65,8 @@ data class RulesUiState(
     val places: Map<Long, Place> = emptyMap(),
     val active: Set<Long> = emptySet(),
     val settings: Settings = Settings(),
+    /** False until the database answers, so "No rules yet" doesn't flash on open. */
+    val loaded: Boolean = false,
 )
 
 @HiltViewModel
@@ -75,7 +82,7 @@ class RulesViewModel @Inject constructor(
             engine.active,
             settingsStore.settings
         ) { rules, places, active, settings ->
-            RulesUiState(rules, places.associateBy { it.id }, active, settings)
+            RulesUiState(rules, places.associateBy { it.id }, active, settings, loaded = true)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RulesUiState())
 
     fun onFeatureChange(on: Boolean) {
@@ -101,30 +108,51 @@ fun RulesRoute(
     viewModel: RulesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    RulesScreen(
+        state = state,
+        onFeatureChange = viewModel::onFeatureChange,
+        onOpenRule = onOpenRule,
+        onOpenPlaces = onOpenPlaces,
+        onOpenHistory = onOpenHistory,
+        onEnabledChange = viewModel::onEnabledChange,
+        onMove = viewModel::onMove,
+        modifier = modifier,
+    )
+}
+
+@Composable
+fun RulesScreen(
+    state: RulesUiState,
+    onFeatureChange: (Boolean) -> Unit,
+    onOpenRule: (Long?) -> Unit,
+    onOpenPlaces: () -> Unit,
+    onOpenHistory: () -> Unit,
+    onEnabledChange: (Rule, Boolean) -> Unit,
+    onMove: (Rule, up: Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Box(modifier.fillMaxSize()) {
         LazyColumn(
-            contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 96.dp),
+            contentPadding = PaddingValues(
+                start = PageMargin,
+                top = PageMargin,
+                end = PageMargin,
+                bottom = AddButtonClearance,
+            ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
-                ElevatedCard(Modifier.fillMaxWidth()) {
-                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("Context rules", style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                when {
-                                    state.settings.paused -> "Paused from Home"
-                                    Feature.CONTEXT_RULES in state.settings.enabled -> "On: rules run in the background"
-                                    else -> "Off"
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
-                        Switch(
-                            checked = Feature.CONTEXT_RULES in state.settings.enabled,
-                            onCheckedChange = viewModel::onFeatureChange
-                        )
-                    }
+                SectionCard {
+                    SwitchRow(
+                        title = "Context rules",
+                        checked = Feature.CONTEXT_RULES in state.settings.enabled,
+                        onCheckedChange = onFeatureChange,
+                        summary = when {
+                            state.settings.paused -> "Paused from Home"
+                            Feature.CONTEXT_RULES in state.settings.enabled -> "On: rules run in the background"
+                            else -> "Off"
+                        },
+                    )
                 }
             }
             item {
@@ -133,13 +161,19 @@ fun RulesRoute(
                     SecondaryButton(onClick = onOpenHistory) { Text("History") }
                 }
             }
-            if (state.rules.isEmpty()) {
+            if (state.loaded && state.rules.isEmpty()) {
                 item {
-                    Text(
-                        "No rules yet. Example: at the office, Sun–Thu 9:00–17:00 → vibrate.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    EmptyState(
+                        symbol = DotSymbol.RULES,
+                        title = "No rules yet",
+                        body = "Example: at the office, Sun–Thu 9:00–17:00 → vibrate. Tap Add rule to make one.",
                     )
+                }
+            } else {
+                item {
+                    Column(Modifier.padding(top = SectionGap - 12.dp)) {
+                        SectionLabel("Rules, top one wins", Modifier.padding(start = 8.dp))
+                    }
                 }
             }
             itemsIndexed(state.rules, key = { _, rule -> rule.id }) { index, rule ->
@@ -150,19 +184,12 @@ fun RulesRoute(
                     canMoveUp = index > 0,
                     canMoveDown = index < state.rules.lastIndex,
                     onOpen = { onOpenRule(rule.id) },
-                    onEnabledChange = { viewModel.onEnabledChange(rule, it) },
-                    onMove = { up -> viewModel.onMove(rule, up) },
+                    onEnabledChange = { onEnabledChange(rule, it) },
+                    onMove = { up -> onMove(rule, up) },
                 )
             }
         }
-        ExtendedFloatingActionButton(
-            onClick = { onOpenRule(null) },
-            icon = { Icon(Icons.Filled.Add, contentDescription = "Add rule") },
-            text = { Text("Add rule") },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp),
-        )
+        AddButton("Add rule", onClick = { onOpenRule(null) }, modifier = Modifier.align(Alignment.BottomEnd))
     }
 }
 
@@ -177,15 +204,13 @@ private fun RuleCard(
     onEnabledChange: (Boolean) -> Unit,
     onMove: (up: Boolean) -> Unit,
 ) {
-    ElevatedCard(
+    SectionCard(
         Modifier
-            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.large)
             .clickable(onClick = onOpen),
+        contentPadding = PaddingValues(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
     ) {
-        Row(
-            Modifier.padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -197,11 +222,11 @@ private fun RuleCard(
                 Text(
                     "When " + rule.triggers.joinToString(" and ") { Describe.trigger(it, places) },
                     style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     rule.actions.joinToString(" · ") { Describe.action(it) },
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
                 )
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {

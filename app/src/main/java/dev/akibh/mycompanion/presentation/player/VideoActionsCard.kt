@@ -16,7 +16,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -44,7 +43,9 @@ import dev.akibh.mycompanion.domain.model.Playlist
 import dev.akibh.mycompanion.domain.model.Video
 import dev.akibh.mycompanion.ui.components.DotIcon
 import dev.akibh.mycompanion.ui.components.DotSymbol
+import dev.akibh.mycompanion.ui.components.PrimaryButton
 import dev.akibh.mycompanion.ui.components.SecondaryButton
+import dev.akibh.mycompanion.ui.components.SectionLabel
 import dev.akibh.mycompanion.ui.theme.CompanionRed
 import java.util.Locale
 
@@ -69,7 +70,7 @@ fun VideoActionsCard(
         VideoRow(video)
 
         if (!choosingPlaylist) {
-            Button(onClick = onPlayNow, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+            PrimaryButton(onClick = onPlayNow, modifier = Modifier.heightIn(min = 52.dp)) {
                 DotIcon(DotSymbol.PLAY, Modifier.size(18.dp), color = CompanionRed)
                 Spacer(Modifier.width(8.dp))
                 Text("Play now")
@@ -88,7 +89,7 @@ fun VideoActionsCard(
             }
             TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) { Text("Cancel") }
         } else {
-            Text("Add to playlist", style = MaterialTheme.typography.titleSmall)
+            SectionLabel("Add to playlist", Modifier.padding(start = 8.dp))
             playlists.forEach { playlist ->
                 SecondaryButton(onClick = { onAddToPlaylist(playlist.id) }, modifier = Modifier.fillMaxWidth()) {
                     Text(playlist.name, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -114,14 +115,15 @@ fun VideoActionsCard(
                 supportingText = newPlaylistError?.let { { Text(it) } },
                 modifier = Modifier.fillMaxWidth(),
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.align(Alignment.End)) {
-                TextButton(onClick = { choosingPlaylist = false }) { Text("Back") }
-                Button(onClick = { onCreatePlaylistAndAdd(newName) }, enabled = newName.isNotBlank()) {
-                    Icon(Icons.Filled.Add, contentDescription = null)
-                    Spacer(Modifier.width(6.dp))
-                    Text("Create & add")
-                }
+            PrimaryButton(onClick = { onCreatePlaylistAndAdd(newName) }, enabled = newName.isNotBlank()) {
+                Icon(Icons.Filled.Add, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text("Create & add")
             }
+            TextButton(
+                onClick = { choosingPlaylist = false },
+                modifier = Modifier.align(Alignment.End)
+            ) { Text("Back") }
         }
     }
 }

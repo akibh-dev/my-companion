@@ -17,13 +17,11 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -48,7 +46,13 @@ import dev.akibh.mycompanion.messaging.InstalledApp
 import dev.akibh.mycompanion.messaging.InstalledApps
 import dev.akibh.mycompanion.ui.components.ChoiceChip
 import dev.akibh.mycompanion.ui.components.ChoiceRow
+import dev.akibh.mycompanion.ui.components.Note
+import dev.akibh.mycompanion.ui.components.PageMargin
+import dev.akibh.mycompanion.ui.components.PrimaryButton
 import dev.akibh.mycompanion.ui.components.SecondaryButton
+import dev.akibh.mycompanion.ui.components.Section
+import dev.akibh.mycompanion.ui.components.SectionGap
+import dev.akibh.mycompanion.ui.components.SwitchRow
 import dev.akibh.mycompanion.voice.domain.AppScope
 import dev.akibh.mycompanion.voice.domain.BlockRule
 import dev.akibh.mycompanion.voice.domain.BlockWhere
@@ -58,6 +62,7 @@ import dev.akibh.mycompanion.voice.domain.VoiceSettings
 import dev.akibh.mycompanion.voice.system.VoicePlayback
 import dev.akibh.mycompanion.voice.system.VoiceSettingsStore
 import dev.akibh.mycompanion.voice.system.VoiceState
+import java.util.Locale
 import javax.inject.Inject
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
@@ -168,22 +173,27 @@ fun VoiceRoute(modifier: Modifier = Modifier, viewModel: VoiceViewModel = hiltVi
     }
     LazyColumn(
         modifier = modifier,
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        contentPadding = PaddingValues(PageMargin),
+        verticalArrangement = Arrangement.spacedBy(SectionGap),
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            Section(
+                label = null,
+                note = "Also a Quick Settings tile. Silent during calls. " +
+                    "One Bengali voice reads the whole message, including English words.",
+            ) {
+                SwitchRow(
+                    title = "Read notifications aloud",
+                    checked = Feature.VOICE_MODE in app.enabled,
+                    onCheckedChange = viewModel::onVoiceMode,
+                )
+                if (app.paused) {
                     Text(
-                        "Read notifications aloud",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.weight(1f)
+                        "Paused from Home",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
                     )
-                    Switch(checked = Feature.VOICE_MODE in app.enabled, onCheckedChange = viewModel::onVoiceMode)
                 }
-                if (app.paused) Text("Paused from Home", color = MaterialTheme.colorScheme.error)
-                Helper("Also a Quick Settings tile. Silent during calls.")
-                Helper("One Bengali voice reads the whole message, including English words.")
             }
         }
         item {
@@ -194,28 +204,21 @@ fun VoiceRoute(modifier: Modifier = Modifier, viewModel: VoiceViewModel = hiltVi
             }
         }
         item {
-            Section("Apps") {
+            Section("Apps", note = "Ongoing, progress, player and call notifications are never read.") {
                 Choices(AppScope.entries, { it.title }, { it == s.appScope }) { scope ->
                     viewModel.update { it.copy(appScope = scope) }
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "Also read silent notifications",
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Switch(
-                        checked = s.readSilent,
-                        onCheckedChange = { on -> viewModel.update { it.copy(readSilent = on) } }
-                    )
-                }
-                Helper("Ongoing, progress, player and call notifications are never read.")
+                SwitchRow(
+                    title = "Also read silent notifications",
+                    checked = s.readSilent,
+                    onCheckedChange = { on -> viewModel.update { it.copy(readSilent = on) } },
+                )
             }
         }
         item {
             Section("Muted apps") {
                 if (s.mutedApps.isEmpty()) {
-                    Helper("None")
+                    Note("No muted apps. Every app in scope is read.")
                 } else {
                     Removable(
                         s.mutedApps.map { it to viewModel.label(it) }.sortedBy { it.second.lowercase() }
@@ -230,8 +233,10 @@ fun VoiceRoute(modifier: Modifier = Modifier, viewModel: VoiceViewModel = hiltVi
             }
         }
         item {
-            Section("Block rules") {
-                Helper("Skip notifications whose title or text contains these words (any case).")
+            Section(
+                "Block rules",
+                note = "Skip notifications whose title or text contains these words (any case).",
+            ) {
                 if (s.blockRules.isNotEmpty()) {
                     Removable(s.blockRules.map { it to "${it.where.title}: ${it.phrase}" }) { (rule, _) ->
                         viewModel.removeRule(rule)
@@ -275,35 +280,26 @@ fun VoiceRoute(modifier: Modifier = Modifier, viewModel: VoiceViewModel = hiltVi
             }
         }
         item {
-            Section("Reading mode") {
+            Section(
+                "Reading mode",
+                note = "Auto converts common Banglish words and preserves other English words. " +
+                    "Banglish text converts every Latin word.",
+            ) {
                 Choices(ReadingMode.entries, { it.title }, { it == s.readingMode }, viewModel::mode)
-                Helper(
-                    "Auto converts common Banglish words and preserves other English words. " +
-                        "Banglish text converts every Latin word."
-                )
             }
         }
         item {
-            Section("Speech speed: ${s.speechRate}") {
+            Section("Speech") {
+                Text(
+                    "Speed: ${"%.1f".format(Locale.getDefault(), s.speechRate)}×",
+                    style = MaterialTheme.typography.titleSmall,
+                )
                 Slider(value = s.speechRate, onValueChange = { rate ->
                     viewModel.update {
                         it.copy(speechRate = rate)
                     }
                 }, valueRange = 0.5f..2f)
-            }
-        }
-        item {
-            SecondaryButton(
-                onClick = {
-                    context.startActivity(
-                        Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-                    )
-                },
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text("Notification access settings") }
-        }
-        item {
-            Section("Cut messages after ${s.maxChars} characters") {
+                Text("Cut messages after ${s.maxChars} characters", style = MaterialTheme.typography.titleSmall)
                 Slider(
                     value = s.maxChars.toFloat(),
                     onValueChange = { v -> viewModel.update { it.copy(maxChars = (v / 20).roundToInt() * 20) } },
@@ -314,13 +310,10 @@ fun VoiceRoute(modifier: Modifier = Modifier, viewModel: VoiceViewModel = hiltVi
         item {
             val busy = state == VoiceState.Preparing || state == VoiceState.Speaking
             Section("Test") {
-                Button(
-                    onClick = if (busy) viewModel::stop else viewModel::onTest,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 52.dp),
-                ) { Text(if (busy) "Stop reading" else "Read a test message") }
-                Helper(
+                PrimaryButton(onClick = if (busy) viewModel::stop else viewModel::onTest) {
+                    Text(if (busy) "Stop reading" else "Read a test message")
+                }
+                Note(
                     when (val current = state) {
                         VoiceState.Idle -> "Ready"
                         VoiceState.Preparing -> "Preparing message…"
@@ -331,21 +324,19 @@ fun VoiceRoute(modifier: Modifier = Modifier, viewModel: VoiceViewModel = hiltVi
                 )
             }
         }
+        item {
+            Section("System", note = "Voice mode needs notification access to hear other apps.") {
+                SecondaryButton(
+                    onClick = {
+                        context.startActivity(
+                            Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Notification access settings") }
+            }
+        }
     }
-}
-
-/** A titled group of controls: label, a 10dp gap, then the controls. */
-@Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(title, style = MaterialTheme.typography.titleSmall)
-        content()
-    }
-}
-
-@Composable
-private fun Helper(text: String) {
-    Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable

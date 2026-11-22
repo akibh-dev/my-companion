@@ -76,3 +76,15 @@ The first-run guide now uses the approved display language: each page has a dott
 When every requirement is granted, Permissions & health shows a "Ready to roll" card whose Let's go button returns to Home. It pops the back stack to Home rather than using the tab-switching helper, because that helper's saved state would restore the permissions screen. Source: [Compose pager](https://developer.android.com/develop/ui/compose/layouts/pager), [Navigation back stack](https://developer.android.com/guide/navigation/backstack).
 
 Verified on the CMF Phone 1 (light mode): all four guide pages, swipe and Skip, and Let's go from 12/12 granted landing on Home. 358 app unit tests, debug lint and ktlint passed.
+
+### Screen kit — 22 November 2026
+
+Every screen is now built from the same few pieces in `design/.../ui/components/Layout.kt`, so the app reads as one thing:
+
+- A screen is a column of **Sections**: a `SectionLabel` (small spaced capitals, a heading for TalkBack, read as written) over a `SectionCard` (the grey rounded surface), with an optional `Note` under it. No more mixed bold, caps and plain headings.
+- On/off settings are `SwitchRow`s: the whole row toggles, one 48 dp target.
+- Adding to a list is one `AddButton`, an ink pill floating at the bottom end (People, Reminders, Rules, Places, Library). The main action of a card or form is a full-width `PrimaryButton`; lesser actions are `SecondaryButton`s.
+- Empty lists show an `EmptyState` (dot icon, what's missing, how to fill it). Lists that load from the database wait for the first answer, so the empty state doesn't flash on open.
+- Fixes in the same pass: forms show errors only after Save is tapped (not on open); AI engines moved from Home to Settings → Developer; the Log is grouped by hour with readable rows; Keep screen on uses choice chips; the Quran reader's view and script choices are two separate pills, and its zoom pill floats over the page only while it is touched, fading out 1.5 s after (always shown with TalkBack); tappable rows inside cards are inset so the ripple's rounded corners don't clip text.
+
+Verified on the CMF Phone 1 in light and dark: all 27 screens, the reminder sheet, the floating zoom pill (hidden → shown on scroll → hidden). 756 unit tests, lint and ktlint passed.

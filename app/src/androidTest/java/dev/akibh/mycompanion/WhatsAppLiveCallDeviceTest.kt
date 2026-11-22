@@ -66,7 +66,7 @@ class WhatsAppLiveCallDeviceTest {
                     waitNode { it.contentDescription?.toString() == "Reminders" }
                 }
                 click(waitNode { it.contentDescription?.toString() == "Reminders" })
-                val create = waitNode { it.text?.toString() == "Create a reminder" }
+                val create = waitNode { it.contentDescription?.toString() == "Add reminder" }
                 screenshot("reminders-list")
                 click(create)
                 waitNode { it.text?.toString() == "New reminder" }

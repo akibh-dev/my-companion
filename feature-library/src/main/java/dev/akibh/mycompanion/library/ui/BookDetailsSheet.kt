@@ -3,7 +3,6 @@ package dev.akibh.mycompanion.library.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -11,7 +10,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,7 +37,12 @@ import dev.akibh.mycompanion.library.domain.fileSize
 import dev.akibh.mycompanion.library.reader.TextDialog
 import dev.akibh.mycompanion.ui.components.ChoiceChip
 import dev.akibh.mycompanion.ui.components.ChoiceRow
+import dev.akibh.mycompanion.ui.components.Note
+import dev.akibh.mycompanion.ui.components.PageMargin
+import dev.akibh.mycompanion.ui.components.PrimaryButton
 import dev.akibh.mycompanion.ui.components.SecondaryButton
+import dev.akibh.mycompanion.ui.components.Section
+import dev.akibh.mycompanion.ui.components.SectionGap
 import dev.akibh.mycompanion.ui.theme.CompanionRed
 import java.text.DateFormat
 import java.util.Date
@@ -65,8 +68,8 @@ internal fun BookDetailsSheet(
         Column(
             Modifier
                 .verticalScroll(rememberScrollState())
-                .padding(start = 24.dp, end = 24.dp, bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(start = PageMargin, end = PageMargin, bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(SectionGap),
         ) {
             Row(verticalAlignment = Alignment.Top) {
                 Cover(book, Modifier.width(96.dp))
@@ -92,40 +95,40 @@ internal fun BookDetailsSheet(
             }
             if (availability != Availability.OK) {
                 val text = missingText(book, availability)
-                Text(text.title, style = MaterialTheme.typography.titleSmall, color = CompanionRed)
-                Text(
-                    text.body,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Button(onClick = onLocate, Modifier.fillMaxWidth()) { Text("Locate file") }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(text.title, style = MaterialTheme.typography.titleSmall, color = CompanionRed)
+                    Note(text.body)
+                    PrimaryButton(onClick = onLocate) { Text("Locate file") }
+                }
             } else {
-                Button(onClick = onOpen, Modifier.fillMaxWidth()) {
+                PrimaryButton(onClick = onOpen) {
                     Text(if (book.lastOpenedAt == null) "Start reading" else "Continue reading")
                 }
             }
 
-            SectionLabel("Status", Modifier.padding(top = 8.dp))
-            ChoiceRow {
-                BookStatus.entries.forEach { status ->
-                    ChoiceChip(status.label, book.status == status, { viewModel.setStatus(book, status) })
+            Section("Status") {
+                ChoiceRow {
+                    BookStatus.entries.forEach { status ->
+                        ChoiceChip(status.label, book.status == status, { viewModel.setStatus(book, status) })
+                    }
                 }
             }
             LabelGroup("Shelves", LabelKind.SHELF, labels, book, viewModel) { newLabel = LabelKind.SHELF }
             LabelGroup("Tags", LabelKind.TAG, labels, book, viewModel) { newLabel = LabelKind.TAG }
 
-            SectionLabel("File", Modifier.padding(top = 8.dp))
-            Text(book.fileName, style = MaterialTheme.typography.bodyMedium)
-            Text(
-                "${book.format.label} · ${book.size.fileSize()} · added ${DateFormat.getDateInstance().format(
-                    Date(book.addedAt)
-                )}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            ChoiceRow {
-                SecondaryButton(onClick = onLocate) { Text("Link another file") }
-                SecondaryButton(onClick = { confirmRemove = true }, destructive = true) { Text("Remove") }
+            Section("File") {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(book.fileName, style = MaterialTheme.typography.bodyMedium)
+                    Note(
+                        "${book.format.label} · ${book.size.fileSize()} · added ${DateFormat.getDateInstance().format(
+                            Date(book.addedAt)
+                        )}",
+                    )
+                }
+                ChoiceRow {
+                    SecondaryButton(onClick = onLocate) { Text("Link another file") }
+                    SecondaryButton(onClick = { confirmRemove = true }, destructive = true) { Text("Remove") }
+                }
             }
         }
     }
@@ -192,18 +195,19 @@ private fun LabelGroup(
     viewModel: LibraryViewModel,
     onNew: () -> Unit,
 ) {
-    SectionLabel(title, Modifier.padding(top = 8.dp))
-    ChoiceRow {
-        labels.filter { it.kind == kind }.forEach { label ->
-            val on = label.id in book.labels
-            ChoiceChip(
-                if (kind == LabelKind.TAG) "#${label.name}" else label.name,
-                on,
-                { viewModel.setLabel(book, label, !on) },
-                multiple = true,
-            )
+    Section(title) {
+        ChoiceRow {
+            labels.filter { it.kind == kind }.forEach { label ->
+                val on = label.id in book.labels
+                ChoiceChip(
+                    if (kind == LabelKind.TAG) "#${label.name}" else label.name,
+                    on,
+                    { viewModel.setLabel(book, label, !on) },
+                    multiple = true,
+                )
+            }
+            SecondaryButton(onClick = onNew) { Text(if (kind == LabelKind.SHELF) "+ Shelf" else "+ Tag") }
         }
-        SecondaryButton(onClick = onNew) { Text(if (kind == LabelKind.SHELF) "+ Shelf" else "+ Tag") }
     }
 }
 

@@ -57,12 +57,14 @@ class ApprovedDesignTest {
         }
         compose.onNodeWithContentDescription("Open Voice mode").performClick()
         compose.onNodeWithText("Voice mode").assertIsOff().performClick()
-        compose.onNodeWithText("AI engines").performScrollTo().performClick()
+        compose.onNodeWithText("Quran").performScrollTo().performClick()
+        // AI engines is a developer tool: it lives in Settings, not on Home.
+        compose.onNodeWithText("AI engines").assertDoesNotExist()
         compose.onNodeWithContentDescription("Open Missed-call SMS").performScrollTo().performClick()
         compose.onNodeWithContentDescription("Settings").performScrollTo().performClick()
         compose.onNodeWithContentDescription("Pause all automatic actions").performScrollTo().assertIsOff()
         assertThat(routes)
-            .containsExactly(Feature.VOICE_MODE.name, "ai", Feature.MISSED_CALL_SMS.name, "settings")
+            .containsExactly(Feature.VOICE_MODE.name, "quran", Feature.MISSED_CALL_SMS.name, "settings")
             .inOrder()
         assertThat(toggles).containsExactly(Feature.VOICE_MODE to true)
     }

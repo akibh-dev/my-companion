@@ -1,18 +1,23 @@
 package dev.akibh.mycompanion.quran.ui
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -32,6 +37,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -53,7 +59,16 @@ import dev.akibh.mycompanion.quran.domain.KhatmStatus
 import dev.akibh.mycompanion.quran.domain.QuranReminder
 import dev.akibh.mycompanion.quran.domain.Surah
 import dev.akibh.mycompanion.quran.domain.arabicDigits
+import dev.akibh.mycompanion.ui.components.DotIcon
+import dev.akibh.mycompanion.ui.components.DotSymbol
+import dev.akibh.mycompanion.ui.components.EmptyState
+import dev.akibh.mycompanion.ui.components.Note
+import dev.akibh.mycompanion.ui.components.PageMargin
 import dev.akibh.mycompanion.ui.components.SecondaryButton
+import dev.akibh.mycompanion.ui.components.Section
+import dev.akibh.mycompanion.ui.components.SectionCard
+import dev.akibh.mycompanion.ui.components.SectionGap
+import dev.akibh.mycompanion.ui.components.SectionLabel
 import java.time.LocalTime
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
@@ -143,7 +158,7 @@ fun QuranHomeRoute(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun QuranHomeScreen(
     state: QuranHomeState,
@@ -163,37 +178,41 @@ fun QuranHomeScreen(
 
         is QuranHomeState.Ready -> {
             var tab by rememberSaveable { mutableIntStateOf(0) }
-            Column(modifier.fillMaxSize()) {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    state.resume?.let { resume ->
-                        Card(Modifier.weight(1f).clickable { onRead(resume.ayahId) }) {
-                            Column(Modifier.padding(12.dp)) {
-                                Text("Continue reading", style = MaterialTheme.typography.labelMedium)
-                                Text(
-                                    "${resume.surahName} ${resume.ayah} · page ${resume.page}",
-                                    style = MaterialTheme.typography.titleMedium,
-                                )
-                            }
-                        }
-                    } ?: Box(Modifier.weight(1f))
-                    SecondaryButton(onClick = onSearch, modifier = Modifier.align(Alignment.CenterVertically)) {
+            val section = Modifier.padding(horizontal = PageMargin)
+            LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp)) {
+                item {
+                    SecondaryButton(onClick = onSearch, modifier = section.fillMaxWidth()) {
+                        DotIcon(DotSymbol.SEARCH, Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
                         Text("Search")
                     }
                 }
-                KhatmCard(state.khatm, onStartKhatm, onStopKhatm)
-                ReminderRow(state.reminder, onReminder)
-                PrimaryTabRow(selectedTabIndex = tab) {
-                    Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Surah") })
-                    Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Juz") })
-                    Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text("Bookmarks") })
+                state.resume?.let { resume ->
+                    item {
+                        Spacer(Modifier.height(SectionGap))
+                        ContinueReading(resume, onRead, section)
+                    }
+                }
+                item {
+                    Spacer(Modifier.height(SectionGap))
+                    KhatmSection(state.khatm, onStartKhatm, onStopKhatm, section)
+                }
+                item {
+                    Spacer(Modifier.height(SectionGap))
+                    ReminderSection(state.reminder, onReminder, section)
+                    Spacer(Modifier.height(SectionGap))
+                }
+                stickyHeader {
+                    PrimaryTabRow(selectedTabIndex = tab) {
+                        Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Surah") })
+                        Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Juz") })
+                        Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text("Bookmarks") })
+                    }
                 }
                 when (tab) {
-                    0 -> SurahList(state.surahs, fonts, onRead)
-                    1 -> JuzList(state.juz, state.surahs, onRead)
-                    else -> BookmarkList(state.bookmarks, state.surahs, onRead, onRemoveBookmark)
+                    0 -> surahList(state.surahs, fonts, onRead)
+                    1 -> juzList(state.juz, state.surahs, onRead)
+                    else -> bookmarkList(state.bookmarks, state.surahs, onRead, onRemoveBookmark)
                 }
             }
         }
@@ -201,138 +220,156 @@ fun QuranHomeScreen(
 }
 
 @Composable
-private fun SurahList(surahs: List<Surah>, fonts: QuranFonts?, onRead: (Int) -> Unit) {
-    LazyColumn(Modifier.fillMaxSize()) {
-        items(surahs, key = { it.number }) { surah ->
-            Row(
-                Modifier.fillMaxWidth().clickable {
-                    onRead(
-                        surah.firstAyahId
-                    )
-                }.padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("${surah.number}", Modifier.width(40.dp), style = MaterialTheme.typography.titleMedium)
-                Column(Modifier.weight(1f)) {
-                    Text(surah.nameSimple, style = MaterialTheme.typography.titleMedium)
-                    val origin = if (surah.meccan) "Meccan" else "Medinan"
+private fun ContinueReading(resume: Resume, onRead: (Int) -> Unit, modifier: Modifier) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionLabel("Continue reading", Modifier.padding(start = 8.dp))
+        SectionCard(
+            Modifier
+                .clip(MaterialTheme.shapes.large)
+                .clickable(onClickLabel = "Continue reading") { onRead(resume.ayahId) },
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("${resume.surahName} ${resume.ayah}", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "${surah.nameEnglish} · $origin · ${surah.ayahCount} ayahs · p. ${surah.firstPage}",
+                        "Page ${resume.page}",
                         style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Text(
-                    surah.nameArabic,
-                    fontFamily = fonts?.hafs,
-                    letterSpacing = 0.sp,
-                    fontSize = 22.sp,
-                    textAlign = TextAlign.End,
-                )
+                DotIcon(DotSymbol.BOOK, Modifier.size(24.dp))
             }
-            HorizontalDivider()
         }
     }
 }
 
-@Composable
-private fun JuzList(juz: List<Juz>, surahs: List<Surah>, onRead: (Int) -> Unit) {
-    LazyColumn(Modifier.fillMaxSize()) {
-        items(juz, key = { it.number }) { part ->
-            val surah = surahs[part.firstAyah.surah - 1]
-            Row(
-                Modifier.fillMaxWidth().clickable {
-                    onRead(surah.firstAyahId + part.firstAyah.ayah - 1)
-                }.padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("Juz ${part.number}", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "${surah.nameSimple} ${part.firstAyah.ayah} · p. ${part.page}",
-                    style = MaterialTheme.typography.bodyMedium,
+private fun LazyListScope.surahList(surahs: List<Surah>, fonts: QuranFonts?, onRead: (Int) -> Unit) {
+    items(surahs, key = { "surah-${it.number}" }) { surah ->
+        Row(
+            Modifier.fillMaxWidth().clickable {
+                onRead(
+                    surah.firstAyahId
                 )
-                Text("  ${part.number.arabicDigits()}", style = MaterialTheme.typography.titleMedium)
+            }.padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("${surah.number}", Modifier.width(40.dp), style = MaterialTheme.typography.titleMedium)
+            Column(Modifier.weight(1f)) {
+                Text(surah.nameSimple, style = MaterialTheme.typography.titleMedium)
+                val origin = if (surah.meccan) "Meccan" else "Medinan"
+                Text(
+                    "${surah.nameEnglish} · $origin · ${surah.ayahCount} ayahs · p. ${surah.firstPage}",
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
-            HorizontalDivider()
+            Text(
+                surah.nameArabic,
+                fontFamily = fonts?.hafs,
+                letterSpacing = 0.sp,
+                fontSize = 22.sp,
+                textAlign = TextAlign.End,
+            )
         }
+        HorizontalDivider()
     }
 }
 
-@Composable
-private fun BookmarkList(
+private fun LazyListScope.juzList(juz: List<Juz>, surahs: List<Surah>, onRead: (Int) -> Unit) {
+    items(juz, key = { "juz-${it.number}" }) { part ->
+        val surah = surahs[part.firstAyah.surah - 1]
+        Row(
+            Modifier.fillMaxWidth().clickable {
+                onRead(surah.firstAyahId + part.firstAyah.ayah - 1)
+            }.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Juz ${part.number}", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+            Text(
+                "${surah.nameSimple} ${part.firstAyah.ayah} · p. ${part.page}",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text("  ${part.number.arabicDigits()}", style = MaterialTheme.typography.titleMedium)
+        }
+        HorizontalDivider()
+    }
+}
+
+private fun LazyListScope.bookmarkList(
     bookmarks: List<Bookmark>,
     surahs: List<Surah>,
     onRead: (Int) -> Unit,
     onRemove: (Int) -> Unit
 ) {
     if (bookmarks.isEmpty()) {
-        Text(
-            "No bookmarks yet. Long-press an ayah while reading and choose Bookmark.",
-            Modifier.padding(16.dp),
-            style = MaterialTheme.typography.bodyMedium,
-        )
+        item(key = "bookmarks-empty") {
+            EmptyState(
+                symbol = DotSymbol.BOOKMARK,
+                title = "No bookmarks yet",
+                body = "Long-press an ayah while reading and choose Bookmark.",
+            )
+        }
         return
     }
-    LazyColumn(Modifier.fillMaxSize()) {
-        items(bookmarks, key = { it.ayahId }) { bookmark ->
-            Row(
-                Modifier.fillMaxWidth().clickable {
-                    onRead(
-                        bookmark.ayahId
-                    )
-                }.padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        "${surahs[bookmark.ref.surah - 1].nameSimple} ${bookmark.ref}",
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    if (bookmark.note.isNotBlank()) Text(bookmark.note, style = MaterialTheme.typography.bodyMedium)
-                }
-                TextButton(onClick = { onRemove(bookmark.ayahId) }) { Text("Remove") }
+    items(bookmarks, key = { "bookmark-${it.ayahId}" }) { bookmark ->
+        Row(
+            Modifier.fillMaxWidth().clickable {
+                onRead(
+                    bookmark.ayahId
+                )
+            }.padding(start = 16.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "${surahs[bookmark.ref.surah - 1].nameSimple} ${bookmark.ref}",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                if (bookmark.note.isNotBlank()) Text(bookmark.note, style = MaterialTheme.typography.bodyMedium)
             }
-            HorizontalDivider()
+            TextButton(onClick = { onRemove(bookmark.ayahId) }) { Text("Remove") }
         }
+        HorizontalDivider()
     }
 }
 
 @Composable
-private fun KhatmCard(khatm: Pair<KhatmPlan, KhatmStatus>?, onStart: (Int) -> Unit, onStop: () -> Unit) {
+private fun KhatmSection(
+    khatm: Pair<KhatmPlan, KhatmStatus>?,
+    onStart: (Int) -> Unit,
+    onStop: () -> Unit,
+    modifier: Modifier,
+) {
     var choosing by rememberSaveable { mutableStateOf(false) }
-    Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            if (khatm == null) {
-                Text("Khatm goal", style = MaterialTheme.typography.labelMedium)
-                Text("Finish the Quran in a set number of days; pages you read count by themselves.")
-                TextButton(onClick = { choosing = true }) { Text("Set a goal") }
-            } else {
-                val (plan, status) = khatm
-                Text("Khatm in ${plan.days} days", style = MaterialTheme.typography.labelMedium)
-                LinearProgressIndicator(
-                    progress = { status.pagesRead / Khatm.PAGES.toFloat() },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Text(
-                    when {
-                        status.finished -> "Done: all ${Khatm.PAGES} pages read. Alhamdulillah."
-                        status.overdue -> "${status.pagesLeft} pages left; the planned days are over."
-                        status.todayTarget == 0 ->
-                            "Today's pages are done (${status.todayRead}). ${status.pagesLeft} left."
-                        else ->
-                            "Today: ${status.todayTarget} more pages. " +
-                                "${status.pagesLeft} left in ${status.daysLeft} days."
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "${status.pagesRead}/${Khatm.PAGES} pages · streak ${status.streak} days",
-                        Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    TextButton(onClick = { choosing = true }) { Text("Change") }
-                    TextButton(onClick = onStop) { Text("Stop") }
-                }
+    Section("Khatm goal", modifier) {
+        if (khatm == null) {
+            Text(
+                "Finish the Quran in a set number of days; pages you read count by themselves.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            SecondaryButton(onClick = { choosing = true }) { Text("Set a goal") }
+        } else {
+            val (plan, status) = khatm
+            Text("Khatm in ${plan.days} days", style = MaterialTheme.typography.titleSmall)
+            LinearProgressIndicator(
+                progress = { status.pagesRead / Khatm.PAGES.toFloat() },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                when {
+                    status.finished -> "Done: all ${Khatm.PAGES} pages read. Alhamdulillah."
+                    status.overdue -> "${status.pagesLeft} pages left; the planned days are over."
+                    status.todayTarget == 0 ->
+                        "Today's pages are done (${status.todayRead}). ${status.pagesLeft} left."
+                    else ->
+                        "Today: ${status.todayTarget} more pages. " +
+                            "${status.pagesLeft} left in ${status.daysLeft} days."
+                },
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Note("${status.pagesRead}/${Khatm.PAGES} pages · streak ${status.streak} days")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SecondaryButton(onClick = { choosing = true }) { Text("Change") }
+                SecondaryButton(onClick = onStop) { Text("Stop") }
             }
         }
     }
@@ -365,19 +402,17 @@ private val KHATM_DAYS = listOf(7, 10, 15, 30, 60)
 /** The daily reading reminder: a normal reminder (it shows in Reminders too) that opens the reader. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ReminderRow(time: LocalTime?, onSet: (LocalTime?) -> Unit) {
+private fun ReminderSection(time: LocalTime?, onSet: (LocalTime?) -> Unit, modifier: Modifier) {
     var picking by rememberSaveable { mutableStateOf(false) }
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    Section("Daily reminder", modifier) {
         Text(
-            time?.let { "Daily reminder at %02d:%02d".format(it.hour, it.minute) } ?: "Daily reminder: off",
-            Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyMedium,
+            time?.let { "Every day at %02d:%02d".format(it.hour, it.minute) } ?: "Off",
+            style = MaterialTheme.typography.titleSmall,
         )
-        TextButton(onClick = { picking = true }) { Text(if (time == null) "Set" else "Change") }
-        if (time != null) TextButton(onClick = { onSet(null) }) { Text("Turn off") }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SecondaryButton(onClick = { picking = true }) { Text(if (time == null) "Set" else "Change") }
+            if (time != null) SecondaryButton(onClick = { onSet(null) }) { Text("Turn off") }
+        }
     }
     if (picking) {
         val start = time ?: LocalTime.of(DEFAULT_REMINDER_HOUR, 0)
