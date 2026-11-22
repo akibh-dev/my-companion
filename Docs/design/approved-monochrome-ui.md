@@ -104,3 +104,18 @@ The reader's controls had no Surface behind them, so their text and icons fell b
 Tried and dropped on the way: a slider that slowed as the finger rose, and a bell curve of dots rising under the finger. Both put the value under the fingertip; the dial keeps it above.
 
 Checked on the CMF Phone 1: dark and light, paged and scroll layouts, portrait and landscape; the dial turned 43 → 46 and released exactly there.
+
+## App icon: Buddy — 22 November 2026
+
+The dotted "M" and its red full stop are replaced by **Buddy**, a dot face on the near-black
+launcher background (`launcher_background` #0B0B0B): two round eyes, the right one red (#FF3B3B),
+over a five-dot smile on an arc. Everything sits inside the 66 dp safe circle of the adaptive icon.
+
+- Launcher: `ic_launcher_foreground` (white dots + red eye) and `ic_launcher_monochrome` (all seven
+  dots in one colour, for Android's themed icons).
+- Status bar: every notification the app posts uses the same face, drawn on a 24 dp grid with 2 dp
+  of margin and slightly larger dots so the smile still reads at that size (`core` `ic_buddy`). This
+  replaces the old M (reminders), gear (background features) and map pin (context rules), so the
+  status bar always shows one recognisable mark for this app. The player notification gets it too by
+  overriding Media3's `media3_notification_small_icon` resource by name.
+- Status-bar icons are single colour (Android uses only the alpha), so the red eye is launcher-only.
