@@ -92,3 +92,26 @@ so on-device behavior has not been rechecked.
 Final verification after dependency catalog cleanup also passed: `ktlintCheck testDebugUnitTest
 lintDebug assembleDebug :app:assembleDebugAndroidTest --continue --max-workers=3`. The device
 test APK compiles; execution still requires a connected phone or emulator.
+
+## D20 — Voice mode reads every app, with muted apps and block rules (2026-11-20)
+
+Voice mode only read the six chat apps the adapters know. It now reads any app's notifications,
+so bank alerts, email and other messengers are heard too. To stay quiet where it matters, the
+user can mute apps, add block rules (phrase in title, text or either) and choose chat apps only.
+
+How: `MessageListener` still sends chat messages to `MessageConsumer`s (auto-reply is unchanged)
+and now also turns every other app's notification into a `Notice` via `NoticeParser` for
+`NoticeConsumer`s (voice mode). Noise is filtered by flags and categories, not by text, so the
+parser stays generic. Silent notifications are skipped by default using the listener's ranking,
+because reading every low-importance sync or promo line would make the feature unusable.
+
+App names come from `PackageManager` with a launcher `<queries>` entry; hidden apps fall back to
+a guess from the package name. Settings migrate the old per-chat-app switches into muted apps.
+
+Follow-up the same day, after phone use: an in-app "recent notifications" list was tried and removed,
+because Android's notification history already does that job. A WhatsApp message still in the
+shade was read three times, because WhatsApp re-posts its notification (new title, new times) and
+duplicates were matched on the title and kept for only five minutes. `NoticeMemory` now remembers
+each notification's content until it leaves the shade and reads a re-post only when it adds a
+message; notifications already in the shade on reconnect are marked as seen.
+
