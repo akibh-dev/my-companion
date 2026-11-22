@@ -75,6 +75,7 @@ import dev.akibh.mycompanion.ui.components.SecondaryButton
 import dev.akibh.mycompanion.ui.components.SectionLabel
 import dev.akibh.mycompanion.ui.theme.CompanionRed
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 import org.json.JSONObject
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
@@ -336,12 +337,22 @@ private fun ProgressBar(
     onSeek: (Int) -> Unit,
 ) {
     var dragging by remember { mutableStateOf<Float?>(null) }
+    // Where a seek is headed until the book reports it: without this the strip snapped back to the
+    // old page for a moment after letting go (or tapping), then forward again.
+    var pending by remember { mutableStateOf<Float?>(null) }
     var askPage by remember { mutableStateOf(false) }
     val total = positions.size
     val position = locator?.locations?.position
+    LaunchedEffect(position) { pending = null }
+    LaunchedEffect(pending) {
+        if (pending != null) {
+            delay(PENDING_SEEK_MILLIS)
+            pending = null
+        }
+    }
     val unit = if (format == BookFormat.EPUB) "" else "p. "
     fun indexOf(value: Float) = (value * (total - 1)).roundToInt()
-    val shownPosition = dragging?.let { indexOf(it) + 1 } ?: position
+    val shownPosition = (dragging ?: pending)?.let { indexOf(it) + 1 } ?: position
 
     // Not a clipping Surface: the scrubber's curve rises out of the pill while it's pushed up.
     Row(
@@ -366,14 +377,17 @@ private fun ProgressBar(
         )
         if (total > 1) {
             Scrubber(
-                value = dragging ?: ((position ?: 1) - 1f) / (total - 1),
+                value = dragging ?: pending ?: (((position ?: 1) - 1f) / (total - 1)),
                 steps = total - 1,
                 expanded = dragging != null,
                 label = "$unit${shownPosition ?: ""}",
                 onGrab = {},
                 onChange = { dragging = it },
                 onRelease = {
-                    dragging?.let { onSeek(indexOf(it)) }
+                    dragging?.let {
+                        pending = it
+                        onSeek(indexOf(it))
+                    }
                     dragging = null
                 },
                 modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
@@ -383,7 +397,7 @@ private fun ProgressBar(
         }
         Box(Modifier.size(6.dp).clip(CircleShape).background(CompanionRed))
         Text(
-            "${((dragging?.toDouble() ?: progress) * 100).roundToInt()}%",
+            "${(((dragging ?: pending)?.toDouble() ?: progress) * 100).roundToInt()}%",
             style = MaterialTheme.typography.labelLarge,
             modifier = Modifier.padding(start = 8.dp),
             maxLines = 1,
@@ -431,6 +445,7 @@ private fun GoToPageDialog(total: Int, current: Int?, label: String, onGo: (Int)
     )
 }
 
+private const val PENDING_SEEK_MILLIS = 1500L
 private val MAX_BAR_WIDTH = 640.dp
 private val SCRIM_TOP = 140.dp
 private val SCRIM_BOTTOM = 130.dp

@@ -81,6 +81,7 @@ internal fun Scrubber(
 
     // Where the finger is along the strip (px) and how far the curve has risen (0..1).
     var fingerX by remember { mutableFloatStateOf(0f) }
+    var fingerY by remember { mutableFloatStateOf(0f) }
     var liftTarget by remember { mutableFloatStateOf(0f) }
     val lift by animateFloatAsState(
         if (expanded) liftTarget else 0f,
@@ -123,6 +124,7 @@ internal fun Scrubber(
                         at = (down.position.x / width).coerceIn(0f, 1f)
                     }
                     fingerX = down.position.x
+                    fingerY = down.position.y
                     liftTarget = 0f
                     grab()
                     change(at)
@@ -138,6 +140,7 @@ internal fun Scrubber(
                         val up = (down.position.y - pointer.position.y).toDp().value
                         liftTarget = bellLift(up)
                         fingerX = pointer.position.x.coerceIn(0f, width)
+                        fingerY = pointer.position.y
                         if (liftTarget > 0f) {
                             // Raised: one dot of movement is one page, faster when flicked.
                             val speed = dx.toDp().value / ms
@@ -163,8 +166,12 @@ internal fun Scrubber(
         val filled = (drawn.coerceIn(0f, 1f) * count).toInt()
         // While held the curve sits under the finger; otherwise under the dot.
         val centre = if (expanded) fingerX else drawn * size.width
-        val height = BELL_HEIGHT.toPx() * lift
-        val sigma = BELL_SIGMA.toPx()
+        // The peak rides just above the fingertip, so the finger never covers the dots or the page;
+        // the higher the push, the taller and wider the curve and the bigger the dots near its top.
+        val reach = (y - fingerY + ABOVE_FINGER.toPx()).coerceIn(BELL_MIN.toPx(), BELL_MAX.toPx())
+        val height = reach * lift
+        val tall = (height / BELL_MAX.toPx()).coerceIn(0f, 1f)
+        val sigma = BELL_SIGMA.toPx() + height * .1f
         fun rise(x: Float) = height * bell(x - centre, sigma)
 
         // A faint guide along the curve, like the rail behind the dots.
@@ -183,13 +190,13 @@ internal fun Scrubber(
             val x = i * step + step / 2
             val near = bell(x - centre, sigma * 1.3f)
             // Fisheye: dots near the finger grow; more when the curve is up.
-            val radius = (1.6f + .8f * grow + 2.2f * lift * near).dp.toPx()
+            val radius = (1.6f + .8f * grow + (2f + 2.4f * tall) * lift * near).dp.toPx()
             drawCircle(if (i < filled) ink else empty, radius = radius, center = Offset(x, y - rise(x)))
         }
 
         val thumbX = if (expanded && lift > .02f) centre else drawn * size.width
         val thumbY = y - rise(thumbX)
-        val thumbRadius = (8f + 5f * grow + 3f * lift).dp.toPx()
+        val thumbRadius = (8f + 5f * grow + (2f + 2f * tall) * lift).dp.toPx()
         drawCircle(CompanionRed, radius = thumbRadius, center = Offset(thumbX, thumbY))
 
         // The page under the finger, over the red dot, while held.
@@ -209,8 +216,10 @@ internal fun Scrubber(
 
 private val DOT_STEP = 6.dp
 private val THUMB_SLOP = 24.dp
-private val BELL_HEIGHT = 56.dp
 private val BELL_SIGMA = 26.dp
+private val BELL_MIN = 40.dp
+private val BELL_MAX = 220.dp
+private val ABOVE_FINGER = 48.dp
 private const val LIFT_START_DP = 16f
 private const val LIFT_RANGE_DP = 64f
 private const val SLOW_DP_PER_MS = .15f
