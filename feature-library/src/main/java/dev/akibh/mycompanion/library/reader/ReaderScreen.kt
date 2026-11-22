@@ -49,9 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.akibh.mycompanion.library.domain.Availability
@@ -195,6 +193,7 @@ private fun Chrome(
             modifier = Modifier.align(Alignment.TopCenter),
         ) {
             TopBar(
+                chapter = here?.title?.takeIf { it.isNotBlank() } ?: book.title,
                 bookmarked = hereBookmark != null,
                 searchable = viewModel.searchable,
                 onBack = onBack,
@@ -227,8 +226,6 @@ private fun Chrome(
                 exit = fadeOut() + slideOutVertically { it / 2 },
             ) {
                 ProgressBar(
-                    title = book.title,
-                    chapter = here?.title?.takeIf { it.isNotBlank() },
                     locator = here,
                     positions = positions,
                     progress = here?.let(viewModel::progress) ?: book.progress,
@@ -272,6 +269,7 @@ private fun Chrome(
 
 @Composable
 private fun TopBar(
+    chapter: String,
     bookmarked: Boolean,
     searchable: Boolean,
     onBack: () -> Unit,
@@ -293,7 +291,8 @@ private fun TopBar(
             Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
                 IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
             }
-            Spacer(Modifier.weight(1f))
+            // Where you are: the chapter (or the title when there is none), one line of small caps.
+            SectionLabel(chapter, Modifier.weight(1f).padding(horizontal = 4.dp), maxLines = 1)
             Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
                 Row(Modifier.padding(horizontal = 4.dp)) {
                     DotButton(DotSymbol.CONTENTS, "Contents and bookmarks", onContents)
@@ -311,12 +310,13 @@ private fun TopBar(
     }
 }
 
-/** The position, the percentage (with the red dot) and a dotted slider through the book. */
+/**
+ * One compact floating pill, like the Quran reader's zoom pill: position · dotted slider · red-dot
+ * percentage. The chapter is in the top bar, so this stays a single 56 dp row in any orientation.
+ */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun ProgressBar(
-    title: String,
-    chapter: String?,
     locator: Locator?,
     positions: List<Locator>,
     progress: Double,
@@ -326,45 +326,19 @@ private fun ProgressBar(
     var dragging by remember { mutableStateOf<Float?>(null) }
     val total = positions.size
     val position = locator?.locations?.position
-    Surface(shape = CardShape, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-        Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 4.dp)) {
-            val shownPosition = dragging?.let { (it * (total - 1)).roundToInt() + 1 } ?: position
-            val unit = if (format == BookFormat.EPUB) "" else "Page "
-            val where: @Composable () -> Unit = {
-                Text(
-                    if (total > 0 && shownPosition != null) "$unit$shownPosition / $total" else " ",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            val percent: @Composable () -> Unit = {
-                Box(Modifier.size(6.dp).clip(CircleShape).background(CompanionRed))
-                Text(
-                    "${((dragging?.toDouble() ?: progress) * 100).roundToInt()}%",
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.padding(start = 8.dp),
-                )
-            }
-            // Chapter (small caps) over the book's title. On a short (landscape) screen they share
-            // one row with the position, so the pill stays low and the page stays visible.
-            val short = LocalConfiguration.current.screenHeightDp < SHORT_SCREEN_DP
-            if (short) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    TitleBlock(title, chapter, Modifier.weight(1f))
-                    where()
-                    Row(verticalAlignment = Alignment.CenterVertically) { percent() }
-                }
-            } else {
-                TitleBlock(title, chapter, Modifier.padding(bottom = 6.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    where()
-                    Spacer(Modifier.weight(1f))
-                    percent()
-                }
-            }
+    val shownPosition = dragging?.let { (it * (total - 1)).roundToInt() + 1 } ?: position
+    val unit = if (format == BookFormat.EPUB) "" else "p. "
+    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh, shadowElevation = 4.dp) {
+        Row(
+            Modifier.heightIn(min = 56.dp).padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                if (total > 0 && shownPosition != null) "$unit$shownPosition / $total" else " ",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
             if (total > 1) {
                 Slider(
                     value = dragging ?: ((position ?: 1) - 1f) / (total - 1),
@@ -373,7 +347,8 @@ private fun ProgressBar(
                         dragging?.let { onSeek((it * (total - 1)).roundToInt()) }
                         dragging = null
                     },
-                    thumb = { Box(Modifier.size(18.dp).clip(CircleShape).background(CompanionRed)) },
+                    modifier = Modifier.weight(1f).padding(horizontal = 14.dp),
+                    thumb = { Box(Modifier.size(16.dp).clip(CircleShape).background(CompanionRed)) },
                     track = { slider ->
                         val range = slider.valueRange.endInclusive - slider.valueRange.start
                         DotProgress(
@@ -385,24 +360,22 @@ private fun ProgressBar(
                     },
                 )
             } else {
-                Spacer(Modifier.heightIn(min = 12.dp))
+                Spacer(Modifier.weight(1f))
             }
+            Box(Modifier.size(6.dp).clip(CircleShape).background(CompanionRed))
+            Text(
+                "${((dragging?.toDouble() ?: progress) * 100).roundToInt()}%",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(start = 8.dp),
+                maxLines = 1,
+            )
         }
     }
 }
 
-@Composable
-private fun TitleBlock(title: String, chapter: String?, modifier: Modifier = Modifier) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        if (chapter != null) SectionLabel(chapter)
-        Text(title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-    }
-}
-
-private const val SHORT_SCREEN_DP = 480
 private val MAX_BAR_WIDTH = 640.dp
 private val SCRIM_TOP = 140.dp
-private val SCRIM_BOTTOM = 200.dp
+private val SCRIM_BOTTOM = 130.dp
 
 @Composable
 private fun FinishPrompt(onAnswer: (Boolean) -> Unit) {
