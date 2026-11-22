@@ -28,7 +28,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -59,6 +58,7 @@ import dev.akibh.mycompanion.library.ui.missingText
 import dev.akibh.mycompanion.ui.components.DotIcon
 import dev.akibh.mycompanion.ui.components.DotSymbol
 import dev.akibh.mycompanion.ui.components.DotText
+import dev.akibh.mycompanion.ui.components.SecondaryButton
 import dev.akibh.mycompanion.ui.theme.CompanionRed
 import kotlin.math.roundToInt
 import org.json.JSONObject
@@ -367,9 +367,13 @@ private fun Unavailable(
             Text(if (availability == null) "Link another copy" else "Locate file")
         }
         if (availability == null) {
-            OutlinedButton(onClick = onRetry, Modifier.padding(top = 8.dp).fillMaxWidth()) { Text("Try again") }
+            SecondaryButton(onClick = onRetry, Modifier.padding(top = 8.dp).fillMaxWidth()) { Text("Try again") }
         }
-        OutlinedButton(onClick = { confirmRemove = true }, Modifier.padding(top = 8.dp).fillMaxWidth()) {
+        SecondaryButton(
+            onClick = { confirmRemove = true },
+            modifier = Modifier.padding(top = 8.dp).fillMaxWidth(),
+            destructive = true,
+        ) {
             Text("Remove from library")
         }
         TextButton(onClick = onBack, Modifier.padding(top = 8.dp)) { Text("Back") }

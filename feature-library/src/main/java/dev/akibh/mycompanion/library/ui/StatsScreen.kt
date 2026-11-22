@@ -4,8 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,6 +34,8 @@ import dev.akibh.mycompanion.library.data.LibraryRepository
 import dev.akibh.mycompanion.library.domain.ReadingGoal
 import dev.akibh.mycompanion.library.domain.ReadingStats
 import dev.akibh.mycompanion.library.domain.ReadingStatus
+import dev.akibh.mycompanion.ui.components.ChoiceChip
+import dev.akibh.mycompanion.ui.components.ChoiceRow
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -53,7 +54,6 @@ class ReadingStatsViewModel @Inject constructor(
 }
 
 /** Reading time, streak, the 30-day dot chart and the goals. */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ReadingStatsRoute(modifier: Modifier = Modifier, viewModel: ReadingStatsViewModel = hiltViewModel()) {
     val stats by viewModel.stats.collectAsStateWithLifecycle()
@@ -120,13 +120,9 @@ fun ReadingStatsRoute(modifier: Modifier = Modifier, viewModel: ReadingStatsView
         }
         Card {
             SectionLabel("Daily goal")
-            FlowRow(
-                Modifier.padding(top = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+            ChoiceRow(Modifier.padding(top = 10.dp)) {
                 listOf(0, 10, 20, 30, 45, 60).forEach { minutes ->
-                    Pill(
+                    ChoiceChip(
                         if (minutes == 0) "Off" else "$minutes min",
                         current.goal.minutesPerDay == minutes,
                         { viewModel.setGoal(current.goal.copy(minutesPerDay = minutes)) },
@@ -134,19 +130,27 @@ fun ReadingStatsRoute(modifier: Modifier = Modifier, viewModel: ReadingStatsView
                 }
             }
             SectionLabel("Books this year", Modifier.padding(top = 18.dp))
+            val stepperColors = IconButtonDefaults.filledTonalIconButtonColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+            )
             Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 FilledTonalIconButton(
                     onClick = { viewModel.setGoal(current.goal.copy(booksPerYear = (books - 1).coerceAtLeast(0))) },
+                    modifier = Modifier.semantics { contentDescription = "Fewer books" },
                     enabled = books > 0,
+                    colors = stepperColors,
                 ) { Text("−", style = MaterialTheme.typography.titleMedium) }
                 Text(
                     if (books == 0) "Off" else "$books",
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(horizontal = 24.dp),
                 )
-                FilledTonalIconButton(onClick = { viewModel.setGoal(current.goal.copy(booksPerYear = books + 1)) }) {
-                    Text("+", style = MaterialTheme.typography.titleMedium)
-                }
+                FilledTonalIconButton(
+                    onClick = { viewModel.setGoal(current.goal.copy(booksPerYear = books + 1)) },
+                    modifier = Modifier.semantics { contentDescription = "More books" },
+                    colors = stepperColors,
+                ) { Text("+", style = MaterialTheme.typography.titleMedium) }
             }
         }
     }

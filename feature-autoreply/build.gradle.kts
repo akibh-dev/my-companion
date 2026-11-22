@@ -17,6 +17,7 @@ kapt {
 
 dependencies {
     api(project(":core"))
+    implementation(project(":design"))
     implementation(project(":adapters-messaging"))
     implementation(libs.androidx.core.ktx)
     implementation(platform(libs.compose.bom))

@@ -22,8 +22,8 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -55,6 +55,7 @@ import dev.akibh.mycompanion.data.sound.ReminderSoundChannels
 import dev.akibh.mycompanion.data.sound.ReminderSoundPreview
 import dev.akibh.mycompanion.domain.model.ReminderSound
 import dev.akibh.mycompanion.domain.model.SoundPreset
+import dev.akibh.mycompanion.ui.components.SecondaryButton
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -197,7 +198,7 @@ fun ReminderSoundPicker(
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(Modifier.weight(1f)) {
-                OutlinedButton(
+                SecondaryButton(
                     onClick = { open = true },
                     modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Sound: $soundLabel" },
                 ) {
@@ -238,6 +239,10 @@ fun ReminderSoundPicker(
                     playing = !playing
                 },
                 enabled = playing || (selected != ReminderSound.Silent && !busy),
+                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                ),
             ) {
                 if (playing) {
                     Icon(painterResource(R.drawable.ic_stop), contentDescription = "Stop sound")

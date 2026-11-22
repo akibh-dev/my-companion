@@ -21,6 +21,7 @@ kapt {
 
 dependencies {
     api(project(":core"))
+    implementation(project(":design"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.datastore.preferences)
     implementation(libs.brotli.dec)

@@ -17,6 +17,7 @@ kapt {
 
 dependencies {
     api(project(":core"))
+    implementation(project(":design"))
     implementation(project(":adapters-messaging"))
     api(project(":ai-api"))
     // Tests check that every word Auto mode converts has an exact lexicon entry.

@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -19,7 +19,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -45,6 +44,7 @@ import dev.akibh.mycompanion.domain.model.Playlist
 import dev.akibh.mycompanion.domain.model.Video
 import dev.akibh.mycompanion.ui.components.DotIcon
 import dev.akibh.mycompanion.ui.components.DotSymbol
+import dev.akibh.mycompanion.ui.components.SecondaryButton
 import dev.akibh.mycompanion.ui.theme.CompanionRed
 import java.util.Locale
 
@@ -69,18 +69,18 @@ fun VideoActionsCard(
         VideoRow(video)
 
         if (!choosingPlaylist) {
-            Button(onClick = onPlayNow, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+            Button(onClick = onPlayNow, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
                 DotIcon(DotSymbol.PLAY, Modifier.size(18.dp), color = CompanionRed)
                 Spacer(Modifier.width(8.dp))
                 Text("Play now")
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onAddToQueue, modifier = Modifier.weight(1f).height(48.dp)) {
+                SecondaryButton(onClick = onAddToQueue, modifier = Modifier.weight(1f)) {
                     Icon(painterResource(R.drawable.ic_queue_music), contentDescription = null)
                     Spacer(Modifier.width(6.dp))
                     Text("Add to queue")
                 }
-                OutlinedButton(onClick = { choosingPlaylist = true }, modifier = Modifier.weight(1f).height(48.dp)) {
+                SecondaryButton(onClick = { choosingPlaylist = true }, modifier = Modifier.weight(1f)) {
                     Icon(painterResource(R.drawable.ic_playlist_add), contentDescription = null)
                     Spacer(Modifier.width(6.dp))
                     Text("Add to playlist")
@@ -90,7 +90,7 @@ fun VideoActionsCard(
         } else {
             Text("Add to playlist", style = MaterialTheme.typography.titleSmall)
             playlists.forEach { playlist ->
-                OutlinedButton(onClick = { onAddToPlaylist(playlist.id) }, modifier = Modifier.fillMaxWidth()) {
+                SecondaryButton(onClick = { onAddToPlaylist(playlist.id) }, modifier = Modifier.fillMaxWidth()) {
                     Text(playlist.name, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text("${playlist.itemCount}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }

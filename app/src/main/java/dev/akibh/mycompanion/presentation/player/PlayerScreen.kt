@@ -44,7 +44,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -92,6 +91,7 @@ import dev.akibh.mycompanion.domain.model.Video
 import dev.akibh.mycompanion.presentation.common.OutlinedStateTextField
 import dev.akibh.mycompanion.ui.components.DotIcon
 import dev.akibh.mycompanion.ui.components.DotSymbol
+import dev.akibh.mycompanion.ui.components.SecondaryButton
 import dev.akibh.mycompanion.ui.components.rememberChromeListState
 import dev.akibh.mycompanion.ui.theme.CompanionRed
 import java.util.Locale
@@ -251,7 +251,7 @@ private fun LinkBox(link: VideoActionsUiState, linkText: TextFieldState, actions
                     onClick = actions::onSubmitLink,
                     enabled = linkText.text.isNotBlank() && status != LinkStatus.Loading,
                     contentPadding = PaddingValues(horizontal = 20.dp),
-                    modifier = Modifier.height(44.dp),
+                    modifier = Modifier.heightIn(min = 44.dp),
                 ) {
                     if (status == LinkStatus.Loading) {
                         CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
@@ -640,7 +640,10 @@ private fun LazyListScope.playlistItems(playlists: List<Playlist>, actions: Play
                 }
                 if (pair.size == 1) {
                     // With no playlists yet, the empty slot next to "New playlist" explains how to fill it.
-                    Box(Modifier.weight(1f).height(164.dp).padding(8.dp), contentAlignment = Alignment.CenterStart) {
+                    Box(
+                        Modifier.weight(1f).heightIn(min = 164.dp).padding(8.dp),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
                         if (playlists.isEmpty()) {
                             Text(
                                 "No playlists yet. Make one here, or pick “Add to playlist” when you share a video.",
@@ -659,7 +662,7 @@ private fun LazyListScope.playlistItems(playlists: List<Playlist>, actions: Play
 private fun PlaylistTile(playlist: Playlist, actions: PlayerActions, modifier: Modifier = Modifier) {
     Column(
         modifier
-            .height(164.dp)
+            .heightIn(min = 164.dp)
             .clip(MaterialTheme.shapes.extraLarge)
             .background(MaterialTheme.colorScheme.surfaceContainer)
             .clickable { actions.onOpenPlaylist(playlist.id) }
@@ -671,7 +674,7 @@ private fun PlaylistTile(playlist: Playlist, actions: PlayerActions, modifier: M
             val canPlay = playlist.itemCount > 0
             Box(
                 Modifier
-                    .size(40.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(
                         with(MaterialTheme.colorScheme) { if (canPlay) primary else surfaceContainerHighest },
@@ -712,7 +715,7 @@ private fun NewPlaylistTile(onClick: () -> Unit, modifier: Modifier = Modifier) 
     val outline = MaterialTheme.colorScheme.outline
     Column(
         modifier
-            .height(164.dp)
+            .heightIn(min = 164.dp)
             .clip(MaterialTheme.shapes.extraLarge)
             .drawBehind {
                 val stroke = 1.5.dp.toPx()
@@ -763,16 +766,16 @@ private fun LazyListScope.playlistDetail(open: OpenPlaylist, actions: PlayerActi
             Button(
                 onClick = { actions.onPlayPlaylist(playlist.id, 0, false) },
                 enabled = open.items.isNotEmpty(),
-                modifier = Modifier.weight(1f).height(52.dp),
+                modifier = Modifier.weight(1f).heightIn(min = 52.dp),
             ) {
                 DotIcon(DotSymbol.PLAY, Modifier.size(18.dp), color = LocalContentColor.current)
                 Spacer(Modifier.width(8.dp))
                 Text("Play all")
             }
-            OutlinedButton(
+            SecondaryButton(
                 onClick = { actions.onPlayPlaylist(playlist.id, 0, true) },
                 enabled = open.items.isNotEmpty(),
-                modifier = Modifier.weight(1f).height(52.dp),
+                modifier = Modifier.weight(1f).heightIn(min = 52.dp),
             ) {
                 Icon(painterResource(R.drawable.ic_shuffle), contentDescription = null, Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))

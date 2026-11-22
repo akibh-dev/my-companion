@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -26,6 +25,7 @@ import dev.akibh.mycompanion.core.health.HeartbeatLog
 import dev.akibh.mycompanion.core.log.AppLog
 import dev.akibh.mycompanion.core.log.LogLevel
 import dev.akibh.mycompanion.core.log.LogLine
+import dev.akibh.mycompanion.ui.components.SecondaryButton
 import java.text.DateFormat
 import java.util.Date
 import javax.inject.Inject
@@ -73,8 +73,8 @@ fun LogRoute(modifier: Modifier = Modifier, viewModel: LogViewModel = hiltViewMo
     ) {
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = viewModel::refresh) { Text("Refresh") }
-                OutlinedButton(onClick = viewModel::clear) { Text("Clear") }
+                SecondaryButton(onClick = viewModel::refresh) { Text("Refresh") }
+                SecondaryButton(onClick = viewModel::clear, destructive = true) { Text("Clear") }
             }
         }
         item {

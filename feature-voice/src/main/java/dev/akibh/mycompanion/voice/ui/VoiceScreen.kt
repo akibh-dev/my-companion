@@ -1,24 +1,25 @@
 package dev.akibh.mycompanion.voice.ui
 
 import android.content.Intent
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.InputChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
@@ -32,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -44,6 +46,9 @@ import dev.akibh.mycompanion.core.settings.Settings
 import dev.akibh.mycompanion.core.settings.SettingsStore
 import dev.akibh.mycompanion.messaging.InstalledApp
 import dev.akibh.mycompanion.messaging.InstalledApps
+import dev.akibh.mycompanion.ui.components.ChoiceChip
+import dev.akibh.mycompanion.ui.components.ChoiceRow
+import dev.akibh.mycompanion.ui.components.SecondaryButton
 import dev.akibh.mycompanion.voice.domain.AppScope
 import dev.akibh.mycompanion.voice.domain.BlockRule
 import dev.akibh.mycompanion.voice.domain.BlockWhere
@@ -164,181 +169,204 @@ fun VoiceRoute(modifier: Modifier = Modifier, viewModel: VoiceViewModel = hiltVi
     LazyColumn(
         modifier = modifier,
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "Read notifications aloud",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f)
-                )
-                Switch(checked = Feature.VOICE_MODE in app.enabled, onCheckedChange = viewModel::onVoiceMode)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "Read notifications aloud",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Switch(checked = Feature.VOICE_MODE in app.enabled, onCheckedChange = viewModel::onVoiceMode)
+                }
+                if (app.paused) Text("Paused from Home", color = MaterialTheme.colorScheme.error)
+                Helper("Also a Quick Settings tile. Silent during calls.")
+                Helper("One Bengali voice reads the whole message, including English words.")
             }
-            if (app.paused) Text("Paused from Home", color = MaterialTheme.colorScheme.error)
-            Text("Also a Quick Settings tile. Silent during calls.", style = MaterialTheme.typography.bodySmall)
-            Text(
-                "One Bengali voice reads the whole message, including English words.",
-                style = MaterialTheme.typography.bodySmall,
-            )
         }
         item {
-            Text("Where", style = MaterialTheme.typography.titleSmall)
-            Chips(Privacy.entries, { it.title }, { it == s.privacy }) { p -> viewModel.update { it.copy(privacy = p) } }
-        }
-        item {
-            Text("Apps", style = MaterialTheme.typography.titleSmall)
-            Chips(AppScope.entries, { it.title }, { it == s.appScope }) { scope ->
-                viewModel.update { it.copy(appScope = scope) }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "Also read silent notifications",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f),
-                )
-                Switch(
-                    checked = s.readSilent,
-                    onCheckedChange = { on -> viewModel.update { it.copy(readSilent = on) } }
-                )
-            }
-            Text(
-                "Ongoing, progress, player and call notifications are never read.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-        }
-        item {
-            Text("Muted apps", style = MaterialTheme.typography.titleSmall)
-            if (s.mutedApps.isEmpty()) {
-                Text("None", style = MaterialTheme.typography.bodySmall)
-            } else {
-                Removable(
-                    s.mutedApps.map { it to viewModel.label(it) }.sortedBy { it.second.lowercase() }
-                ) { (pkg, _) ->
-                    viewModel.toggleMute(pkg)
+            Section("Where") {
+                Choices(Privacy.entries, { it.title }, { it == s.privacy }) { p ->
+                    viewModel.update { it.copy(privacy = p) }
                 }
             }
-            FilledTonalButton(onClick = {
-                viewModel.loadApps()
-                pickingApps = true
-            }) { Text("Mute an app") }
         }
         item {
-            Text("Block rules", style = MaterialTheme.typography.titleSmall)
-            Text(
-                "Skip notifications whose title or text contains these words (any case).",
-                style = MaterialTheme.typography.bodySmall,
-            )
-            if (s.blockRules.isNotEmpty()) {
-                Removable(s.blockRules.map { it to "${it.where.title}: ${it.phrase}" }) { (rule, _) ->
-                    viewModel.removeRule(rule)
+            Section("Apps") {
+                Choices(AppScope.entries, { it.title }, { it == s.appScope }) { scope ->
+                    viewModel.update { it.copy(appScope = scope) }
                 }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "Also read silent notifications",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(
+                        checked = s.readSilent,
+                        onCheckedChange = { on -> viewModel.update { it.copy(readSilent = on) } }
+                    )
+                }
+                Helper("Ongoing, progress, player and call notifications are never read.")
             }
-            OutlinedTextField(
-                value = rulePhrase,
-                onValueChange = { rulePhrase = it },
-                label = { Text("Words to block") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Chips(BlockWhere.entries, { it.title }, { it == ruleWhere }) { ruleWhere = it }
-            FilledTonalButton(
-                enabled = rulePhrase.isNotBlank(),
+        }
+        item {
+            Section("Muted apps") {
+                if (s.mutedApps.isEmpty()) {
+                    Helper("None")
+                } else {
+                    Removable(
+                        s.mutedApps.map { it to viewModel.label(it) }.sortedBy { it.second.lowercase() }
+                    ) { (pkg, _) ->
+                        viewModel.toggleMute(pkg)
+                    }
+                }
+                SecondaryButton(onClick = {
+                    viewModel.loadApps()
+                    pickingApps = true
+                }) { Text("Mute an app") }
+            }
+        }
+        item {
+            Section("Block rules") {
+                Helper("Skip notifications whose title or text contains these words (any case).")
+                if (s.blockRules.isNotEmpty()) {
+                    Removable(s.blockRules.map { it to "${it.where.title}: ${it.phrase}" }) { (rule, _) ->
+                        viewModel.removeRule(rule)
+                    }
+                }
+                OutlinedTextField(
+                    value = rulePhrase,
+                    onValueChange = { rulePhrase = it },
+                    label = { Text("Words to block") },
+                    singleLine = true,
+                    shape = MaterialTheme.shapes.large,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Choices(BlockWhere.entries, { it.title }, { it == ruleWhere }) { ruleWhere = it }
+                SecondaryButton(
+                    enabled = rulePhrase.isNotBlank(),
+                    onClick = {
+                        viewModel.addRule(rulePhrase, ruleWhere)
+                        rulePhrase = ""
+                    },
+                ) { Text("Add rule") }
+            }
+        }
+        item {
+            val typed = senders.split(',').map(String::trim).filter(String::isNotEmpty)
+            Section("People") {
+                OutlinedTextField(
+                    value = senders,
+                    onValueChange = { text -> senders = text },
+                    label = { Text("Only these people") },
+                    placeholder = { Text("Everyone") },
+                    supportingText = { Text("Names separated by commas. Leave empty for everyone.") },
+                    shape = MaterialTheme.shapes.large,
+                    trailingIcon = if (typed != s.senders) {
+                        { TextButton(onClick = { viewModel.update { it.copy(senders = typed) } }) { Text("Save") } }
+                    } else {
+                        null
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+        item {
+            Section("Reading mode") {
+                Choices(ReadingMode.entries, { it.title }, { it == s.readingMode }, viewModel::mode)
+                Helper(
+                    "Auto converts common Banglish words and preserves other English words. " +
+                        "Banglish text converts every Latin word."
+                )
+            }
+        }
+        item {
+            Section("Speech speed: ${s.speechRate}") {
+                Slider(value = s.speechRate, onValueChange = { rate ->
+                    viewModel.update {
+                        it.copy(speechRate = rate)
+                    }
+                }, valueRange = 0.5f..2f)
+            }
+        }
+        item {
+            SecondaryButton(
                 onClick = {
-                    viewModel.addRule(rulePhrase, ruleWhere)
-                    rulePhrase = ""
+                    context.startActivity(
+                        Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                    )
                 },
-            ) { Text("Add rule") }
-        }
-        item {
-            OutlinedTextField(
-                value = senders,
-                onValueChange = { text ->
-                    senders = text
-                },
-                label = { Text("Only messages from these people (empty = everyone)") },
                 modifier = Modifier.fillMaxWidth(),
-            )
-            FilledTonalButton(onClick = {
-                viewModel.update { it.copy(senders = senders.split(',').map(String::trim).filter(String::isNotEmpty)) }
-            }) { Text("Save people") }
+            ) { Text("Notification access settings") }
         }
         item {
-            Text("Reading mode", style = MaterialTheme.typography.titleSmall)
-            Chips(
-                ReadingMode.entries,
-                { it.title },
-                { it == s.readingMode },
-                viewModel::mode
-            )
-            Text(
-                "Auto converts common Banglish words and preserves other English words. " +
-                    "Banglish text converts every Latin word.",
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
-        item {
-            Text("Speech speed: ${s.speechRate}")
-            Slider(value = s.speechRate, onValueChange = { rate ->
-                viewModel.update {
-                    it.copy(speechRate = rate)
-                }
-            }, valueRange = 0.5f..2f)
-        }
-        item {
-            FilledTonalButton(onClick = {
-                context.startActivity(
-                    Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+            Section("Cut messages after ${s.maxChars} characters") {
+                Slider(
+                    value = s.maxChars.toFloat(),
+                    onValueChange = { v -> viewModel.update { it.copy(maxChars = (v / 20).roundToInt() * 20) } },
+                    valueRange = 60f..600f,
                 )
-            }) { Text("Notification access settings") }
+            }
         }
         item {
-            Text("Cut messages after ${s.maxChars} characters", style = MaterialTheme.typography.titleSmall)
-            Slider(
-                value = s.maxChars.toFloat(),
-                onValueChange = { v -> viewModel.update { it.copy(maxChars = (v / 20).roundToInt() * 20) } },
-                valueRange = 60f..600f,
-            )
+            val busy = state == VoiceState.Preparing || state == VoiceState.Speaking
+            Section("Test") {
+                Button(
+                    onClick = if (busy) viewModel::stop else viewModel::onTest,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 52.dp),
+                ) { Text(if (busy) "Stop reading" else "Read a test message") }
+                Helper(
+                    when (val current = state) {
+                        VoiceState.Idle -> "Ready"
+                        VoiceState.Preparing -> "Preparing message…"
+                        VoiceState.Speaking -> "Reading…"
+                        is VoiceState.Blocked -> current.reason
+                        is VoiceState.Failed -> current.reason
+                    }
+                )
+            }
         }
-        item {
-            FilledTonalButton(onClick = viewModel::onTest) { Text("Read a test message") }
-            FilledTonalButton(onClick = viewModel::stop) { Text("Stop reading") }
-            Text(
-                when (val current = state) {
-                    VoiceState.Idle -> "Ready"
-                    VoiceState.Preparing -> "Preparing message…"
-                    VoiceState.Speaking -> "Reading…"
-                    is VoiceState.Blocked -> current.reason
-                    is VoiceState.Failed -> current.reason
-                },
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
+    }
+}
+
+/** A titled group of controls: label, a 10dp gap, then the controls. */
+@Composable
+private fun Section(title: String, content: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(title, style = MaterialTheme.typography.titleSmall)
+        content()
     }
 }
 
 @Composable
-private fun <T> Chips(items: List<T>, label: (T) -> String, selected: (T) -> Boolean, onClick: (T) -> Unit) {
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+private fun Helper(text: String) {
+    Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+@Composable
+private fun <T> Choices(items: List<T>, label: (T) -> String, selected: (T) -> Boolean, onClick: (T) -> Unit) {
+    ChoiceRow {
         items.forEach { item ->
-            FilterChip(selected = selected(item), onClick = {
-                onClick(item)
-            }, label = { Text(label(item)) })
+            ChoiceChip(label = label(item), selected = selected(item), onClick = { onClick(item) })
         }
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+/** Saved entries; tapping one removes it. */
 @Composable
 private fun <T> Removable(items: List<Pair<T, String>>, onRemove: (Pair<T, String>) -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    ChoiceRow {
         items.forEach { item ->
-            InputChip(
-                selected = false,
-                onClick = { onRemove(item) },
-                label = { Text(item.second) },
-                trailingIcon = { Text("✕") },
-            )
+            SecondaryButton(onClick = { onRemove(item) }) {
+                Text(item.second)
+                Spacer(Modifier.width(8.dp))
+                Icon(Icons.Default.Close, contentDescription = "Remove", modifier = Modifier.size(18.dp))
+            }
         }
     }
 }
@@ -356,7 +384,7 @@ private fun AppPicker(
         confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
         title = { Text("Mute apps") },
         text = {
-            androidx.compose.foundation.layout.Column {
+            Column {
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
@@ -374,12 +402,14 @@ private fun AppPicker(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { onToggle(app.packageName) },
+                                    .heightIn(min = 48.dp)
+                                    .toggleable(
+                                        value = app.packageName in muted,
+                                        role = Role.Checkbox,
+                                        onValueChange = { onToggle(app.packageName) },
+                                    ),
                             ) {
-                                Checkbox(
-                                    checked = app.packageName in muted,
-                                    onCheckedChange = { onToggle(app.packageName) }
-                                )
+                                Checkbox(checked = app.packageName in muted, onCheckedChange = null)
                                 Text(app.label)
                             }
                         }

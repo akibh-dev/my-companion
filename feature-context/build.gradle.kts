@@ -17,6 +17,7 @@ kapt {
 
 dependencies {
     api(project(":core"))
+    implementation(project(":design"))
     implementation(libs.maps.compose)
     implementation(libs.places)
     implementation(libs.coroutines.play.services)

@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -38,6 +37,7 @@ import dev.akibh.mycompanion.ai.Transliterator
 import dev.akibh.mycompanion.core.settings.AiEngine
 import dev.akibh.mycompanion.core.settings.Settings
 import dev.akibh.mycompanion.core.settings.SettingsStore
+import dev.akibh.mycompanion.ui.components.SecondaryButton
 import java.io.File
 import java.util.Locale
 import javax.inject.Inject
@@ -181,7 +181,7 @@ private fun EngineCard(
                     input = it
                 }, label = { Text("Sample input") }, modifier = Modifier.fillMaxWidth())
             }
-            FilledTonalButton(onClick = { onRun(input) }) {
+            SecondaryButton(onClick = { onRun(input) }) {
                 Text(if (engine == AiEngine.SPEECH_RECOGNIZER) "Run on a sample recording" else "Run")
             }
             output?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
