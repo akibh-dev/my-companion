@@ -164,20 +164,24 @@ object NotificationExtractor {
 /** Sends replies through the chat app's own notification reply action (FR-1.2). */
 @Singleton
 class ReplySender @Inject constructor(@ApplicationContext private val context: Context, private val log: AppLog) {
-    private val actions = java.util.concurrent.ConcurrentHashMap<String, Notification.Action>()
+    /** Oldest first, so the oldest is dropped when there are too many. Guarded by `this`. */
+    private val actions = LinkedHashMap<String, Notification.Action>()
 
+    @Synchronized
     fun remember(key: String, action: Notification.Action) {
+        actions.remove(key) // an updated notification counts as the newest
         actions[key] = action
-        if (actions.size > MAX_REMEMBERED) actions.keys.take(actions.size - MAX_REMEMBERED).forEach(actions::remove)
+        while (actions.size > MAX_REMEMBERED) actions.remove(actions.keys.first())
     }
 
+    @Synchronized
     fun forget(key: String) {
         actions.remove(key)
     }
 
     /** False when the notification is gone or the app refused the reply. */
     fun reply(messageKey: String, text: String): Boolean {
-        val action = actions[messageKey] ?: return false
+        val action = synchronized(this) { actions[messageKey] } ?: return false
         val inputs = action.remoteInputs.orEmpty()
         val results = Bundle().apply { inputs.forEach { putCharSequence(it.resultKey, text) } }
         val intent = Intent().addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
