@@ -2,6 +2,7 @@ package dev.akibh.mycompanion.domain.time
 
 import dev.akibh.mycompanion.domain.model.ReminderTime
 import dev.akibh.mycompanion.domain.model.Repeat
+import java.time.DateTimeException
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -43,8 +44,13 @@ class ReminderTimeCalculator @Inject constructor(private val clock: Clock) {
      * the phone was off. Null for a one-off. Daily, weekly and monthly fire at [clockTime] (the
      * reminder's wanted local time); without one they keep the clock time of [previousTrigger].
      */
-    fun next(repeat: Repeat, previousTrigger: Long, clockTime: LocalTime? = null): Long? =
-        runCatching { nextChecked(repeat, previousTrigger, clockTime) }.getOrNull()
+    fun next(repeat: Repeat, previousTrigger: Long, clockTime: LocalTime? = null): Long? = try {
+        nextChecked(repeat, previousTrigger, clockTime)
+    } catch (_: ArithmeticException) {
+        null // out of the representable range
+    } catch (_: DateTimeException) {
+        null
+    }
 
     private fun nextChecked(repeat: Repeat, previousTrigger: Long, clockTime: LocalTime?): Long? {
         if (repeat == Repeat.Never || !repeat.isValid()) return null

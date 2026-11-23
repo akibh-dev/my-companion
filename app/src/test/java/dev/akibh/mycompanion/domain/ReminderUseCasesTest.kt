@@ -285,6 +285,30 @@ class ReminderUseCasesTest {
     }
 
     @Test
+    fun `a repeat whose next time can't be worked out is kept, not marked delivered`() = runTest {
+        clock.now = Long.MAX_VALUE - 1
+        val saved = reminders.save(reminder(trigger = Long.MAX_VALUE - 1, repeat = Repeat.Every(12)))
+
+        assertThat(fire(saved.id)).isTrue()
+
+        assertThat(reminders.get(saved.id)!!.delivered).isFalse()
+        cleanUp()
+        assertThat(reminders.get(saved.id)).isNotNull()
+    }
+
+    @Test
+    fun `snoozing a paused repeat's notification still rings`() = runTest {
+        val daily = reminders.save(reminder(trigger = millisAt(2026, 10, 24, 8, 0), repeat = Repeat.Daily).copy(paused = true))
+
+        val snoozed = snooze(daily.id)!!
+
+        assertThat(snoozed.paused).isFalse()
+        clock.now = snoozed.triggerAtMillis
+        assertThat(fire(snoozed.id)).isTrue()
+        assertThat(reminders.get(daily.id)!!.paused).isTrue()
+    }
+
+    @Test
     fun `firing an unknown reminder does nothing`() = runTest {
         assertThat(fire(404)).isFalse()
         assertThat(notifier.shown).isEmpty()

@@ -148,11 +148,15 @@ class FireReminderUseCase @Inject constructor(
         // Reminders saved before the wanted time was stored take it from this trigger, once.
         val clockTime = reminder.localTime
             ?: calculator.clockTime(reminder.triggerAtMillis).takeIf { reminder.repeat.keepsClockTime }
-        when (val nextTrigger = calculator.next(reminder.repeat, reminder.triggerAtMillis, clockTime)) {
-            null -> reminders.save(reminder.copy(delivered = shown, missed = !shown))
-            else -> scheduler.schedule(
+        val nextTrigger = calculator.next(reminder.repeat, reminder.triggerAtMillis, clockTime)
+        when {
+            nextTrigger != null -> scheduler.schedule(
                 reminders.save(reminder.copy(triggerAtMillis = nextTrigger, localTime = clockTime, missed = !shown)),
             )
+            // No next time could be worked out (out of range): keep the repeat in the list, don't
+            // mark it delivered, which would delete it with the old one-offs.
+            reminder.repeat.isRepeating -> reminders.save(reminder.copy(missed = !shown))
+            else -> reminders.save(reminder.copy(delivered = shown, missed = !shown))
         }
         return shown
     }
@@ -175,6 +179,10 @@ class SnoozeReminderUseCase @Inject constructor(
                 triggerAtMillis = calculator.inMinutes(minutes),
                 repeat = Repeat.Never,
                 delivered = false,
+                // The copy is a fresh one-off: snoozing a paused repeat's notification must still ring.
+                paused = false,
+                localTime = null,
+                missed = false,
             ),
         )
         scheduler.schedule(snoozed)
