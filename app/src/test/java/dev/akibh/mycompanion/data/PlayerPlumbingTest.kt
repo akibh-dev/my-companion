@@ -110,6 +110,24 @@ class PlayerPlumbingTest {
     }
 
     @Test
+    fun `a stream that played again after a retry can be retried again`() {
+        val item = MediaItems.from(song)
+        val player = mockk<Player>(relaxed = true) { every { currentMediaItem } returns item }
+        val cache = mockk<CachingStreamResolver>(relaxed = true)
+        val retry = RetryExpiredStream(player, cache)
+        val error = PlaybackException("403", null, PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS)
+
+        // Paused past the URL lifetime, retried, played on; paused too long again.
+        retry.onPlayerError(error)
+        retry.onIsPlayingChanged(true)
+        retry.onIsPlayingChanged(false)
+        retry.onPlayerError(error)
+
+        verify(exactly = 2) { cache.invalidate(song.id) }
+        verify(exactly = 2) { player.prepare() }
+    }
+
+    @Test
     fun `player errors read like sentences, even after crossing to the controller`() {
         fun say(cause: Throwable?, code: Int) =
             // toBundle/fromBundle is what the MediaController receives from the service.

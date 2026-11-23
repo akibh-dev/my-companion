@@ -129,7 +129,8 @@ class PlaybackService : MediaSessionService() {
 
 /**
  * Stream URLs expire and can be revoked (HTTP 403). On such an error, drop the cached URL and
- * retry the same item once from where it stopped.
+ * retry the same item once from where it stopped. Once it plays again the retry is armed again,
+ * so a long video paused past the URL lifetime more than once still comes back.
  */
 class RetryExpiredStream(
     private val player: Player,
@@ -148,5 +149,9 @@ class RetryExpiredStream(
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
         retriedMediaId = null
+    }
+
+    override fun onIsPlayingChanged(isPlaying: Boolean) {
+        if (isPlaying) retriedMediaId = null
     }
 }
