@@ -59,7 +59,7 @@ class ExportViewModel @Inject constructor(
     /** A backup was picked: read it, then ask before overwriting anything. */
     fun onRestorePicked(uri: Uri) = work("Reading the backup…") {
         val text = withContext(io) {
-            context.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) }
+            context.contentResolver.openInputStream(uri)?.use(SettingsBackup::read)
         } ?: error("Couldn't open that file")
         val bundle = backup.parse(text)
         mutableState.update { it.copy(pendingRestore = bundle) }
