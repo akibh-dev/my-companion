@@ -77,7 +77,10 @@ class ScheduleReminderUseCase @Inject constructor(
         }
         if (time is ReminderTime.InMinutes && time.minutes == 0) {
             val shown = fire(reminder.id)
-            return if (shown) ScheduleResult.Shown(reminder) else ScheduleResult.NotificationsBlocked
+            if (shown) return ScheduleResult.Shown(reminder)
+            // The screen says notifications are off and keeps the form; a new one-off isn't kept as missed.
+            if (existing == null && !repeat.isRepeating) reminders.delete(reminder.id)
+            return ScheduleResult.NotificationsBlocked
         }
         scheduler.schedule(reminder)
         return ScheduleResult.Scheduled(reminder)

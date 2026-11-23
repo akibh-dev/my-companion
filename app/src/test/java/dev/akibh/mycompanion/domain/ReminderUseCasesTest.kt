@@ -185,6 +185,8 @@ class ReminderUseCasesTest {
         notifier.enabled = false
 
         assertThat(schedule("Hello", "", ReminderTime.InMinutes(0))).isEqualTo(ScheduleResult.NotificationsBlocked)
+        // Said on screen at once, so it isn't also kept as a missed reminder.
+        assertThat(reminders.all).isEmpty()
     }
 
     // ---- Firing ----
