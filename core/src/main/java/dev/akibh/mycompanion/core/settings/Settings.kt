@@ -12,6 +12,7 @@ import dev.akibh.mycompanion.core.util.enumsOf
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 /** Features with their own on/off switch (plan, Phase 1: "a switch per feature"). */
@@ -59,6 +60,13 @@ interface SettingsStore {
 
     suspend fun setUseModel(engine: AiEngine, useModel: Boolean)
 
+    /** Flips the master pause and returns the new value; one edit in the real store, so double taps can't race. */
+    suspend fun togglePaused(): Boolean = (!settings.first().paused).also { setPaused(it) }
+
+    /** Flips [feature] and returns whether it is now on; one edit in the real store. */
+    suspend fun toggleEnabled(feature: Feature): Boolean =
+        (feature !in settings.first().enabled).also { setEnabled(feature, it) }
+
     /** Replaces every switch with [settings] (a restored backup); one edit in the real store. */
     suspend fun replace(settings: Settings) {
         setPaused(settings.paused)
@@ -99,6 +107,25 @@ class DataStoreSettingsStore @Inject constructor(
             val current = prefs[MODELS].orEmpty()
             prefs[MODELS] = if (useModel) current + engine.name else current - engine.name
         }
+    }
+
+    override suspend fun togglePaused(): Boolean {
+        var paused = false
+        store.edit { prefs ->
+            paused = prefs[PAUSED] != true
+            prefs[PAUSED] = paused
+        }
+        return paused
+    }
+
+    override suspend fun toggleEnabled(feature: Feature): Boolean {
+        var on = false
+        store.edit { prefs ->
+            val current = prefs[ENABLED].orEmpty()
+            on = feature.name !in current
+            prefs[ENABLED] = if (on) current + feature.name else current - feature.name
+        }
+        return on
     }
 
     override suspend fun replace(settings: Settings) {

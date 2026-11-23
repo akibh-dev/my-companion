@@ -40,13 +40,11 @@ class QuickActionsWidget : AppWidgetProvider() {
         val pending: PendingResult? = goAsync()
         scope.launch {
             try {
-                val settings = settingsStore.settings.first()
                 if (action == ACTION_TOGGLE_PAUSE) {
-                    settingsStore.setPaused(!settings.paused)
-                    log.i(TAG, if (settings.paused) "resumed from the widget" else "paused from the widget")
+                    val paused = settingsStore.togglePaused()
+                    log.i(TAG, if (paused) "paused from the widget" else "resumed from the widget")
                 } else {
-                    val on = Feature.VOICE_MODE !in settings.enabled
-                    settingsStore.setEnabled(Feature.VOICE_MODE, on)
+                    val on = settingsStore.toggleEnabled(Feature.VOICE_MODE)
                     log.i(TAG, if (on) "voice mode on from the widget" else "voice mode off from the widget")
                 }
                 // CompanionApp's settings collector redraws the widget with the new state.

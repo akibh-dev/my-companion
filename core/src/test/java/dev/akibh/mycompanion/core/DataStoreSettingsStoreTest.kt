@@ -8,7 +8,10 @@ import dev.akibh.mycompanion.core.settings.AiEngine
 import dev.akibh.mycompanion.core.settings.DataStoreSettingsStore
 import dev.akibh.mycompanion.core.settings.Feature
 import dev.akibh.mycompanion.core.settings.Settings
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -56,5 +59,14 @@ class DataStoreSettingsStoreTest {
         )
         store.replace(restored)
         assertThat(store.settings.first()).isEqualTo(restored)
+
+        // A double tap on the pause tile or widget flips twice, never once.
+        coroutineScope {
+            repeat(2) { launch(Dispatchers.Default) { store.togglePaused() } }
+        }
+        assertThat(store.settings.first().paused).isTrue()
+        assertThat(store.togglePaused()).isFalse()
+        assertThat(store.toggleEnabled(Feature.VOICE_MODE)).isTrue()
+        assertThat(store.toggleEnabled(Feature.VOICE_MODE)).isFalse()
     }
 }

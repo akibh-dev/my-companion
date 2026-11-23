@@ -11,7 +11,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /** Quick Settings tile for voice mode (FR-5.1). */
@@ -45,8 +44,7 @@ class VoiceTileService : TileService() {
 
     override fun onClick() {
         scope.launch {
-            val on = Feature.VOICE_MODE in settingsStore.settings.first().enabled
-            settingsStore.setEnabled(Feature.VOICE_MODE, !on)
+            settingsStore.toggleEnabled(Feature.VOICE_MODE)
         }
     }
 
