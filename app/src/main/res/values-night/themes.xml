@@ -2,5 +2,10 @@
 <resources>
     <style name="Theme.MyCompanion" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">#0B0B0B</item>
+        <!-- Launch animation: Buddy on its black icon circle, then MainActivity fades it out. -->
+        <item name="android:windowSplashScreenBackground">#0B0B0B</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_buddy</item>
+        <item name="android:windowSplashScreenAnimationDuration">1000</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/launcher_background</item>
     </style>
 </resources>

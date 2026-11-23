@@ -23,6 +23,8 @@ import dev.akibh.mycompanion.presentation.onboarding.FirstRun
 import dev.akibh.mycompanion.presentation.onboarding.FirstRunGuide
 import dev.akibh.mycompanion.presentation.shortcuts.RefreshHomeShortcuts
 import dev.akibh.mycompanion.ui.theme.CompanionTheme
+import java.time.Duration
+import java.time.Instant
 import javax.inject.Inject
 import kotlinx.coroutines.launch
 
@@ -57,6 +59,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        letLaunchAnimationFinish()
         if (savedInstanceState == null) {
             handle(intent)
             lifecycleScope.launch {
@@ -97,6 +100,29 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * The splash screen normally leaves as soon as the first frame is drawn, which cuts Buddy's wink
+     * short. Taking over its exit keeps it until the icon animation has played, then fades it out.
+     */
+    private fun letLaunchAnimationFinish() {
+        splashScreen.setOnExitAnimationListener { view ->
+            val start = view.iconAnimationStart
+            val length = view.iconAnimationDuration
+            // Both are null when the icon isn't animated (or was already done): just fade.
+            val wait = if (start == null || length == null) {
+                0L
+            } else {
+                Duration.between(Instant.now(), start.plus(length)).toMillis().coerceIn(0L, MAX_SPLASH_WAIT_MS)
+            }
+            view.animate()
+                .alpha(0f)
+                .setStartDelay(wait + SPLASH_HOLD_MS)
+                .setDuration(SPLASH_FADE_MS)
+                .withEndAction { view.remove() }
+                .start()
+        }
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handle(intent)
@@ -124,6 +150,11 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_TAB = "tab"
+
+        /** Launch animation: never hold the app back more than this, a short beat on the red eye, then the fade. */
+        private const val MAX_SPLASH_WAIT_MS = 1000L
+        private const val SPLASH_HOLD_MS = 150L
+        private const val SPLASH_FADE_MS = 220L
 
         /** A screen route to open over Home, e.g. "export" (see AppNavigation's Screen routes). */
         const val EXTRA_ROUTE = "route"

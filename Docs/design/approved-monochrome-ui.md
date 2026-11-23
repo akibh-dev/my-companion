@@ -119,3 +119,7 @@ over a five-dot smile on an arc. Everything sits inside the 66 dp safe circle of
   status bar always shows one recognisable mark for this app. The player notification gets it too by
   overriding Media3's `media3_notification_small_icon` resource by name.
 - Status-bar icons are single colour (Android uses only the alpha), so the red eye is launcher-only.
+- Launch animation: the splash screen's icon is `splash_buddy`, an animated vector of the same face on
+  the black icon circle. The dots pop on, both eyes blink, then the right eye winks and opens red (under
+  1 s, the splash screen's limit). `MainActivity` takes over the splash's exit so it waits for the wink
+  to finish, then fades out, never holding the app back more than a second.
