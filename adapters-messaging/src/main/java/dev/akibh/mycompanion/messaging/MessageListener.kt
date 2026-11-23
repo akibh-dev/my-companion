@@ -10,6 +10,7 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.NotificationListenerService.Ranking
 import android.service.notification.StatusBarNotification
 import androidx.core.app.NotificationCompat
+import androidx.core.app.Person
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.akibh.mycompanion.core.log.AppLog
@@ -137,7 +138,12 @@ object NotificationExtractor {
             conversationTitle = style?.conversationTitle?.toString(),
             isGroupConversation = style?.isGroupConversation ?: false,
             messageTimes = style?.messages.orEmpty().map { it.timestamp },
-            messages = style?.messages.orEmpty().map { it.person?.name?.toString() to it.text?.toString().orEmpty() },
+            // A message by the phone's own user (some apps re-post your reply under a named "You") has
+            // no sender, so it reads as your own and is never answered or read out.
+            messages = style?.messages.orEmpty().map { message ->
+                message.person?.takeUnless { isUser(it, style?.user) }?.name?.toString() to
+                    message.text?.toString().orEmpty()
+            },
             isGroupSummary = notification.flags and Notification.FLAG_GROUP_SUMMARY != 0,
             isOngoing = notification.flags and Notification.FLAG_ONGOING_EVENT != 0,
             category = notification.category,
@@ -148,6 +154,12 @@ object NotificationExtractor {
                 extras.getString(Notification.EXTRA_TEMPLATE).orEmpty().endsWith("MediaStyle"),
             isSilent = isSilent,
         )
+    }
+
+    private fun isUser(person: Person, user: Person?): Boolean = when {
+        user == null -> false
+        person.key != null || user.key != null -> person.key == user.key
+        else -> person.name?.toString() == user.name?.toString()
     }
 
     /** The action that takes a typed reply: has a free-form RemoteInput, preferably marked "reply". */
