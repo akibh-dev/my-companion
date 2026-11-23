@@ -47,5 +47,14 @@ class DataStoreSettingsStoreTest {
         // Another instance (the next time the app starts) reads the same values.
         val again = DataStoreSettingsStore(ApplicationProvider.getApplicationContext<Context>())
         assertThat(again.settings.first().enabled).containsExactly(Feature.VOICE_MODE)
+
+        // A restored backup replaces everything at once.
+        val restored = Settings(
+            paused = true,
+            enabled = setOf(Feature.AUTO_REPLY),
+            modelEngines = setOf(AiEngine.SUMMARIZER),
+        )
+        store.replace(restored)
+        assertThat(store.settings.first()).isEqualTo(restored)
     }
 }

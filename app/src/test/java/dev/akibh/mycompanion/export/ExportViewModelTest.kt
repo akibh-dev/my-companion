@@ -38,7 +38,11 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.nio.file.Files
 import java.util.zip.ZipInputStream
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.json.JSONArray
@@ -188,6 +192,30 @@ class ExportViewModelTest {
         assertThat(state.status).isEqualTo("Settings restored")
         assertThat(settingsStore.settings.value).isEqualTo(bundle.app)
         assertThat(voiceChange.captured(VoiceSettings())).isEqualTo(bundle.voice)
+    }
+
+    @Test
+    fun `a restore cancelled halfway still restores everything`() = runTest {
+        val bookmarksWritten = CompletableDeferred<Unit>()
+        val slowBookmarks = mockk<BookmarkRepository> {
+            coEvery { restore(any()) } coAnswers { bookmarksWritten.await() }
+        }
+        val slowBackup = SettingsBackup(settingsStore, voiceStore, replyStore, slowBookmarks, library)
+        val bundle = SettingsBundle(
+            app = Settings(paused = true),
+            quran = QuranBackup(emptyList()),
+            library = savedLibrary,
+        )
+
+        // The screen is closed while the bookmarks are being written.
+        val restoring = launch { slowBackup.restore(bundle) }
+        runCurrent()
+        restoring.cancel()
+        bookmarksWritten.complete(Unit)
+        restoring.join()
+
+        assertThat(settingsStore.settings.value.paused).isTrue()
+        assertThat(restoredLibrary.captured).isEqualTo(savedLibrary)
     }
 
     @Test

@@ -58,6 +58,13 @@ interface SettingsStore {
     suspend fun setEnabled(feature: Feature, enabled: Boolean)
 
     suspend fun setUseModel(engine: AiEngine, useModel: Boolean)
+
+    /** Replaces every switch with [settings] (a restored backup); one edit in the real store. */
+    suspend fun replace(settings: Settings) {
+        setPaused(settings.paused)
+        Feature.entries.forEach { setEnabled(it, it in settings.enabled) }
+        AiEngine.entries.forEach { setUseModel(it, it in settings.modelEngines) }
+    }
 }
 
 private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -91,6 +98,14 @@ class DataStoreSettingsStore @Inject constructor(
         store.edit { prefs ->
             val current = prefs[MODELS].orEmpty()
             prefs[MODELS] = if (useModel) current + engine.name else current - engine.name
+        }
+    }
+
+    override suspend fun replace(settings: Settings) {
+        store.edit { prefs ->
+            prefs[PAUSED] = settings.paused
+            prefs[ENABLED] = settings.enabled.mapTo(mutableSetOf()) { it.name }
+            prefs[MODELS] = settings.modelEngines.mapTo(mutableSetOf()) { it.name }
         }
     }
 
