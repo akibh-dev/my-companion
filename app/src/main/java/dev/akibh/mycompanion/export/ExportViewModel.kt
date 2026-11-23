@@ -9,6 +9,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.akibh.mycompanion.core.log.AppLog
 import dev.akibh.mycompanion.di.IoDispatcher
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -59,7 +60,7 @@ class ExportViewModel @Inject constructor(
     /** A backup was picked: read it, then ask before overwriting anything. */
     fun onRestorePicked(uri: Uri) = work("Reading the backup…") {
         val text = withContext(io) {
-            context.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) }
+            context.contentResolver.openInputStream(uri)?.use(SettingsBackup::read)
         } ?: error("Couldn't open that file")
         val bundle = backup.parse(text)
         mutableState.update { it.copy(pendingRestore = bundle) }
@@ -83,7 +84,13 @@ class ExportViewModel @Inject constructor(
         if (mutableState.value.busy) return
         mutableState.update { it.copy(busy = true, status = progress) }
         viewModelScope.launch {
-            val status = runCatching { block() }.getOrElse { it.message ?: "Something went wrong" }
+            val status = try {
+                block()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                e.message ?: "Something went wrong"
+            }
             mutableState.update { it.copy(busy = false, status = status) }
         }
     }

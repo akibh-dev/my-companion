@@ -1,6 +1,10 @@
 package dev.akibh.mycompanion.core
 
 import android.app.Application
+import android.app.ForegroundServiceStartNotAllowedException
+import android.content.ComponentName
+import android.content.ContextWrapper
+import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
@@ -8,9 +12,13 @@ import dev.akibh.mycompanion.core.context.ContextStatus
 import dev.akibh.mycompanion.core.host.HostService
 import dev.akibh.mycompanion.core.host.HostedComponent
 import dev.akibh.mycompanion.core.host.ServiceHost
+import dev.akibh.mycompanion.core.log.AppLog
+import dev.akibh.mycompanion.core.log.LogLevel
 import dev.akibh.mycompanion.core.settings.Feature
 import dev.akibh.mycompanion.core.settings.Settings
+import java.nio.file.Files
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
@@ -26,10 +34,32 @@ class ServiceHostTest {
         override fun start(scope: CoroutineScope) = Unit
     }
 
-    private val host = ServiceHost(
-        app,
-        setOf(Component("rules", Feature.CONTEXT_RULES), Component("voice", Feature.VOICE_MODE)),
-    )
+    private val log = AppLog(Files.createTempDirectory("log").toFile(), mirrorToLogcat = false)
+
+    private val components = setOf(Component("rules", Feature.CONTEXT_RULES), Component("voice", Feature.VOICE_MODE))
+
+    private val host = ServiceHost(app, components, log)
+
+    @Test
+    fun `a refused start is logged instead of vanishing, and the next sync tries again`() = runTest {
+        var attempts = 0
+        val refusing = object : ContextWrapper(app) {
+            override fun startForegroundService(service: Intent): ComponentName? {
+                attempts++
+                throw ForegroundServiceStartNotAllowedException("app is in the background")
+            }
+        }
+        val host = ServiceHost(refusing, components, log)
+
+        host.sync(Settings(enabled = setOf(Feature.VOICE_MODE)))
+        host.sync(Settings(enabled = setOf(Feature.VOICE_MODE)))
+
+        assertThat(attempts).isEqualTo(2)
+        val line = log.read().first()
+        assertThat(line.level).isEqualTo(LogLevel.WARN)
+        assertThat(line.tag).isEqualTo("ServiceHost")
+        assertThat(line.message).contains("ForegroundServiceStartNotAllowedException")
+    }
 
     @Test
     fun `needed while one of its features is on and nothing is paused`() {
@@ -66,6 +96,18 @@ class ServiceHostTest {
     }
 
     @Test
+    fun `sync starts it again once the running service has decided to stop`() {
+        host.setRunning(true)
+        // Everything was paused: the service marks itself not running before it stops.
+        host.setRunning(false)
+
+        // Resumed before the old instance is gone.
+        host.sync(Settings(enabled = setOf(Feature.CONTEXT_RULES)))
+
+        assertThat(shadowOf(app).nextStartedService?.component?.className).isEqualTo(HostService::class.java.name)
+    }
+
+    @Test
     fun `not running until the service says so`() {
         assertThat(host.running.value).isFalse()
         host.setRunning(true)
@@ -75,7 +117,7 @@ class ServiceHostTest {
 
     @Test
     fun `without components the host is never needed`() {
-        assertThat(ServiceHost(app, emptySet()).isNeeded(Settings(enabled = Feature.entries.toSet()))).isFalse()
+        assertThat(ServiceHost(app, emptySet(), log).isNeeded(Settings(enabled = Feature.entries.toSet()))).isFalse()
     }
 
     @Test

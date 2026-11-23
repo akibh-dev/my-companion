@@ -136,3 +136,4 @@ Google Maps for saved places: [API key setup and how it works](20-google-maps.md
 
 Quran reader: [Plan 21](21-quran-plan.md).
 Book library (PDF, EPUB, CBZ): [Plan 22](22-library-plan.md).
+Release 1.0.0 (signing, R8, GitHub Releases; F-Droid parked): [Plan 23](23-release-1.0-plan.md).

@@ -125,7 +125,7 @@ interface ContextDao {
     suspend fun deleteRunsBefore(before: Long)
 }
 
-@Database(entities = [RuleEntity::class, PlaceEntity::class, RuleRunEntity::class], version = 1, exportSchema = false)
+@Database(entities = [RuleEntity::class, PlaceEntity::class, RuleRunEntity::class], version = 1, exportSchema = true)
 abstract class ContextDatabase : RoomDatabase() {
     abstract fun dao(): ContextDao
 

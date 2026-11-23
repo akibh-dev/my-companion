@@ -45,10 +45,18 @@ object Reconciler {
         winner.forEach { (key, wanted) ->
             val (value, ruleId) = wanted
             val current = read(key)
-            if (key !in before && current != null) before[key] = current
+            if (key !in before) {
+                // Without the value from before there's nothing to put back later, so leave the
+                // setting alone; the next run tries again.
+                if (current == null) return@forEach
+                before[key] = current
+            }
             if (current != value) changes += Change(key, value, ruleId)
             applied[key] = value
         }
+
+        // Left over from an older version that took settings over without their value from before.
+        (applied.keys - before.keys - winner.keys).forEach(applied::remove)
 
         // No active rule wants these any more: put them back, unless the user changed them by hand.
         (before.keys - winner.keys).forEach { key ->

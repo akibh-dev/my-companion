@@ -61,6 +61,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import dev.akibh.mycompanion.Tab
 import dev.akibh.mycompanion.core.settings.Feature
 import dev.akibh.mycompanion.ui.components.DotIcon
 import dev.akibh.mycompanion.ui.components.DotSymbol
@@ -189,6 +190,14 @@ fun HomeScreen(
                     "Background features aren't running",
                     "Android stopped the service. Check battery settings in Permissions.",
                 ) { onOpen(PERMISSIONS_ROUTE) }
+            }
+        }
+        if (state.missedReminders > 0) {
+            item {
+                Warning(
+                    "${state.missedReminders} missed reminder${if (state.missedReminders == 1) "" else "s"}",
+                    "Notifications were off when they came due.",
+                ) { onOpen(Tab.REMINDERS.route) }
             }
         }
         if (state.missing.isNotEmpty()) {

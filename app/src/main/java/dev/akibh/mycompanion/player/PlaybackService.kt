@@ -15,8 +15,6 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
-import com.google.common.util.concurrent.Futures
-import com.google.common.util.concurrent.ListenableFuture
 import dagger.hilt.android.AndroidEntryPoint
 import dev.akibh.mycompanion.MainActivity
 import dev.akibh.mycompanion.data.youtube.CachingStreamResolver
@@ -49,10 +47,7 @@ class PlaybackService : MediaSessionService() {
     @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
-        val http = DefaultHttpDataSource.Factory()
-            .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(TIMEOUT_MS)
-            .setReadTimeoutMs(TIMEOUT_MS)
+        val http = httpDataSourceFactory()
         val dataSources = ResolvingDataSource.Factory(http, YouTubeSpecResolver(resolver))
 
         val player = ExoPlayer.Builder(this)
@@ -72,7 +67,7 @@ class PlaybackService : MediaSessionService() {
         historyRecorder = PlaybackHistoryRecorder(player, history, historyScope, persistenceScope)
 
         session = MediaSession.Builder(this, player)
-            .setCallback(SessionCallback)
+            .setCallback(PlayerSessionCallback(packageName))
             .setSessionActivity(openPlayerIntent())
             .build()
     }
@@ -113,23 +108,22 @@ class PlaybackService : MediaSessionService() {
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 
-    private object SessionCallback : MediaSession.Callback {
-        override fun onAddMediaItems(
-            mediaSession: MediaSession,
-            controller: MediaSession.ControllerInfo,
-            mediaItems: MutableList<MediaItem>,
-        ): ListenableFuture<MutableList<MediaItem>> =
-            Futures.immediateFuture(MediaItems.withPlayableUris(mediaItems).toMutableList())
-    }
+    companion object {
+        private const val TIMEOUT_MS = 20_000
 
-    private companion object {
-        const val TIMEOUT_MS = 20_000
+        /** googlevideo is HTTPS only, so a redirect to plain HTTP is never followed. */
+        @OptIn(UnstableApi::class)
+        fun httpDataSourceFactory(): DefaultHttpDataSource.Factory = DefaultHttpDataSource.Factory()
+            .setAllowCrossProtocolRedirects(false)
+            .setConnectTimeoutMs(TIMEOUT_MS)
+            .setReadTimeoutMs(TIMEOUT_MS)
     }
 }
 
 /**
  * Stream URLs expire and can be revoked (HTTP 403). On such an error, drop the cached URL and
- * retry the same item once from where it stopped.
+ * retry the same item once from where it stopped. Once it plays again the retry is armed again,
+ * so a long video paused past the URL lifetime more than once still comes back.
  */
 class RetryExpiredStream(
     private val player: Player,
@@ -148,5 +142,9 @@ class RetryExpiredStream(
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
         retriedMediaId = null
+    }
+
+    override fun onIsPlayingChanged(isPlaying: Boolean) {
+        if (isPlaying) retriedMediaId = null
     }
 }

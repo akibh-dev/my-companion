@@ -25,6 +25,7 @@ import dev.akibh.mycompanion.fakes.video
 import dev.akibh.mycompanion.messaging.ChatApp
 import dev.akibh.mycompanion.voice.domain.Privacy
 import dev.akibh.mycompanion.voice.domain.VoiceSettings
+import java.io.ByteArrayInputStream
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertThrows
@@ -155,8 +156,62 @@ class ExportJsonTest {
     }
 
     @Test
+    fun `a backup from a newer version is refused, an older or unversioned one is read`() {
+        val current = ExportJson.settings(SettingsBundle(app = Settings(paused = true)))
+
+        val newer = JSONObject(current.toString()).put("version", ExportJson.SETTINGS_VERSION + 1).toString()
+        val error = assertThrows(IllegalArgumentException::class.java) { ExportJson.parseSettings(newer) }
+        assertThat(error.message).contains("newer version")
+
+        val unversioned = JSONObject(current.toString()).apply { remove("version") }.toString()
+        assertThat(ExportJson.parseSettings(unversioned).app.paused).isTrue()
+    }
+
+    @Test
     fun `a file that isn't a settings backup is refused`() {
         assertThrows(IllegalArgumentException::class.java) { ExportJson.parseSettings("not json") }
         assertThrows(IllegalArgumentException::class.java) { ExportJson.parseSettings("{\"area\":\"people\"}") }
+    }
+
+    @Test
+    fun `restored numbers stay inside what the screens allow`() {
+        fun parse(voice: JSONObject, reply: JSONObject) = ExportJson.parseSettings(
+            JSONObject().put(
+                "format",
+                ExportJson.SETTINGS_FORMAT
+            ).put("voice", voice).put("autoReply", reply).toString(),
+        )
+
+        val low = parse(
+            JSONObject().put("maxChars", -5).put("speechRate", 0.01),
+            JSONObject().put("cooldownMinutes", -1),
+        )
+        val high = parse(
+            JSONObject().put("maxChars", 1_000_000).put("speechRate", 50),
+            JSONObject().put("cooldownMinutes", Int.MAX_VALUE),
+        )
+        val notANumber = parse(JSONObject().put("speechRate", "NaN"), JSONObject())
+
+        // A negative cool-down used to switch off the one-reply-per-chat throttle.
+        assertThat(low.autoReply.cooldownMinutes).isEqualTo(5)
+        assertThat(low.voice.maxChars).isEqualTo(60)
+        assertThat(low.voice.speechRate).isEqualTo(0.5f)
+        assertThat(high.autoReply.cooldownMinutes).isEqualTo(240)
+        assertThat(high.voice.maxChars).isEqualTo(600)
+        assertThat(high.voice.speechRate).isEqualTo(2f)
+        assertThat(notANumber.voice.speechRate).isEqualTo(VoiceSettings().speechRate)
+    }
+
+    @Test
+    fun `a backup file over the size cap is refused before it is parsed`() {
+        val fits = ByteArray(SettingsBackup.MAX_BACKUP_BYTES) { 'a'.code.toByte() }
+        val tooBig = ByteArray(SettingsBackup.MAX_BACKUP_BYTES + 1) { 'a'.code.toByte() }
+
+        assertThat(SettingsBackup.read(ByteArrayInputStream(fits))).hasLength(SettingsBackup.MAX_BACKUP_BYTES)
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            SettingsBackup.read(ByteArrayInputStream(tooBig))
+        }
+        assertThat(error).hasMessageThat().contains("too big")
+        assertThat(SettingsBackup.read(ByteArrayInputStream("{\"a\":\"é\"}".toByteArray()))).isEqualTo("{\"a\":\"é\"}")
     }
 }

@@ -18,6 +18,9 @@ import dev.akibh.mycompanion.core.time.Clock
 import java.nio.file.Files
 import java.time.LocalDateTime
 import java.time.ZoneId
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
@@ -100,5 +103,30 @@ class RulesEngineTest {
         assertThat(
             history.single().second
         ).isEqualTo("dnd → ALARMS (failed: Needs Do Not Disturb access), wifi → true (asked you)")
+    }
+
+    @Test
+    fun `a run cancelled halfway still remembers what it took over`() = runTest {
+        val historyWritten = CompletableDeferred<Unit>()
+        val slowHistory = RulesEngine(
+            device,
+            storage,
+            { _, _, _ -> historyWritten.await() },
+            AppLog(Files.createTempDirectory("log").toFile(), mirrorToLogcat = false),
+            clock,
+            status,
+        )
+
+        // A new snapshot arrives while the first run is still writing its history (collectLatest cancels it).
+        val running = launch { slowHistory.run(listOf(nightstand), charging) }
+        runCurrent()
+        running.cancel()
+        historyWritten.complete(Unit)
+        running.join()
+
+        assertThat(device.values["ringer"]).isEqualTo("SILENT")
+        assertThat(storage.saved).isNotEqualTo(TakenOver())
+        slowHistory.restoreAll()
+        assertThat(device.values).containsAtLeast("ringer", "NORMAL", "dnd", "OFF")
     }
 }

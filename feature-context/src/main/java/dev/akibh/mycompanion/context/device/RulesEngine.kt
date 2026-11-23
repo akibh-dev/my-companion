@@ -77,7 +77,11 @@ class RulesEngine @Inject constructor(
         apply(emptyList(), emptyList())
     }
 
-    private suspend fun apply(applying: List<Rule>, all: List<Rule>) {
+    /**
+     * Not cancellable: [RulesComponent] uses `collectLatest`, and a cancel between a device write and
+     * [TakenOverStorage.save] would forget what was taken over, so it could never be put back.
+     */
+    private suspend fun apply(applying: List<Rule>, all: List<Rule>) = withContext(NonCancellable) {
         val wanted = applying.map { rule -> Wanted(rule.id, rule.order, rule.actions.associate { it.key to it.value }) }
         val result = Reconciler.reconcile(wanted, storage.load(), device::read)
         val names = all.associate { it.id to it.name }

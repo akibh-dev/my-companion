@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
     <include domain="database" path="companion.db" />
+    <!-- Recent writes sit in the write-ahead log until a checkpoint; without it a restore loses them.
+         The -shm index is rebuilt from the log, so it is left out. -->
+    <include domain="database" path="companion.db-wal" />
 </full-backup-content>

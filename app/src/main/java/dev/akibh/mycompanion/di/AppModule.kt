@@ -8,6 +8,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import dev.akibh.mycompanion.core.log.AppLog
 import dev.akibh.mycompanion.data.QuranReminderBridge
 import dev.akibh.mycompanion.data.alarm.AndroidAlarmScheduler
 import dev.akibh.mycompanion.data.local.AppDatabase
@@ -17,6 +18,8 @@ import dev.akibh.mycompanion.data.local.MIGRATION_2_3
 import dev.akibh.mycompanion.data.local.MIGRATION_3_4
 import dev.akibh.mycompanion.data.local.MIGRATION_4_5
 import dev.akibh.mycompanion.data.local.MIGRATION_5_6
+import dev.akibh.mycompanion.data.local.MIGRATION_6_7
+import dev.akibh.mycompanion.data.local.MIGRATION_7_8
 import dev.akibh.mycompanion.data.local.PlaybackHistoryDao
 import dev.akibh.mycompanion.data.local.PlaylistDao
 import dev.akibh.mycompanion.data.local.ReminderDao
@@ -47,6 +50,7 @@ import dev.akibh.mycompanion.system.ReminderEvents
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -59,7 +63,15 @@ object DatabaseModule {
     @Singleton
     fun database(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            .addMigrations(
+                MIGRATION_1_2,
+                MIGRATION_2_3,
+                MIGRATION_3_4,
+                MIGRATION_4_5,
+                MIGRATION_5_6,
+                MIGRATION_6_7,
+                MIGRATION_7_8,
+            )
             .build()
 
     @Provides
@@ -85,11 +97,18 @@ object CoroutinesModule {
     @IoDispatcher
     fun io(): CoroutineDispatcher = Dispatchers.IO
 
-    /** Outlives any screen: used by broadcast receivers for short background work. */
+    /**
+     * Outlives any screen: used by broadcast receivers for short background work. A failing job is
+     * logged and the others carry on, instead of the process crashing with nothing in the app's log.
+     */
     @Provides
     @Singleton
     @ApplicationScope
-    fun appScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    fun appScope(log: AppLog): CoroutineScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, error ->
+            log.e("AppScope", "background job failed", error)
+        },
+    )
 }
 
 @Module

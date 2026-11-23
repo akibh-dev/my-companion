@@ -5,6 +5,7 @@ import dev.akibh.mycompanion.domain.model.Contact
 import dev.akibh.mycompanion.domain.model.Reminder
 import dev.akibh.mycompanion.domain.model.ReminderTime
 import dev.akibh.mycompanion.domain.model.Repeat
+import dev.akibh.mycompanion.domain.port.AlarmScheduler
 import dev.akibh.mycompanion.domain.time.ReminderTimeCalculator
 import dev.akibh.mycompanion.domain.usecase.CancelReminderUseCase
 import dev.akibh.mycompanion.domain.usecase.CleanUpRemindersUseCase
@@ -23,6 +24,10 @@ import dev.akibh.mycompanion.fakes.FakeReminderRepository
 import dev.akibh.mycompanion.fakes.millisAt
 import java.time.DayOfWeek
 import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.ZoneId
+import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
@@ -182,6 +187,8 @@ class ReminderUseCasesTest {
         notifier.enabled = false
 
         assertThat(schedule("Hello", "", ReminderTime.InMinutes(0))).isEqualTo(ScheduleResult.NotificationsBlocked)
+        // Said on screen at once, so it isn't also kept as a missed reminder.
+        assertThat(reminders.all).isEmpty()
     }
 
     // ---- Firing ----
@@ -207,8 +214,110 @@ class ReminderUseCasesTest {
 
         val tomorrow = millisAt(2026, 10, 24, 8, 0)
         assertThat(notifier.shown).hasSize(1)
-        assertThat(reminders.get(saved.id)).isEqualTo(saved.copy(triggerAtMillis = tomorrow))
+        // A reminder saved before the wanted time was stored takes it from its trigger.
+        assertThat(reminders.get(saved.id))
+            .isEqualTo(saved.copy(triggerAtMillis = tomorrow, localTime = LocalTime.of(8, 0)))
         assertThat(scheduler.scheduled).containsExactly(saved.id, tomorrow)
+    }
+
+    @Test
+    fun `a daily reminder keeps its clock time after a timezone change`() = runTest {
+        val nine = (schedule("Pills", "", ReminderTime.AtTime(9, 0), Repeat.Daily) as ScheduleResult.Scheduled).reminder
+        assertThat(nine.localTime).isEqualTo(LocalTime.of(9, 0))
+
+        // The phone moves from Dhaka (UTC+6) to Moscow (UTC+3) and the system says the zone changed.
+        val moscow = ZoneId.of("Europe/Moscow")
+        val travelClock = FakeClock(now = millisAt(2026, 10, 23, 12, 0, moscow), zone = moscow)
+        val travelCalculator = ReminderTimeCalculator(travelClock)
+        val travelFire = FireReminderUseCase(reminders, contacts, notifier, scheduler, travelCalculator)
+        RestoreRemindersUseCase(
+            reminders,
+            scheduler,
+            travelFire,
+            CleanUpRemindersUseCase(reminders, travelClock),
+            travelClock
+        )()
+
+        val tomorrowNine = millisAt(2026, 10, 24, 9, 0, moscow)
+        assertThat(reminders.get(nine.id)!!.triggerAtMillis).isEqualTo(tomorrowNine)
+        assertThat(scheduler.scheduled).containsExactly(nine.id, tomorrowNine)
+
+        travelClock.now = tomorrowNine
+        travelFire(nine.id)
+        assertThat(reminders.get(nine.id)!!.triggerAtMillis).isEqualTo(millisAt(2026, 10, 25, 9, 0, moscow))
+    }
+
+    @Test
+    fun `only clock-time repeats store a local time`() = runTest {
+        val every = (schedule("Water", "", ReminderTime.InMinutes(30), Repeat.Every(120)) as ScheduleResult.Scheduled)
+        val once = (schedule("Once", "", ReminderTime.AtTime(18, 0)) as ScheduleResult.Scheduled)
+        val monthly = (schedule("Rent", "", ReminderTime.InMinutes(30), Repeat.Monthly(23)) as ScheduleResult.Scheduled)
+
+        assertThat(every.reminder.localTime).isNull()
+        assertThat(once.reminder.localTime).isNull()
+        assertThat(monthly.reminder.localTime).isEqualTo(LocalTime.of(10, 30))
+    }
+
+    @Test
+    fun `a one-off that can't be shown is flagged missed and kept for another try`() = runTest {
+        val saved = reminders.save(reminder())
+        clock.now = saved.triggerAtMillis
+        notifier.enabled = false
+
+        assertThat(fire(saved.id)).isFalse()
+
+        assertThat(reminders.get(saved.id)!!.delivered).isFalse()
+        assertThat(reminders.get(saved.id)!!.missed).isTrue()
+        assertThat(reminders.observeMissedCount().first()).isEqualTo(1)
+
+        // Notifications are back on; the next restore (boot, clock change) shows it.
+        notifier.enabled = true
+        restore()
+        assertThat(notifier.shown.map { it.first.id }).containsExactly(saved.id)
+        assertThat(reminders.get(saved.id)!!.delivered).isTrue()
+        assertThat(reminders.observeMissedCount().first()).isEqualTo(0)
+    }
+
+    @Test
+    fun `a repeat that can't be shown moves on but is flagged missed until it shows again`() = runTest {
+        val saved = reminders.save(reminder(trigger = millisAt(2026, 10, 23, 8, 0), repeat = Repeat.Daily))
+        notifier.enabled = false
+
+        fire(saved.id)
+        val missed = reminders.get(saved.id)!!
+        assertThat(missed.missed).isTrue()
+        assertThat(missed.triggerAtMillis).isEqualTo(millisAt(2026, 10, 24, 8, 0))
+
+        notifier.enabled = true
+        clock.now = millisAt(2026, 10, 24, 8, 0)
+        fire(saved.id)
+        assertThat(reminders.get(saved.id)!!.missed).isFalse()
+    }
+
+    @Test
+    fun `a repeat whose next time can't be worked out is kept, not marked delivered`() = runTest {
+        clock.now = Long.MAX_VALUE - 1
+        val saved = reminders.save(reminder(trigger = Long.MAX_VALUE - 1, repeat = Repeat.Every(12)))
+
+        assertThat(fire(saved.id)).isTrue()
+
+        assertThat(reminders.get(saved.id)!!.delivered).isFalse()
+        cleanUp()
+        assertThat(reminders.get(saved.id)).isNotNull()
+    }
+
+    @Test
+    fun `snoozing a paused repeat's notification still rings`() = runTest {
+        val daily = reminders.save(
+            reminder(trigger = millisAt(2026, 10, 24, 8, 0), repeat = Repeat.Daily).copy(paused = true)
+        )
+
+        val snoozed = snooze(daily.id)!!
+
+        assertThat(snoozed.paused).isFalse()
+        clock.now = snoozed.triggerAtMillis
+        assertThat(fire(snoozed.id)).isTrue()
+        assertThat(reminders.get(daily.id)!!.paused).isTrue()
     }
 
     @Test
@@ -342,6 +451,45 @@ class ReminderUseCasesTest {
         assertThat(reminders.get(missed.id)!!.delivered).isTrue()
         assertThat(reminders.get(oldDone.id)).isNull()
         assertThat(reminders.get(recentDone.id)).isNotNull()
+    }
+
+    /** Refuses the alarm for one reminder, as AlarmManager can (e.g. too many alarms). */
+    private class RefusingScheduler(private val refuseId: Long, val inner: FakeAlarmScheduler) :
+        AlarmScheduler by inner {
+        override fun schedule(reminder: Reminder) {
+            if (reminder.id == refuseId) throw IllegalStateException("Maximum limit of concurrent alarms")
+            inner.schedule(reminder)
+        }
+    }
+
+    @Test
+    fun `one reminder that can't be restored doesn't stop the rest`() = runTest {
+        val first = reminders.save(reminder(title = "first", trigger = millisAt(2026, 10, 23, 11, 0)))
+        val second = reminders.save(reminder(title = "second", trigger = millisAt(2026, 10, 23, 12, 0)))
+        val missed = reminders.save(reminder(title = "missed", trigger = millisAt(2026, 10, 23, 9, 0)))
+        val refusing = RefusingScheduler(refuseId = first.id, inner = scheduler)
+        val restore = RestoreRemindersUseCase(reminders, refusing, fire, cleanUp, clock)
+
+        val failures = restore()
+
+        assertThat(failures.map { it.reminderId }).containsExactly(first.id)
+        assertThat(failures.single().error).isInstanceOf(IllegalStateException::class.java)
+        assertThat(scheduler.scheduled).containsExactly(second.id, second.triggerAtMillis)
+        assertThat(reminders.get(missed.id)!!.delivered).isTrue()
+    }
+
+    @Test
+    fun `cancelling a restore is not swallowed as a failure`() = runTest {
+        val first = reminders.save(reminder(title = "first", trigger = millisAt(2026, 10, 23, 11, 0)))
+        val cancelling = object : AlarmScheduler by scheduler {
+            override fun schedule(reminder: Reminder) = throw CancellationException("receiver gone")
+        }
+        val restore = RestoreRemindersUseCase(reminders, cancelling, fire, cleanUp, clock)
+
+        val thrown = runCatching { restore() }.exceptionOrNull()
+
+        assertThat(thrown).isInstanceOf(CancellationException::class.java)
+        assertThat(scheduler.scheduled).doesNotContainKey(first.id)
     }
 
     @Test

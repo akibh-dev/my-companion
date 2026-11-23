@@ -9,6 +9,7 @@ import dev.akibh.mycompanion.fakes.millisAt
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import org.junit.Test
@@ -66,6 +67,29 @@ class ReminderTimeCalculatorTest {
         assertThat(local.toLocalDate().dayOfMonth).isEqualTo(29)
         assertThat(local.hour).isEqualTo(9)
         assertThat(local.minute).isEqualTo(0)
+    }
+
+    @Test
+    fun `a daily time inside a daylight saving gap comes back to the wanted time the day after`() {
+        val london = ZoneId.of("Europe/London")
+        // 01:30 doesn't exist on 29 March 2026 in London, so that day fires at 02:30.
+        val londonClock = FakeClock(now = millisAt(2026, 3, 29, 2, 31, london), zone = london)
+        val gapDay = millisAt(2026, 3, 29, 2, 30, london)
+
+        val next = ReminderTimeCalculator(londonClock).next(Repeat.Daily, gapDay, LocalTime.of(1, 30))
+
+        assertThat(next).isEqualTo(millisAt(2026, 3, 30, 1, 30, london))
+    }
+
+    @Test
+    fun `weekly and monthly repeats fire at the wanted clock time, not the previous trigger's`() {
+        clock.now = millisAt(2026, 10, 23, 10, 1)
+        val previous = millisAt(2026, 10, 23, 10, 0)
+        val nine = LocalTime.of(9, 0)
+
+        assertThat(calculator.next(Repeat.Weekly(setOf(DayOfWeek.SATURDAY)), previous, nine))
+            .isEqualTo(millisAt(2026, 10, 24, 9, 0))
+        assertThat(calculator.next(Repeat.Monthly(23), previous, nine)).isEqualTo(millisAt(2026, 11, 23, 9, 0))
     }
 
     // ---- Recurrence (now: Friday 23 Oct 2026, 10:00) ----

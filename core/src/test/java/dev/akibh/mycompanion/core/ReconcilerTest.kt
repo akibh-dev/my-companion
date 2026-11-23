@@ -33,6 +33,29 @@ class ReconcilerTest {
     }
 
     @Test
+    fun `a setting that can't be read is left alone until it can, so it can always be put back`() {
+        device.remove("ringer")
+        assertThat(run(office)).isEmpty()
+        assertThat(device["ringer"]).isNull()
+        assertThat(takenOver.before).doesNotContainKey("ringer")
+        assertThat(takenOver.applied).doesNotContainKey("ringer")
+
+        device["ringer"] = "normal"
+        assertThat(run(office)).containsExactly(Change("ringer", "vibrate", 1))
+        assertThat(run()).containsExactly(Change("ringer", "normal", null))
+        assertThat(takenOver).isEqualTo(TakenOver())
+    }
+
+    @Test
+    fun `a stray taken-over setting without its old value is dropped`() {
+        takenOver = TakenOver(applied = mapOf("ringer" to "vibrate"))
+
+        run()
+
+        assertThat(takenOver).isEqualTo(TakenOver())
+    }
+
+    @Test
     fun `the rule with the lower order wins, and the other takes over when it ends`() {
         run(office, mosque)
         assertThat(device).containsExactly("ringer", "silent", "dnd", "on", "wifi", "on")
@@ -57,15 +80,6 @@ class ReconcilerTest {
     fun `nothing changes while the device already matches`() {
         run(office)
         assertThat(run(office)).isEmpty()
-    }
-
-    @Test
-    fun `a setting that can't be read is still applied but has nothing to restore`() {
-        device.remove("dnd")
-        run(mosque)
-        assertThat(device["dnd"]).isEqualTo("on")
-
-        assertThat(run()).containsExactly(Change("ringer", "normal", null))
     }
 
     @Test

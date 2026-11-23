@@ -50,16 +50,26 @@ interface HostedComponent {
 class ServiceHost @Inject constructor(
     @ApplicationContext private val context: Context,
     private val components: Set<@JvmSuppressWildcards HostedComponent>,
+    private val log: AppLog,
 ) {
     private val mutableRunning = MutableStateFlow(false)
     val running: StateFlow<Boolean> = mutableRunning.asStateFlow()
 
     fun isNeeded(settings: Settings): Boolean = components.any { it.isWanted(settings) }
 
-    /** Call when settings change or after boot. Starting from the background is allowed after boot. */
+    /**
+     * Call when settings change, after boot, and when the app comes to the front. Android refuses a
+     * foreground-service start from the background (ForegroundServiceStartNotAllowedException) except
+     * after boot and a few other moments; that is logged, and the next call from the app's own screen
+     * (MainActivity.onResume) starts it.
+     */
     fun sync(settings: Settings) {
         if (isNeeded(settings) && !running.value) {
-            runCatching { ContextCompat.startForegroundService(context, Intent(context, HostService::class.java)) }
+            try {
+                ContextCompat.startForegroundService(context, Intent(context, HostService::class.java))
+            } catch (e: RuntimeException) {
+                log.w(TAG, "couldn't start the background service; will retry when the app opens", e)
+            }
         }
     }
 
@@ -67,6 +77,10 @@ class ServiceHost @Inject constructor(
 
     internal fun setRunning(value: Boolean) {
         mutableRunning.value = value
+    }
+
+    private companion object {
+        const val TAG = "ServiceHost"
     }
 }
 
@@ -81,6 +95,9 @@ class HostService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val running = mutableMapOf<String, Job>()
+
+    /** The newest start request; stopping with it lets a start that came in meanwhile win. */
+    private var lastStartId = 0
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -97,7 +114,13 @@ class HostService : Service() {
         }
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        lastStartId = startId
+        // A start can arrive while this instance is about to stop (paused, then resumed at once).
+        startForeground(NOTIFICATION_ID, notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        host.setRunning(true)
+        return START_STICKY
+    }
 
     private fun run(wanted: Set<String>) {
         (running.keys - wanted).forEach { name ->
@@ -110,7 +133,12 @@ class HostService : Service() {
             running[component.name] = job
             log.i(TAG, "started ${component.name}")
         }
-        if (wanted.isEmpty()) stopSelf()
+        if (wanted.isEmpty()) {
+            // Not running from here on, so a sync that wants it back starts it again instead of
+            // trusting an instance that is on its way out.
+            host.setRunning(false)
+            if (lastStartId == 0) stopSelf() else stopSelf(lastStartId)
+        }
     }
 
     override fun onDestroy() {

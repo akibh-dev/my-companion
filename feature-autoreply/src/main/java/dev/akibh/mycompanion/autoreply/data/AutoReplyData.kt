@@ -100,7 +100,7 @@ interface AutoReplyDao {
     suspend fun deleteLogBefore(before: Long)
 }
 
-@Database(entities = [TemplateEntity::class, LogEntity::class], version = 1, exportSchema = false)
+@Database(entities = [TemplateEntity::class, LogEntity::class], version = 1, exportSchema = true)
 abstract class AutoReplyDatabase : RoomDatabase() {
     abstract fun dao(): AutoReplyDao
 

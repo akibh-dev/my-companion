@@ -25,6 +25,9 @@ object YouTubeLinks {
 
     fun isYouTubeLink(text: String): Boolean = videoId(text) != null
 
+    /** A bare YouTube video id: 11 characters of letters, digits, `_` and `-`. */
+    fun isVideoId(id: String): Boolean = ID.matches(id)
+
     private fun idFromUrl(raw: String): String? {
         val withScheme = if (raw.contains("://")) raw else "https://$raw"
         val uri = runCatching { URI(withScheme) }.getOrNull() ?: return null

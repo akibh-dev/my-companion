@@ -23,7 +23,8 @@ class QuranReminderBridge @Inject constructor(
 ) : QuranReminder {
     override val time: Flow<LocalTime?> = reminders.observeUpcoming().map { list ->
         list.firstOrNull { it.link == QuranReminder.ROUTE }?.let {
-            LocalTime.ofInstant(Instant.ofEpochMilli(it.triggerAtMillis), clock.zone).withSecond(0).withNano(0)
+            (it.localTime ?: LocalTime.ofInstant(Instant.ofEpochMilli(it.triggerAtMillis), clock.zone))
+                .withSecond(0).withNano(0)
         }
     }
 

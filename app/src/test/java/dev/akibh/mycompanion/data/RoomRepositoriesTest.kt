@@ -12,6 +12,7 @@ import dev.akibh.mycompanion.domain.model.Contact
 import dev.akibh.mycompanion.domain.model.Reminder
 import dev.akibh.mycompanion.domain.model.Repeat
 import java.time.DayOfWeek
+import java.time.LocalTime
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -91,10 +92,22 @@ class RoomRepositoriesTest {
                 triggerAtMillis = 1_000,
                 repeat = Repeat.Weekly(setOf(DayOfWeek.SUNDAY, DayOfWeek.THURSDAY)),
                 contactId = 3,
+                localTime = LocalTime.of(9, 30),
+                missed = true,
             ),
         )
 
         assertThat(reminders.get(saved.id)).isEqualTo(saved)
+    }
+
+    @Test
+    fun `missed reminders are counted`() = runTest {
+        reminders.save(reminder("On time", 1_000))
+        val missed = reminders.save(reminder("Missed", 2_000).copy(missed = true))
+        assertThat(reminders.observeMissedCount().first()).isEqualTo(1)
+
+        reminders.save(missed.copy(missed = false))
+        assertThat(reminders.observeMissedCount().first()).isEqualTo(0)
     }
 
     @Test

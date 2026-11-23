@@ -51,6 +51,11 @@ object ExportJson {
     const val SETTINGS_FORMAT = "my-companion-settings"
     const val SETTINGS_VERSION = 1
 
+    /** The ranges the voice and auto-reply screens offer; restored values are kept inside them. */
+    val MAX_CHARS_RANGE = 60..600
+    val SPEECH_RATE_RANGE = 0.5f..2f
+    val COOLDOWN_RANGE = 5..240
+
     fun people(contacts: List<Contact>): JSONObject = document(
         "people",
         contacts.map { JSONObject().put("name", it.name).put("whatsAppNumber", it.phone) },
@@ -209,15 +214,19 @@ object ExportJson {
     }
 
     /**
-     * Reads a settings backup. Missing fields keep their defaults and unknown names (from a newer or older
-     * version) are skipped, so an old backup still restores what it can.
+     * Reads a settings backup. Missing fields keep their defaults and unknown names are skipped, so an
+     * old backup still restores what it can. A backup from a newer version is refused: its fields may
+     * mean something else.
      *
-     * @throws IllegalArgumentException when the text isn't a My Companion settings backup.
+     * @throws IllegalArgumentException when the text isn't a My Companion settings backup, or is newer.
      */
     fun parseSettings(text: String): SettingsBundle {
         val root = runCatching { JSONObject(text) }.getOrNull()
         if (root == null || root.optString("format") != SETTINGS_FORMAT) {
             throw IllegalArgumentException("That file isn't a My Companion settings backup")
+        }
+        if (root.optInt("version", SETTINGS_VERSION) > SETTINGS_VERSION) {
+            throw IllegalArgumentException("That backup is from a newer version of My Companion. Update the app first.")
         }
         val appJson = root.optJSONObject("app") ?: JSONObject()
         val voiceJson = root.optJSONObject("voice") ?: JSONObject()
@@ -242,8 +251,10 @@ object ExportJson {
                 blockRules = blockRules(voiceJson.optJSONArray("blockRules")),
                 readSilent = voiceJson.optBoolean("readSilent", voiceDefaults.readSilent),
                 senders = strings(voiceJson.optJSONArray("senders")) ?: voiceDefaults.senders,
-                maxChars = voiceJson.optInt("maxChars", voiceDefaults.maxChars),
-                speechRate = voiceJson.optDouble("speechRate", voiceDefaults.speechRate.toDouble()).toFloat(),
+                // Clamped to what the screens allow: a hand-edited backup can't set what the app can't.
+                maxChars = voiceJson.optInt("maxChars", voiceDefaults.maxChars).coerceIn(MAX_CHARS_RANGE),
+                speechRate = voiceJson.optDouble("speechRate", voiceDefaults.speechRate.toDouble()).toFloat()
+                    .takeIf { it.isFinite() }?.coerceIn(SPEECH_RATE_RANGE) ?: voiceDefaults.speechRate,
                 readingMode = enumOf<ReadingMode>(voiceJson.optString("readingMode")) ?: voiceDefaults.readingMode,
             ),
             autoReply = AutoReplySettings(
@@ -252,7 +263,9 @@ object ExportJson {
                 blockList = strings(replyJson.optJSONArray("blockList")) ?: replyDefaults.blockList,
                 groups = enumOf<GroupPolicy>(replyJson.optString("groups")) ?: replyDefaults.groups,
                 mentionWords = strings(replyJson.optJSONArray("mentionWords")) ?: replyDefaults.mentionWords,
-                cooldownMinutes = replyJson.optInt("cooldownMinutes", replyDefaults.cooldownMinutes),
+                // A zero or negative cool-down would turn off the one-reply-per-chat throttle.
+                cooldownMinutes = replyJson.optInt("cooldownMinutes", replyDefaults.cooldownMinutes)
+                    .coerceIn(COOLDOWN_RANGE),
                 label = replyJson.optString("label", replyDefaults.label),
                 apps = enums<ChatApp>(replyJson.optJSONArray("apps")) ?: replyDefaults.apps,
                 busy = replyJson.optBoolean("busy", false),

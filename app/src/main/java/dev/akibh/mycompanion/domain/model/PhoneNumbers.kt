@@ -8,7 +8,9 @@ package dev.akibh.mycompanion.domain.model
  * - `00` prefix means international, same as `+`
  * - `+…` is kept as is
  * - a leading `0` is a local trunk prefix: replaced by [defaultCountryCode] (`01711…` → `+8801711…`)
- * - digits already starting with [defaultCountryCode] get a `+`
+ * - digits already starting with [defaultCountryCode] get a `+`; too short for that, they are rejected
+ *   (`880123` is not `+880880123`)
+ * - a trunk `0` written after [defaultCountryCode] is dropped (`+880 01711…` → `+8801711…`)
  * - any other bare digits are treated as a national number without the trunk `0`
  *
  * Returns null when the input is not a plausible phone number (E.164 allows at most 15 digits).
@@ -32,12 +34,17 @@ object PhoneNumbers {
             international -> body
             body.startsWith("00") -> body.drop(2)
             body.startsWith("0") -> national(body.drop(1), defaultCountryCode) ?: return null
-            body.startsWith(defaultCountryCode) && body.length > defaultCountryCode.length + 6 -> body
+            body.startsWith(defaultCountryCode) ->
+                body.takeIf { it.length > defaultCountryCode.length + MIN_NATIONAL_DIGITS } ?: return null
             else -> national(body, defaultCountryCode) ?: return null
-        }
+        }.let { withoutTrunkZero(it, defaultCountryCode) }
         if (digits.startsWith("0")) return null
         return if (digits.length in MIN_DIGITS..MAX_DIGITS) "+$digits" else null
     }
+
+    /** `+880 01711…` → `8801711…`: the local trunk `0` written after the country code. */
+    private fun withoutTrunkZero(digits: String, countryCode: String): String =
+        if (digits.startsWith(countryCode + "0")) countryCode + digits.drop(countryCode.length + 1) else digits
 
     private fun national(number: String, countryCode: String): String? =
         if (number.length >= MIN_NATIONAL_DIGITS) countryCode + number else null

@@ -11,6 +11,7 @@ import dev.akibh.mycompanion.core.permissions.Requirement
 import dev.akibh.mycompanion.core.settings.Feature
 import dev.akibh.mycompanion.core.settings.Settings
 import dev.akibh.mycompanion.core.settings.SettingsStore
+import dev.akibh.mycompanion.domain.repository.ReminderRepository
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -26,6 +27,8 @@ data class HomeUiState(
     /** A feature that needs the background service is on, but the service isn't running (NFR-7). */
     val hostDown: Boolean = false,
     val lastHeartbeat: Long? = null,
+    /** Reminders that came due while notifications were off. */
+    val missedReminders: Int = 0,
 )
 
 @HiltViewModel
@@ -35,6 +38,7 @@ class HomeViewModel @Inject constructor(
     private val requirements: Set<@JvmSuppressWildcards Requirement>,
     private val host: ServiceHost,
     private val heartbeats: HeartbeatLog,
+    reminders: ReminderRepository,
 ) : ViewModel() {
 
     private val lastHeartbeat = MutableStateFlow<Long?>(null)
@@ -43,7 +47,13 @@ class HomeViewModel @Inject constructor(
     private val checks = MutableStateFlow(0)
 
     val uiState: StateFlow<HomeUiState> =
-        combine(settingsStore.settings, host.running, lastHeartbeat, checks) { settings, running, beat, _ ->
+        combine(
+            settingsStore.settings,
+            host.running,
+            lastHeartbeat,
+            checks,
+            reminders.observeMissedCount(),
+        ) { settings, running, beat, _, missed ->
             HomeUiState(
                 settings = settings,
                 missing = requirements.filter { req ->
@@ -51,6 +61,7 @@ class HomeViewModel @Inject constructor(
                 },
                 hostDown = host.isNeeded(settings) && !running,
                 lastHeartbeat = beat,
+                missedReminders = missed,
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), HomeUiState())
 

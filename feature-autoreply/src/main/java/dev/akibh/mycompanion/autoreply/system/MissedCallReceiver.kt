@@ -41,6 +41,16 @@ object CallStates {
         RINGING, OFFHOOK -> current to false
         else -> current to (previous == RINGING)
     }
+
+    /** CallLog.Calls.MISSED_TYPE. */
+    const val MISSED_TYPE = 3
+
+    /**
+     * The number to text back, from the recent call log (type to number, newest first): the call that
+     * just ended, only when it was missed. A declined call (REJECTED) or an earlier caller is no one to text.
+     */
+    fun missedNumber(newestFirst: List<Pair<Int, String?>>): String? =
+        newestFirst.firstOrNull()?.takeIf { it.first == MISSED_TYPE }?.second?.takeIf(String::isNotBlank)
 }
 
 /** Texts people back when you miss their call (FR-1.1), with the same cool-down idea as chats. */
@@ -119,11 +129,11 @@ class MissedCallReceiver : BroadcastReceiver() {
     @SuppressLint("MissingPermission") // checked in handleMissedCall
     private fun lastMissedNumber(context: Context): String? = context.contentResolver.query(
         CallLog.Calls.CONTENT_URI,
-        arrayOf(CallLog.Calls.NUMBER, CallLog.Calls.DATE),
-        "${CallLog.Calls.TYPE} = ? AND ${CallLog.Calls.DATE} > ?",
-        arrayOf(CallLog.Calls.MISSED_TYPE.toString(), (clock.nowMillis() - RECENT_MILLIS).toString()),
+        arrayOf(CallLog.Calls.TYPE, CallLog.Calls.NUMBER),
+        "${CallLog.Calls.DATE} > ?",
+        arrayOf((clock.nowMillis() - RECENT_MILLIS).toString()),
         "${CallLog.Calls.DATE} DESC",
-    )?.use { if (it.moveToFirst()) it.getString(0)?.takeIf(String::isNotBlank) else null }
+    )?.use { if (it.moveToFirst()) CallStates.missedNumber(listOf(it.getInt(0) to it.getString(1))) else null }
 
     private fun sms(context: Context): SmsManager = context.getSystemService(SmsManager::class.java)
 

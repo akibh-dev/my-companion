@@ -24,6 +24,13 @@ class WhatsAppNumberMatcherTest {
     }
 
     @Test
+    fun `a trunk zero written after the country code still matches`() {
+        assertThat(WhatsAppNumberMatcher.normalize("+880 01711-123456")).isEqualTo(wanted)
+        assertThat(WhatsAppNumberMatcher.matches("+88001711123456", "8801711123456@s.whatsapp.net")).isTrue()
+        assertThat(WhatsAppNumberMatcher.sameNumber("+880 01711123456", "01711123456")).isTrue()
+    }
+
+    @Test
     fun `different numbers do not match`() {
         assertThat(WhatsAppNumberMatcher.matches(wanted, "8801711123457@s.whatsapp.net", "Voice call +880 1711-123457"))
             .isFalse()

@@ -53,6 +53,19 @@ class PhoneNumbersTest {
     }
 
     @Test
+    fun `a trunk zero after the country code is dropped`() {
+        assertThat(PhoneNumbers.normalize("+880 01711-123456")).isEqualTo("+8801711123456")
+        assertThat(PhoneNumbers.normalize("0088001711123456")).isEqualTo("+8801711123456")
+        assertThat(PhoneNumbers.normalize("88001711123456")).isEqualTo("+8801711123456")
+    }
+
+    @Test
+    fun `short input starting with the country code is not taken as a national number`() {
+        assertThat(PhoneNumbers.normalize("880123")).isNull()
+        assertThat(PhoneNumbers.normalize("8801234")).isNull()
+    }
+
+    @Test
     fun `isValid mirrors normalize`() {
         assertThat(PhoneNumbers.isValid("01711123456")).isTrue()
         assertThat(PhoneNumbers.isValid("hello")).isFalse()

@@ -1,5 +1,6 @@
 package dev.akibh.mycompanion.presentation
 
+import android.app.Application
 import android.content.Context
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -19,6 +20,7 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
+import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
@@ -28,16 +30,21 @@ import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
 import dagger.hilt.android.testing.UninstallModules
 import dev.akibh.mycompanion.MainActivity
+import dev.akibh.mycompanion.core.host.HostService
+import dev.akibh.mycompanion.core.settings.Feature
 import dev.akibh.mycompanion.di.PlaybackModule
 import dev.akibh.mycompanion.domain.port.Playback
 import dev.akibh.mycompanion.fakes.FakePlayback
 import dev.akibh.mycompanion.presentation.onboarding.FirstRun
+import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 import org.junit.runner.RunWith
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowLooper
 
 /** Smoke test: the real app (Hilt graph, Room, both tabs) starts and navigates. */
 @OptIn(ExperimentalTestApi::class)
@@ -135,5 +142,32 @@ class MainActivityTest {
         assertThat(restored).isWithin(1f).of(expanded)
         compose.onNodeWithContentDescription("People").performClick()
         compose.waitUntilAtLeastOneExists(hasText("No one here yet"), timeoutMillis = 10_000)
+    }
+
+    @Test
+    fun `coming back to the app retries starting the background service`() {
+        compose.waitUntilAtLeastOneExists(hasText("Active"), timeoutMillis = 10_000)
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        val started = mutableListOf<String?>()
+        fun collectStarted() {
+            while (true) started += (shadowOf(app).nextStartedService ?: return).component?.className
+        }
+        collectStarted()
+        started.clear()
+        // Turned on while the app was in the background, where a start can be refused.
+        runBlocking { compose.activity.settingsStore.setEnabled(Feature.VOICE_MODE, true) }
+        collectStarted()
+        assertThat(started).doesNotContain(HostService::class.java.name)
+
+        compose.activityRule.scenario.moveToState(Lifecycle.State.STARTED)
+        compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+
+        // onResume reads the settings off the main thread and then starts the service back on it, so
+        // let the paused main looper run queued work on each check, or it depends on CI timing.
+        compose.waitUntil(timeoutMillis = 10_000) {
+            ShadowLooper.idleMainLooper()
+            collectStarted()
+            HostService::class.java.name in started
+        }
     }
 }

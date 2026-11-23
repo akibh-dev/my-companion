@@ -15,17 +15,23 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.AndroidEntryPoint
+import dev.akibh.mycompanion.core.host.ServiceHost
 import dev.akibh.mycompanion.core.permissions.Requirement
+import dev.akibh.mycompanion.core.settings.SettingsStore
+import dev.akibh.mycompanion.di.PolishModule
 import dev.akibh.mycompanion.domain.usecase.CleanUpRemindersUseCase
 import dev.akibh.mycompanion.presentation.home.HomeLink
+import dev.akibh.mycompanion.presentation.home.LIBRARY_ROUTE
 import dev.akibh.mycompanion.presentation.home.PERMISSIONS_ROUTE
 import dev.akibh.mycompanion.presentation.onboarding.FirstRun
 import dev.akibh.mycompanion.presentation.onboarding.FirstRunGuide
 import dev.akibh.mycompanion.presentation.shortcuts.RefreshHomeShortcuts
+import dev.akibh.mycompanion.quran.domain.QuranReminder
 import dev.akibh.mycompanion.ui.theme.CompanionTheme
 import java.time.Duration
 import java.time.Instant
 import javax.inject.Inject
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /** Hosts the Compose screens and handles navigation intents. */
@@ -35,6 +41,10 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var refreshHomeShortcuts: RefreshHomeShortcuts
 
     @Inject lateinit var cleanUpReminders: CleanUpRemindersUseCase
+
+    @Inject lateinit var serviceHost: ServiceHost
+
+    @Inject lateinit var settingsStore: SettingsStore
 
     @Inject lateinit var requirements: Set<@JvmSuppressWildcards Requirement>
 
@@ -123,6 +133,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // A start from the background may have been refused (e.g. a settings change while the app
+        // was closed); the app being in front is always allowed, so try again here.
+        lifecycleScope.launch { serviceHost.sync(settingsStore.settings.first()) }
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handle(intent)
@@ -134,7 +151,7 @@ class MainActivity : ComponentActivity() {
             requestedTab = tab
             requestCount++
         }
-        intent?.getStringExtra(EXTRA_ROUTE)?.let(::openRoute)
+        intent?.getStringExtra(EXTRA_ROUTE)?.takeIf(::isOpenableRoute)?.let(::openRoute)
     }
 
     private fun openRoute(route: String) {
@@ -158,6 +175,15 @@ class MainActivity : ComponentActivity() {
 
         /** A screen route to open over Home, e.g. "export" (see AppNavigation's Screen routes). */
         const val EXTRA_ROUTE = "route"
+
+        /**
+         * The routes an intent may open: the ones the app's own widgets, tile and reminder notifications
+         * send. The activity is exported (it's the launcher entry), so any app could otherwise deep-link
+         * into any screen, including ones with arguments.
+         */
+        val INTENT_ROUTES = setOf(QuranReminder.ROUTE, LIBRARY_ROUTE, PolishModule.EXPORT_ROUTE, PERMISSIONS_ROUTE)
+
+        fun isOpenableRoute(route: String): Boolean = route in INTENT_ROUTES
 
         fun openPlayerIntent(context: Context): Intent = openTabIntent(context, Tab.PLAYER)
 

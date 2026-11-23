@@ -10,6 +10,7 @@ import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.ResolvingDataSource
 import dev.akibh.mycompanion.data.youtube.CachingStreamResolver
 import dev.akibh.mycompanion.domain.model.Video
+import dev.akibh.mycompanion.domain.youtube.YouTubeLinks
 
 /**
  * Queue items carry a `ytaudio:<videoId>` URI. The real (expiring) stream URL is only looked up
@@ -51,9 +52,26 @@ object MediaItems {
     /**
      * Media3 strips URIs from items a controller sends to the session (so other apps can't make
      * the service load arbitrary URLs). Rebuild them from the media id.
+     *
+     * Whatever is queued ends up in the listening history, so only real video ids get through and
+     * artwork is kept only when it points at YouTube's thumbnail server.
      */
     fun withPlayableUris(items: List<MediaItem>): List<MediaItem> =
-        items.map { item -> item.buildUpon().setUri(uriFor(item.mediaId)).build() }
+        items.filter { YouTubeLinks.isVideoId(it.mediaId) }.map { item ->
+            item.buildUpon()
+                .setUri(uriFor(item.mediaId))
+                .apply {
+                    if (!isAllowedArtwork(item.mediaMetadata.artworkUri)) {
+                        setMediaMetadata(item.mediaMetadata.buildUpon().setArtworkUri(null).build())
+                    }
+                }
+                .build()
+        }
+
+    /** YouTube thumbnails come from `i.ytimg.com`; anything else (another host, `content:`, `file:`) is dropped. */
+    fun isAllowedArtwork(uri: Uri?): Boolean = uri == null || uri.toString().startsWith(ARTWORK_PREFIX)
+
+    private const val ARTWORK_PREFIX = "https://i.ytimg.com/"
 }
 
 /** Swaps `ytaudio:<id>` for the current googlevideo URL, on ExoPlayer's loading thread. */

@@ -10,6 +10,7 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.NotificationListenerService.Ranking
 import android.service.notification.StatusBarNotification
 import androidx.core.app.NotificationCompat
+import androidx.core.app.Person
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.akibh.mycompanion.core.log.AppLog
@@ -137,7 +138,12 @@ object NotificationExtractor {
             conversationTitle = style?.conversationTitle?.toString(),
             isGroupConversation = style?.isGroupConversation ?: false,
             messageTimes = style?.messages.orEmpty().map { it.timestamp },
-            messages = style?.messages.orEmpty().map { it.person?.name?.toString() to it.text?.toString().orEmpty() },
+            // A message by the phone's own user (some apps re-post your reply under a named "You") has
+            // no sender, so it reads as your own and is never answered or read out.
+            messages = style?.messages.orEmpty().map { message ->
+                message.person?.takeUnless { isUser(it, style?.user) }?.name?.toString() to
+                    message.text?.toString().orEmpty()
+            },
             isGroupSummary = notification.flags and Notification.FLAG_GROUP_SUMMARY != 0,
             isOngoing = notification.flags and Notification.FLAG_ONGOING_EVENT != 0,
             category = notification.category,
@@ -148,6 +154,12 @@ object NotificationExtractor {
                 extras.getString(Notification.EXTRA_TEMPLATE).orEmpty().endsWith("MediaStyle"),
             isSilent = isSilent,
         )
+    }
+
+    private fun isUser(person: Person, user: Person?): Boolean = when {
+        user == null -> false
+        person.key != null || user.key != null -> person.key == user.key
+        else -> person.name?.toString() == user.name?.toString()
     }
 
     /** The action that takes a typed reply: has a free-form RemoteInput, preferably marked "reply". */
@@ -164,20 +176,24 @@ object NotificationExtractor {
 /** Sends replies through the chat app's own notification reply action (FR-1.2). */
 @Singleton
 class ReplySender @Inject constructor(@ApplicationContext private val context: Context, private val log: AppLog) {
-    private val actions = java.util.concurrent.ConcurrentHashMap<String, Notification.Action>()
+    /** Oldest first, so the oldest is dropped when there are too many. Guarded by `this`. */
+    private val actions = LinkedHashMap<String, Notification.Action>()
 
+    @Synchronized
     fun remember(key: String, action: Notification.Action) {
+        actions.remove(key) // an updated notification counts as the newest
         actions[key] = action
-        if (actions.size > MAX_REMEMBERED) actions.keys.take(actions.size - MAX_REMEMBERED).forEach(actions::remove)
+        while (actions.size > MAX_REMEMBERED) actions.remove(actions.keys.first())
     }
 
+    @Synchronized
     fun forget(key: String) {
         actions.remove(key)
     }
 
     /** False when the notification is gone or the app refused the reply. */
     fun reply(messageKey: String, text: String): Boolean {
-        val action = actions[messageKey] ?: return false
+        val action = synchronized(this) { actions[messageKey] } ?: return false
         val inputs = action.remoteInputs.orEmpty()
         val results = Bundle().apply { inputs.forEach { putCharSequence(it.resultKey, text) } }
         val intent = Intent().addFlags(Intent.FLAG_RECEIVER_FOREGROUND)

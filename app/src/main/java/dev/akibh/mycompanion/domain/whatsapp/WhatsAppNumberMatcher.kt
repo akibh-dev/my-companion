@@ -17,6 +17,8 @@ object WhatsAppNumberMatcher {
             bangladeshLocal.matches(compact) -> "880" + compact.drop(1)
             bangladeshNational.matches(compact) -> "880$compact"
             else -> compact
+        }.let { // "+880 01711…": the local trunk 0 written after the country code.
+            if (it.startsWith("8800")) "880" + it.drop(4) else it
         }
         return digits.takeIf { it.length in 8..15 && !it.startsWith('0') }
     }

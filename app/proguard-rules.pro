@@ -1,55 +1,26 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
+# R8 rules for the release build (minify + resource shrinking; Docs/23-release-1.0-plan.md).
 #
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# AndroidX, Compose, Hilt, Room, Media3, OkHttp, coroutines and Readium ship their own consumer rules,
+# so only libraries that load classes by name (JNI, reflection, scripting) need rules here. The app's
+# own JSON uses org.json, which is part of Android, so nothing of ours is reflected on.
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Readable stack traces in the app's log and crash reports.
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# ONNX Runtime (voice transliteration): the native library creates and calls these Java classes by name.
+-keep class ai.onnxruntime.** { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# NewPipeExtractor (YouTube player): Rhino runs YouTube's player JavaScript and reflects on its own
+# classes; the "time ago" parsers are looked up by name per language.
+-keep class org.mozilla.javascript.** { *; }
+-keep class org.mozilla.classfile.ClassFileWriter
+-keep class org.schabi.newpipe.extractor.timeago.patterns.** { *; }
+-keep class org.schabi.newpipe.extractor.services.youtube.** { *; }
+-dontwarn org.mozilla.javascript.**
+-dontwarn java.beans.**
+-dontwarn javax.script.**
+-dontwarn jdk.dynalink.**
 
-# Hilt
--keep class dagger.hilt.** { *; }
--keep class * extends dagger.hilt.android.HiltAndroidApp { *; }
-
-# Room
--keep class * extends androidx.room.RoomDatabase { *; }
--keep @androidx.room.Entity class * { *; }
--keep @androidx.room.Dao interface * { *; }
-
-# Moshi
--keep class com.squareup.moshi.** { *; }
--keep @com.squareup.moshi.JsonClass class * { *; }
-
-# Retrofit
--keep class retrofit2.** { *; }
--keep class * implements retrofit2.Call { *; }
--keep class * implements retrofit2.Callback { *; }
-
-# OkHttp
--keep class okhttp3.** { *; }
--keep class okio.** { *; }
-
-# Coroutines
--keep class kotlinx.coroutines.** { *; }
-
-# Media3
--keep class androidx.media3.** { *; }
-
-# Compose
--keep class androidx.compose.** { *; }
-
-# KSP generated
--keep class dev.akibh.mycompanion.** { *; }
+# PDF pages (library reader): PdfiumCore's native code calls back into these classes.
+-keep class com.shockwave.pdfium.** { *; }
