@@ -1,6 +1,7 @@
 package dev.akibh.mycompanion.core.log
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -27,7 +28,8 @@ class AppLog(private val dir: File, private val mirrorToLogcat: Boolean) {
 
     @Inject constructor(@ApplicationContext context: Context) : this(
         File(context.filesDir, "logs"),
-        mirrorToLogcat = true
+        // Logcat only in debug builds: a release build keeps its log in the app alone.
+        mirrorToLogcat = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0,
     )
 
     private val writer = Executors.newSingleThreadExecutor { runnable ->

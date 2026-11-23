@@ -121,3 +121,13 @@ Each step on its own branch and PR, each bug with a regression test.
 4. **Performance wins** — StreamInfo cache, ExoPlayer disk cache, then voice model loading.
 5. **Release hardening** — real signing key, R8, schema export, release in CI. Needs one reinstall on the phone (export data first).
 6. **Baseline profile** — [Plan 18](18-baseline-profile-plan.md), last as planned.
+
+### Section 5 progress (2026-11-23, branch `build/release-hardening`)
+
+- Done: R8 minify + resource shrinking with lean keep rules (ONNX Runtime, NewPipe/Rhino, Pdfium; the
+  old Moshi/Retrofit/keep-everything rules are gone); release keystore outside the repo, read from
+  `~/.gradle/gradle.properties` (debug key fallback for CI, or `-PMYCOMPANION_RELEASE_STORE_FILE=` to
+  try a release build over a debug install); Room schema export on for all databases, schemas
+  committed; CI builds `lintRelease assembleRelease`; `AppLog` mirrors to logcat only in debuggable
+  builds.
+- Not done: StrictMode/LeakCanary in debug, kapt → KSP, the extra tests and the runbook, the cleanup.
