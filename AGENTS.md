@@ -81,8 +81,8 @@ This project is also a learning vehicle. Document decisions in `Docs/`:
 - Plans and reports are numbered (`Docs/NN-*.md`); release notes in `Docs/releases/`
 
 ## Current Work
-- **Plan 19** (`Docs/19-audit-and-hardening-plan.md`): audit done, fixes not started. Order:
-  correctness → crash visibility → player access control → performance → release hardening.
+- **Plan 19** (`Docs/19-audit-and-hardening-plan.md`): audit done, correctness (section 1) fixed. Next:
+  crash visibility → player access control → performance → release hardening.
 - **Plan 18** (`Docs/18-baseline-profile-plan.md`): baseline profile, last.
 
 ## Commands
