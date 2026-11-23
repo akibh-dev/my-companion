@@ -63,6 +63,20 @@ Suspected (not confirmed):
 - `ServiceHost.sync()` discards `startForegroundService` failures (`ForegroundServiceStartNotAllowedException` on background starts).
   **Fix:** log it, retry from `MainActivity.onResume`.
 
+**Done (branch `fix/crash-visibility`):**
+
+- `CrashLogger` (core) is installed first thing in `CompanionApp.onCreate`: writes `E Crash: crashed on <thread> at <top frames>`,
+  waits up to 1 s for the log to reach the disk, then hands the crash to the previous handler (the process still dies as before).
+- The app scope has a `CoroutineExceptionHandler` that logs `E AppScope: background job failed`. A failing job no longer
+  ends the process; it is logged and the other jobs carry on.
+- `RestoreRemindersUseCase` tries the clean-up and each reminder on its own and returns the failures;
+  `DefaultReminderEvents` logs each as `E Reminders: couldn't restore reminder N`. Cancellation is rethrown.
+- `NewPipeYouTube.info()` maps `RuntimeException` to `YouTubeException` too (cancellation passes through) and logs every
+  extractor failure as `W YouTube: couldn't read <videoId>`. The extractor call is injectable for tests.
+- `ServiceHost.sync()` logs a refused start (`W ServiceHost`), and `MainActivity.onResume` calls it again.
+- Tests: `CrashLoggerTest`, `AppScopeTest`, `ReminderUseCasesTest` (one bad reminder, cancellation), `NewPipeYouTubeTest`,
+  `ServiceHostTest` (refused start), `MainActivityTest` (retry on resume).
+
 ## 3. Security
 
 No high-severity issue. `CallActivity` is safe: `CallToken` is a 32-byte `SecureRandom` secret
