@@ -50,16 +50,26 @@ interface HostedComponent {
 class ServiceHost @Inject constructor(
     @ApplicationContext private val context: Context,
     private val components: Set<@JvmSuppressWildcards HostedComponent>,
+    private val log: AppLog,
 ) {
     private val mutableRunning = MutableStateFlow(false)
     val running: StateFlow<Boolean> = mutableRunning.asStateFlow()
 
     fun isNeeded(settings: Settings): Boolean = components.any { it.isWanted(settings) }
 
-    /** Call when settings change or after boot. Starting from the background is allowed after boot. */
+    /**
+     * Call when settings change, after boot, and when the app comes to the front. Android refuses a
+     * foreground-service start from the background (ForegroundServiceStartNotAllowedException) except
+     * after boot and a few other moments; that is logged, and the next call from the app's own screen
+     * (MainActivity.onResume) starts it.
+     */
     fun sync(settings: Settings) {
         if (isNeeded(settings) && !running.value) {
-            runCatching { ContextCompat.startForegroundService(context, Intent(context, HostService::class.java)) }
+            try {
+                ContextCompat.startForegroundService(context, Intent(context, HostService::class.java))
+            } catch (e: RuntimeException) {
+                log.w(TAG, "couldn't start the background service; will retry when the app opens", e)
+            }
         }
     }
 
@@ -67,6 +77,10 @@ class ServiceHost @Inject constructor(
 
     internal fun setRunning(value: Boolean) {
         mutableRunning.value = value
+    }
+
+    private companion object {
+        const val TAG = "ServiceHost"
     }
 }
 
