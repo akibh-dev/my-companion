@@ -217,7 +217,7 @@ object CallMessages {
             "Opened the WhatsApp chat. " +
                 "Direct calling needs a matching WhatsApp phone-contact action."
         CallResult.WhatsAppNotInstalled -> "WhatsApp isn't installed"
-        CallResult.ContactNotFound -> "This person was removed from My Companion"
+        CallResult.ContactNotFound -> "This person was removed from Buddy"
         is CallResult.ChooseVariant -> "Choose WhatsApp or WhatsApp Business for this attempt."
         is CallResult.ChatFallback -> "Opened ${result.variant.title} chat instead. " + forFailure(result.reason)
         is CallResult.Failed -> forFailure(result.reason)

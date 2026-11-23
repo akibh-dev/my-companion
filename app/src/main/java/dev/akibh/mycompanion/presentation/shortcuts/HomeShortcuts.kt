@@ -81,7 +81,7 @@ class AndroidHomeShortcuts @Inject constructor(
 
     companion object {
         private const val MAX_LABEL = 10
-        const val REMOVED = "This person was removed from My Companion"
+        const val REMOVED = "This person was removed from Buddy"
 
         fun shortcutId(contactId: Long) = "call-$contactId"
     }

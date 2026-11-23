@@ -116,7 +116,7 @@ class AndroidReminderNotifier @Inject constructor(
 
         fun ensureChannel(context: Context) {
             val channel = NotificationChannel(CHANNEL_ID, "Reminders", NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "Custom notifications you create in My Companion"
+                description = "Custom notifications you create in Buddy"
             }
             context.getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
         }

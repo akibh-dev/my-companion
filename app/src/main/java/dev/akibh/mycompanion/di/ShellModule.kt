@@ -55,7 +55,7 @@ abstract class ShellModule {
                 ).isIgnoringBatteryOptimizations(it.packageName)
             },
             settingsIntent = { Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS) },
-            steps = listOf("Find My Companion in the list", "Choose \"Don't optimise\" (or \"Unrestricted\")"),
+            steps = listOf("Find Buddy in the list", "Choose \"Don't optimise\" (or \"Unrestricted\")"),
         )
     }
 }

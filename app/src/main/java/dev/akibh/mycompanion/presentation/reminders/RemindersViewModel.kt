@@ -320,7 +320,7 @@ class RemindersViewModel @Inject constructor(
                     mutableSavedCount.value++
                     "Notification sent" + then(result.reminder.repeat)
                 }
-                ScheduleResult.NotificationsBlocked -> "Notifications are turned off for My Companion"
+                ScheduleResult.NotificationsBlocked -> "Notifications are turned off for Buddy"
                 ScheduleResult.EmptyContent -> "Add a title or a message"
                 ScheduleResult.InvalidTime -> "Pick a valid time"
             }

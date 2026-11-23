@@ -97,7 +97,7 @@ class CallActivity : ComponentActivity() {
         const val EXTRA_CONTACT_ID = "contact_id"
         const val EXTRA_NOTIFICATION_ID = "notification_id"
         const val EXTRA_TOKEN = "token"
-        const val OUTDATED_SHORTCUT = "This shortcut is out of date. Add it again from My Companion."
+        const val OUTDATED_SHORTCUT = "This shortcut is out of date. Add it again from Buddy."
         private const val CONSUMED = "handoff_consumed"
         private const val NO_ID = -1L
         private const val NO_NOTIFICATION = Int.MIN_VALUE

@@ -160,7 +160,7 @@ class HostService : Service() {
         }
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_buddy)
-            .setContentTitle("My Companion is running")
+            .setContentTitle("Buddy is running")
             .setContentText("Context rules and voice mode work in the background")
             .setOngoing(true)
             .setContentIntent(open)

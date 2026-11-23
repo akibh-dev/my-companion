@@ -54,7 +54,7 @@ internal fun LazyListScope.historyItems(
     item {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                "Played in My Companion · stored on this phone",
+                "Played in Buddy · stored on this phone",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f).padding(start = 4.dp),

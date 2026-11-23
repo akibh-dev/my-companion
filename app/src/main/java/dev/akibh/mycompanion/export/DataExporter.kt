@@ -57,7 +57,7 @@ class DataExporter @Inject constructor(
         private const val INDENT = 2
 
         val README = """
-            My Companion — your data
+            Buddy — your data
             ========================
 
             Plain JSON files, one per area: people, reminders (upcoming), playlists, context rules,

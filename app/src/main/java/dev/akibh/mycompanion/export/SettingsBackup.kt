@@ -60,7 +60,7 @@ class SettingsBackup @Inject constructor(
         /** Reads a picked file as text, refusing anything over [MAX_BACKUP_BYTES] without reading it all. */
         fun read(input: InputStream): String {
             val bytes = input.readNBytes(MAX_BACKUP_BYTES + 1)
-            require(bytes.size <= MAX_BACKUP_BYTES) { "That file is too big to be a My Companion settings backup" }
+            require(bytes.size <= MAX_BACKUP_BYTES) { "That file is too big to be a Buddy settings backup" }
             return bytes.toString(Charsets.UTF_8)
         }
     }

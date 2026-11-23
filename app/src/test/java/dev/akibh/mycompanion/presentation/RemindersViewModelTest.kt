@@ -194,7 +194,7 @@ class RemindersViewModelTest {
             viewModel.title.setTextAndPlaceCursorAtEnd("Hi")
             viewModel.onSubmit()
             assertThat(awaitItem())
-                .isEqualTo(RemindersEvent.Message("Notifications are turned off for My Companion"))
+                .isEqualTo(RemindersEvent.Message("Notifications are turned off for Buddy"))
         }
         assertThat(viewModel.title.text.toString()).isEqualTo("Hi")
     }

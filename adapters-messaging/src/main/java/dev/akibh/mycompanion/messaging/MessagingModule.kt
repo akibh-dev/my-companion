@@ -33,7 +33,7 @@ abstract class MessagingModule {
             settingsIntent = { Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS) },
             steps = listOf(
                 "If it's greyed out: open App info → ⋮ (top right) → \"Allow restricted settings\", then come back",
-                "Switch on My Companion",
+                "Switch on Buddy",
             ),
         )
     }

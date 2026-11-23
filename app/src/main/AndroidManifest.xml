@@ -77,7 +77,7 @@
             android:name=".presentation.share.ShareActivity"
             android:excludeFromRecents="true"
             android:exported="true"
-            android:label="Play in My Companion"
+            android:label="Play in Buddy"
             android:taskAffinity=""
             android:theme="@style/Theme.MyCompanion.Invisible"
             android:windowSoftInputMode="adjustResize">
@@ -114,7 +114,7 @@
             android:name=".system.PauseTileService"
             android:exported="true"
             android:icon="@drawable/ic_pause_tile"
-            android:label="Pause My Companion"
+            android:label="Pause Buddy"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
