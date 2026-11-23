@@ -523,13 +523,14 @@ private fun UpcomingRow(reminder: UpcomingReminder, next: Boolean, onTogglePause
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            if (reminder.paused || reminder.repeatText != null || reminder.contactName != null) {
+            if (reminder.paused || reminder.missed || reminder.repeatText != null || reminder.contactName != null) {
                 FlowRow(
                     Modifier.padding(top = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     if (reminder.paused) InfoPill(painterResource(R.drawable.ic_pause), "Paused", content)
+                    if (reminder.missed) InfoPill(painterResource(R.drawable.ic_reminder), "Missed", CompanionRed)
                     reminder.repeatText?.let { InfoPill(painterResource(R.drawable.ic_repeat), it, content) }
                     reminder.contactName?.let {
                         InfoPill(

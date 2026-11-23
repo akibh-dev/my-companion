@@ -50,4 +50,7 @@ interface ReminderDao {
 
     @Query("DELETE FROM reminders WHERE delivered = 1 AND trigger_at < :before")
     suspend fun deleteDeliveredBefore(before: Long)
+
+    @Query("SELECT COUNT(*) FROM reminders WHERE missed = 1")
+    fun observeMissedCount(): Flow<Int>
 }

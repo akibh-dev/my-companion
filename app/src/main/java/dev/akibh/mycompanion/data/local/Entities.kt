@@ -10,6 +10,9 @@ import dev.akibh.mycompanion.domain.model.Contact
 import dev.akibh.mycompanion.domain.model.Reminder
 import dev.akibh.mycompanion.domain.model.ReminderSound
 import dev.akibh.mycompanion.domain.model.Repeat
+import java.time.Instant
+import java.time.LocalTime
+import java.time.ZoneId
 
 @Entity(tableName = "contacts", indices = [Index(value = ["phone"], unique = true)])
 data class ContactEntity(
@@ -36,6 +39,9 @@ data class ReminderEntity(
     @ColumnInfo(defaultValue = "'DEFAULT'") val sound: String = "DEFAULT",
     @ColumnInfo(defaultValue = "0") val paused: Boolean = false,
     val link: String? = null,
+    /** ISO local time ("09:00") a daily/weekly/monthly reminder fires at; null for the others. */
+    @ColumnInfo(name = "local_time") val localTime: String? = null,
+    @ColumnInfo(defaultValue = "0") val missed: Boolean = false,
 ) {
     fun toDomain() = Reminder(
         id = id,
@@ -48,6 +54,8 @@ data class ReminderEntity(
         sound = ReminderSound.decode(sound),
         paused = paused,
         link = link,
+        localTime = localTime?.let { runCatching { LocalTime.parse(it) }.getOrNull() },
+        missed = missed,
     )
 
     companion object {
@@ -62,6 +70,8 @@ data class ReminderEntity(
             sound = reminder.sound.encode(),
             paused = reminder.paused,
             link = reminder.link,
+            localTime = reminder.localTime?.toString(),
+            missed = reminder.missed,
         )
     }
 }
@@ -77,5 +87,34 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
 val MIGRATION_5_6 = object : Migration(5, 6) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE reminders ADD COLUMN link TEXT")
+    }
+}
+
+/**
+ * Version 7 stores the wanted clock time of daily, weekly and monthly reminders, so a timezone or
+ * daylight-saving change can't shift them. Existing ones take it from their next trigger, read in
+ * the zone the phone is in now (the one they were set in).
+ */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE reminders ADD COLUMN local_time TEXT")
+        val zone = ZoneId.systemDefault()
+        db.query("SELECT id, trigger_at, repeat FROM reminders").use { rows ->
+            while (rows.moveToNext()) {
+                if (!Repeat.decode(rows.getString(2)).keepsClockTime) continue
+                val time = LocalTime.ofInstant(Instant.ofEpochMilli(rows.getLong(1)), zone)
+                db.execSQL(
+                    "UPDATE reminders SET local_time = ? WHERE id = ?",
+                    arrayOf(time.toString(), rows.getLong(0))
+                )
+            }
+        }
+    }
+}
+
+/** Version 8 flags reminders whose notification couldn't be shown, for the "missed" count on Home. */
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE reminders ADD COLUMN missed INTEGER NOT NULL DEFAULT 0")
     }
 }

@@ -96,6 +96,18 @@ class ServiceHostTest {
     }
 
     @Test
+    fun `sync starts it again once the running service has decided to stop`() {
+        host.setRunning(true)
+        // Everything was paused: the service marks itself not running before it stops.
+        host.setRunning(false)
+
+        // Resumed before the old instance is gone.
+        host.sync(Settings(enabled = setOf(Feature.CONTEXT_RULES)))
+
+        assertThat(shadowOf(app).nextStartedService?.component?.className).isEqualTo(HostService::class.java.name)
+    }
+
+    @Test
     fun `not running until the service says so`() {
         assertThat(host.running.value).isFalse()
         host.setRunning(true)

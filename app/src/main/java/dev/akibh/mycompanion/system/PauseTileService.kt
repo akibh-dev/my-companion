@@ -11,7 +11,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /** Quick Settings tile: one tap pauses every automatic action, another resumes (FR-1.6, FR-3.6, NFR-4). */
@@ -35,8 +34,7 @@ class PauseTileService : TileService() {
 
     override fun onClick() {
         scope.launch {
-            val paused = !settingsStore.settings.first().paused
-            settingsStore.setPaused(paused)
+            val paused = settingsStore.togglePaused()
             log.i("PauseTile", if (paused) "paused" else "resumed")
         }
     }

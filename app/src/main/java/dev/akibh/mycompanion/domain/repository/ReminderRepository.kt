@@ -18,4 +18,7 @@ interface ReminderRepository {
 
     /** Removes delivered one-off reminders that fired before [beforeMillis]. */
     suspend fun deleteDeliveredBefore(beforeMillis: Long)
+
+    /** How many reminders came due while their notification couldn't be shown. */
+    fun observeMissedCount(): Flow<Int>
 }

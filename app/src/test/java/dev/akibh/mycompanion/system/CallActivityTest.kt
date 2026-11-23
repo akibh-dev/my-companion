@@ -12,6 +12,7 @@ import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
 import dagger.hilt.android.testing.UninstallModules
+import dev.akibh.mycompanion.data.notification.AndroidReminderNotifier
 import dev.akibh.mycompanion.di.ApplicationScope
 import dev.akibh.mycompanion.di.CoroutinesModule
 import dev.akibh.mycompanion.di.IoDispatcher
@@ -95,11 +96,11 @@ class CallActivityTest {
             .setSmallIcon(android.R.drawable.ic_popup_reminder)
             .setContentTitle("Call Mum")
             .build()
-        manager.notify(9, notification)
+        manager.notify(AndroidReminderNotifier.TAG, 9, notification)
 
         launch(CallActivity.intent(app, 5L, notificationId = 9))
 
-        assertThat(shadowOf(manager).getNotification(9)).isNull()
+        assertThat(shadowOf(manager).getNotification(AndroidReminderNotifier.TAG, 9)).isNull()
     }
 
     @Test

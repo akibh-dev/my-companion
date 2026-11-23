@@ -220,4 +220,18 @@ class AutoReplyDeciderTest {
         assertThat(CallStates.next(null, ringing)).isEqualTo(ringing to false)
         assertThat(CallStates.next(idle, idle)).isEqualTo(idle to false)
     }
+
+    @Test
+    fun `only the call that just ended is texted back, and only when it was missed`() {
+        val rejected = 5
+        val incoming = 1
+        val missed = CallStates.MISSED_TYPE
+
+        assertThat(CallStates.missedNumber(listOf(missed to "+8801711000001"))).isEqualTo("+8801711000001")
+        // Declined just now, with an earlier missed call still in the window: nobody is texted.
+        assertThat(CallStates.missedNumber(listOf(rejected to "+8801711000002", missed to "+8801711000001"))).isNull()
+        assertThat(CallStates.missedNumber(listOf(incoming to "+8801711000002", missed to "+8801711000001"))).isNull()
+        assertThat(CallStates.missedNumber(listOf(missed to ""))).isNull()
+        assertThat(CallStates.missedNumber(emptyList())).isNull()
+    }
 }

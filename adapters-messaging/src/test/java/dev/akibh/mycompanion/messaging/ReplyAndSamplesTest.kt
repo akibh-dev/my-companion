@@ -193,4 +193,19 @@ class ReplyAndSamplesTest {
         assertThat(requirement.settingsIntent(app).action).isEqualTo(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
         assertThat(requirement.steps.joinToString()).contains("Allow restricted settings")
     }
+
+    @Test
+    fun `with too many replies remembered, the oldest is dropped first`() {
+        val reply = action("Reply", reply = true)
+        (0..100).forEach { sender.remember("chat-$it", reply) }
+        assertThat(sender.reply("chat-0", "hi")).isFalse()
+        assertThat(sender.reply("chat-1", "hi")).isTrue()
+
+        // Chat 1 posts again, so it is now the newest; the next one pushes out chat 2 instead.
+        sender.remember("chat-1", reply)
+        sender.remember("chat-101", reply)
+        assertThat(sender.reply("chat-1", "hi")).isTrue()
+        assertThat(sender.reply("chat-2", "hi")).isFalse()
+        assertThat(sender.reply("chat-101", "hi")).isTrue()
+    }
 }

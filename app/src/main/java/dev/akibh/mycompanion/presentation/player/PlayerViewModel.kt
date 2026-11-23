@@ -1,5 +1,6 @@
 package dev.akibh.mycompanion.presentation.player
 
+import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -16,6 +17,7 @@ import dev.akibh.mycompanion.domain.usecase.PlaylistNameResult
 import dev.akibh.mycompanion.domain.usecase.RenamePlaylistUseCase
 import dev.akibh.mycompanion.domain.usecase.SaveQueueAsPlaylistUseCase
 import javax.inject.Inject
+import kotlin.random.Random
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -56,6 +58,10 @@ class PlayerViewModel @Inject constructor(
     private val saveQueueAsPlaylist: SaveQueueAsPlaylistUseCase,
     private val history: PlaybackHistoryRepository = NoPlaybackHistory,
 ) : ViewModel() {
+
+    /** Picks where a shuffled playlist starts; tests swap in a seeded one. */
+    @VisibleForTesting
+    internal var random: Random = Random.Default
 
     private val section = MutableStateFlow(PlayerSection.QUEUE)
     private val openPlaylistId = MutableStateFlow<Long?>(null)
@@ -130,7 +136,9 @@ class PlayerViewModel @Inject constructor(
                 message("This playlist is empty. Share a video to it from YouTube.")
                 return@launch
             }
-            playback.playNow(items.map { it.video }, startIndex, shuffle)
+            // The player shuffles the items after the start one, so "Shuffle" picks a random start.
+            val start = if (shuffle) random.nextInt(items.size) else startIndex
+            playback.playNow(items.map { it.video }, start, shuffle)
             section.value = PlayerSection.QUEUE
             openPlaylistId.value = null
         }

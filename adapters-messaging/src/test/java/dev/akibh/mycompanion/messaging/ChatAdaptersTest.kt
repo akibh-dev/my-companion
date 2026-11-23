@@ -131,4 +131,26 @@ class ChatAdaptersTest {
         assertThat(parts.hasReplyAction).isTrue()
         assertThat(ChatAdapter.ALL.getValue(ChatApp.WHATSAPP).parse(parts)!!.canReply).isTrue()
     }
+
+    @Test
+    fun `your own reply re-posted under your name is not a new message`() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val me = Person.Builder().setName("You").build()
+        val style = NotificationCompat.MessagingStyle(me)
+            .addMessage("Are you free?", 1_000, Person.Builder().setName("Karim").build())
+            .addMessage("I'm driving, will call back", 2_000, me)
+        val notification: Notification = NotificationCompat.Builder(context, "chats")
+            .setSmallIcon(android.R.drawable.sym_action_chat)
+            .setStyle(style)
+            .build()
+        val sbn = StatusBarNotification(
+            ChatApp.WHATSAPP.packageName, ChatApp.WHATSAPP.packageName, 7, "tag", 0, 0, 0, notification,
+            Process.myUserHandle(), 2_000,
+        )
+
+        val parts = NotificationExtractor.parts(sbn)
+
+        assertThat(parts.messages.last()).isEqualTo(null to "I'm driving, will call back")
+        assertThat(ChatAdapter.ALL.getValue(ChatApp.WHATSAPP).parse(parts)).isNull()
+    }
 }

@@ -1,6 +1,7 @@
 # Plan 19: Code audit and hardening
 
-**Status:** audit done 2026-11-19, fixes not started.
+**Status:** audit done 2026-11-19. Section 1 (correctness) fixed 2026-11-23 on `fix/plan19-correctness`;
+sections 2–5 not started.
 
 A full read-through of every module (`app`, `core`, `ai-api`, `ai-models`, `adapters-messaging`,
 `feature-context`, `feature-autoreply`, `feature-voice`) for correctness, crash resilience,
@@ -19,37 +20,51 @@ costs are estimates from reading the code.
 Builds need JDK 21: Gradle 8.14 fails on JDK 25 with a bare `25.0.4.1` error. Set
 `org.gradle.java.home` in `~/.gradle/gradle.properties` to the JDK 21 Gradle already downloaded.
 
-## 1. Bugs that make the app behave wrongly (fix first)
+## 1. Bugs that make the app behave wrongly (fix first) — done
+
+Every fix below has a regression test. Two database versions came with it (v7 `local_time`,
+v8 `missed`, both migrated in place).
 
 | # | Issue | Where | Fix |
 |---|---|---|---|
-| 1 | Reminder notifications use the reminder id with no tag; the host service uses id 41 and rule prompts 3101/3102. Reminder #41 replaces the foreground notification and "Done" can't clear it. | `data/notification/AndroidReminderNotifier.kt:61`, `core/.../host/ServiceHost.kt:145` | Post with a tag: `notify("reminder", id, …)` and cancel with the same tag. |
-| 2 | Daily/weekly/monthly reminders take the clock time from the last fire time read in the *current* zone, so they drift after a timezone change or DST gap (09:00 set in Dhaka fires at 06:00 for good in UTC+3). | `domain/time/ReminderTimeCalculator.kt:63,68,77`; `ReminderUseCases.kt:214` | Store the wanted local time and rebuild from it (as the calendar repeats do); recompute all repeats on `TIMEZONE_CHANGED`. |
-| 3 | Context rules can lose the settings they took over: `collectLatest` cancels `apply()` after `device.write` but before `storage.save`, so ringer/DND are never restored. | `feature-context/.../RulesEngine.kt:132`, `:80-97` | Run `apply` under `withContext(NonCancellable)` or use `conflate().collect`. |
-| 4 | A reminder is marked delivered even when `notifier.show()` returned false (notifications denied), so it is lost silently. | `domain/usecase/ReminderUseCases.kt:132-138` | Keep it undelivered or flag it missed, log it, show a "missed reminders" badge on Home. |
-| 5 | Settings restore does 12+ separate DataStore edits in `viewModelScope`; leaving the screen stops it halfway, and `runCatching` swallows the cancellation. | `export/SettingsBackup.kt:32-38`, `export/ExportViewModel.kt:86` | Run in the app scope or `NonCancellable`, one atomic edit per store, rethrow `CancellationException`. |
-| 6 | Expired-stream retry happens once per item ever; a long video paused twice past the URL lifetime just stops. | `player/PlaybackService.kt:138-150` | Also reset `retriedMediaId` on `STATE_READY` / `onIsPlayingChanged(true)`. |
-| 7 | Playlist "Shuffle" always starts on track 1. | `presentation/player/PlayerScreen.kt:773`, `player/MediaControllerPlayback.kt:55` | Pass a random start index when shuffling. |
-| 8 | `+880 01711…` normalizes to `+88001711…` (WhatsApp/phonebook matching fails); `880123` becomes a "valid" `+880880123`. | `domain/model/PhoneNumbers.kt:31-36`, `domain/whatsapp/WhatsAppNumberMatcher.kt:62` | Strip a trunk `0` after `880`; reject short input starting with the country code. |
+| 1 | Reminder notifications use the reminder id with no tag; the host service uses id 41 and rule prompts 3101/3102. Reminder #41 replaces the foreground notification and "Done" can't clear it. | `data/notification/AndroidReminderNotifier.kt:61`, `core/.../host/ServiceHost.kt:145` | Post with a tag: `notify("reminder", id, …)` and cancel with the same tag. **Done:** posted and cancelled under the tag `reminder` (also from the Call button). |
+| 2 | Daily/weekly/monthly reminders take the clock time from the last fire time read in the *current* zone, so they drift after a timezone change or DST gap (09:00 set in Dhaka fires at 06:00 for good in UTC+3). | `domain/time/ReminderTimeCalculator.kt:63,68,77`; `ReminderUseCases.kt:214` | Store the wanted local time and rebuild from it (as the calendar repeats do); recompute all repeats on `TIMEZONE_CHANGED`. **Done:** `Reminder.localTime` (Room v7, backfilled from the next trigger); daily/weekly/monthly rebuild from it, step by local date, and are recomputed on `TIMEZONE_CHANGED`. |
+| 3 | Context rules can lose the settings they took over: `collectLatest` cancels `apply()` after `device.write` but before `storage.save`, so ringer/DND are never restored. | `feature-context/.../RulesEngine.kt:132`, `:80-97` | Run `apply` under `withContext(NonCancellable)` or use `conflate().collect`. **Done:** `apply` runs under `NonCancellable`. |
+| 4 | A reminder is marked delivered even when `notifier.show()` returned false (notifications denied), so it is lost silently. | `domain/usecase/ReminderUseCases.kt:132-138` | Keep it undelivered or flag it missed, log it, show a "missed reminders" badge on Home. **Done:** flagged `missed` (Room v8); a one-off stays undelivered so the next restore retries it, a repeat moves on. Logged, "Missed" pill in the list, count on Home. |
+| 5 | Settings restore does 12+ separate DataStore edits in `viewModelScope`; leaving the screen stops it halfway, and `runCatching` swallows the cancellation. | `export/SettingsBackup.kt:32-38`, `export/ExportViewModel.kt:86` | Run in the app scope or `NonCancellable`, one atomic edit per store, rethrow `CancellationException`. **Done:** `NonCancellable`, `SettingsStore.replace` (one edit), `CancellationException` rethrown. |
+| 6 | Expired-stream retry happens once per item ever; a long video paused twice past the URL lifetime just stops. | `player/PlaybackService.kt:138-150` | Also reset `retriedMediaId` on `STATE_READY` / `onIsPlayingChanged(true)`. **Done:** re-armed on `onIsPlayingChanged(true)`. |
+| 7 | Playlist "Shuffle" always starts on track 1. | `presentation/player/PlayerScreen.kt:773`, `player/MediaControllerPlayback.kt:55` | Pass a random start index when shuffling. **Done:** random start index in `PlayerViewModel`. |
+| 8 | `+880 01711…` normalizes to `+88001711…` (WhatsApp/phonebook matching fails); `880123` becomes a "valid" `+880880123`. | `domain/model/PhoneNumbers.kt:31-36`, `domain/whatsapp/WhatsAppNumberMatcher.kt:62` | Strip a trunk `0` after `880`; reject short input starting with the country code. **Done** in both normalizers. |
 
 Smaller ones:
 
-- Snoozing a paused reminder copies `paused = true`, so the snooze never fires (`ReminderUseCases.kt:153`).
-- Pause tile and widget read then write the flag separately; a double tap can leave it wrong
-  (`system/PauseTileService.kt:38`, `widget/QuickActionsWidget.kt:45`). Flip inside one `store.edit {}`.
+- ~~Snoozing a paused reminder copies `paused = true`, so the snooze never fires (`ReminderUseCases.kt:153`).~~
+  **Done:** the snoozed copy is a fresh, unpaused one-off.
+- ~~Pause tile and widget read then write the flag separately; a double tap can leave it wrong
+  (`system/PauseTileService.kt:38`, `widget/QuickActionsWidget.kt:45`).~~ **Done:** `SettingsStore.togglePaused` /
+  `toggleEnabled` flip inside one `store.edit {}` (the voice tile too).
 - A 00:00–00:00 "all day" rule window never matches (`feature-context/.../Rules.kt:131`).
-- `Reconciler.kt:48-50`: a key whose `read` returns null goes into `applied` but not `before`, so it's never restored.
-- `ReminderTimeCalculator.kt:49` returns null on any exception, which then deletes a repeating reminder as "delivered".
-- `MessageListener.kt:146` evicts reply actions from a `ConcurrentHashMap` in hash order, not oldest first.
-- Backup `version` is never checked (`export/ExportJson.kt:169`).
-- `ReminderTimeFormatter.kt:35` has no year, so next year's reminder reads like this year's.
+  **Skipped, not a bug:** a window with the same start and end is empty by design (`RulesEdgeCasesTest`), and the
+  rule editor won't save one. An "all day" option would be a new feature.
+- ~~`Reconciler.kt:48-50`: a key whose `read` returns null goes into `applied` but not `before`, so it's never restored.~~
+  **Done:** a setting whose old value can't be read is left alone until a run can read it; stray `applied` entries are dropped.
+- ~~`ReminderTimeCalculator.kt:49` returns null on any exception, which then deletes a repeating reminder as "delivered".~~
+  **Done:** only range errors mean "no next time", and a repeat without one stays in the list.
+- ~~`MessageListener.kt:146` evicts reply actions from a `ConcurrentHashMap` in hash order, not oldest first.~~
+  **Done:** an insertion-ordered map; a re-posted chat counts as newest.
+- ~~Backup `version` is never checked (`export/ExportJson.kt:169`).~~ **Done:** a backup from a newer version is refused.
+- ~~`ReminderTimeFormatter.kt:35` has no year, so next year's reminder reads like this year's.~~ **Done:** another year shows it.
 
-Suspected (not confirmed):
+Suspected (now confirmed by reading the code and fixed):
 
-- Auto-reply could answer its own message if a chat app re-posts it with a named "You" person (`AutoReplyConsumer.kt`, `ChatAdapters.kt:35`).
-- Missed-call SMS treats a declined call as missed and may text an earlier caller (`MissedCallReceiver.kt:118-125`).
-- `ServiceHost` race: unpausing while the service is stopping skips the restart.
-- `RemindersViewModel.onSubmit` has no in-flight guard (double tap → two reminders); no `SavedStateHandle`.
+- ~~Auto-reply could answer its own message if a chat app re-posts it with a named "You" person.~~ **Done:** a
+  MessagingStyle message whose person is the style's user has no sender, so it reads as your own.
+- ~~Missed-call SMS treats a declined call as missed and may text an earlier caller.~~ **Done:** only the newest
+  call log entry counts, and only when it is a missed call (a declined call logged as rejected is not texted).
+- ~~`ServiceHost` race: unpausing while the service is stopping skips the restart.~~ **Done:** the service marks
+  itself not running before `stopSelf(lastStartId)`, and re-enters the foreground on each start.
+- ~~`RemindersViewModel.onSubmit` has no in-flight guard (double tap → two reminders).~~ **Done:** a second tap
+  while saving is ignored. No `SavedStateHandle` yet (the form is lost on process death).
 
 ## 2. Crashes and failures that leave no trace
 
@@ -146,7 +161,7 @@ init, single OkHttp, no `GlobalScope`, `WhileSubscribed(5000)` + `collectAsState
 
 Each step on its own branch and PR, each bug with a regression test.
 
-1. **Correctness** — section 1 items 1–5, then 6–8 and the smaller ones.
+1. ~~**Correctness** — section 1 items 1–5, then 6–8 and the smaller ones.~~ Done (`fix/plan19-correctness`).
 2. **Crash visibility** — section 2.
 3. **Player access control** — `onConnect` + input validation.
 4. **Performance wins** — StreamInfo cache, ExoPlayer disk cache, then voice model loading.

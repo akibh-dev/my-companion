@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
+import dev.akibh.mycompanion.data.notification.AndroidReminderNotifier
 import dev.akibh.mycompanion.di.IoDispatcher
 import dev.akibh.mycompanion.domain.usecase.CallContactUseCase
 import dev.akibh.mycompanion.domain.usecase.CallPreparation
@@ -50,7 +51,11 @@ class CallActivity : ComponentActivity() {
         }
 
         val notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, NO_NOTIFICATION)
-        if (notificationId != NO_NOTIFICATION) NotificationManagerCompat.from(this).cancel(notificationId)
+        if (notificationId != NO_NOTIFICATION) {
+            NotificationManagerCompat.from(
+                this
+            ).cancel(AndroidReminderNotifier.TAG, notificationId)
+        }
 
         if (contactId == NO_ID) {
             finish()

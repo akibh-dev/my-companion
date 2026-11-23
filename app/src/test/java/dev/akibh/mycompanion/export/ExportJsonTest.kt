@@ -156,6 +156,18 @@ class ExportJsonTest {
     }
 
     @Test
+    fun `a backup from a newer version is refused, an older or unversioned one is read`() {
+        val current = ExportJson.settings(SettingsBundle(app = Settings(paused = true)))
+
+        val newer = JSONObject(current.toString()).put("version", ExportJson.SETTINGS_VERSION + 1).toString()
+        val error = assertThrows(IllegalArgumentException::class.java) { ExportJson.parseSettings(newer) }
+        assertThat(error.message).contains("newer version")
+
+        val unversioned = JSONObject(current.toString()).apply { remove("version") }.toString()
+        assertThat(ExportJson.parseSettings(unversioned).app.paused).isTrue()
+    }
+
+    @Test
     fun `a file that isn't a settings backup is refused`() {
         assertThrows(IllegalArgumentException::class.java) { ExportJson.parseSettings("not json") }
         assertThrows(IllegalArgumentException::class.java) { ExportJson.parseSettings("{\"area\":\"people\"}") }

@@ -8,7 +8,10 @@ import dev.akibh.mycompanion.core.settings.AiEngine
 import dev.akibh.mycompanion.core.settings.DataStoreSettingsStore
 import dev.akibh.mycompanion.core.settings.Feature
 import dev.akibh.mycompanion.core.settings.Settings
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -47,5 +50,23 @@ class DataStoreSettingsStoreTest {
         // Another instance (the next time the app starts) reads the same values.
         val again = DataStoreSettingsStore(ApplicationProvider.getApplicationContext<Context>())
         assertThat(again.settings.first().enabled).containsExactly(Feature.VOICE_MODE)
+
+        // A restored backup replaces everything at once.
+        val restored = Settings(
+            paused = true,
+            enabled = setOf(Feature.AUTO_REPLY),
+            modelEngines = setOf(AiEngine.SUMMARIZER),
+        )
+        store.replace(restored)
+        assertThat(store.settings.first()).isEqualTo(restored)
+
+        // A double tap on the pause tile or widget flips twice, never once.
+        coroutineScope {
+            repeat(2) { launch(Dispatchers.Default) { store.togglePaused() } }
+        }
+        assertThat(store.settings.first().paused).isTrue()
+        assertThat(store.togglePaused()).isFalse()
+        assertThat(store.toggleEnabled(Feature.VOICE_MODE)).isTrue()
+        assertThat(store.toggleEnabled(Feature.VOICE_MODE)).isFalse()
     }
 }

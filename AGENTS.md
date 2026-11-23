@@ -81,9 +81,9 @@ This project is also a learning vehicle. Document decisions in `Docs/`:
 - Plans and reports are numbered (`Docs/NN-*.md`); release notes in `Docs/releases/`
 
 ## Current Work
-- **Plan 23** (`Docs/23-release-1.0-plan.md`): release 1.0.0 on GitHub Releases; Plan 19 fixes are its first steps.
-- **Plan 19** (`Docs/19-audit-and-hardening-plan.md`): audit done, fixes not started. Order:
-  correctness → crash visibility → player access control → performance → release hardening.
+- **Plan 23** (`Docs/23-release-1.0-plan.md`): release 1.0.0 on GitHub Releases.
+- **Plan 19** (`Docs/19-audit-and-hardening-plan.md`): sections 1–3 fixed, section 5 mostly done;
+  next: performance (section 4) and the rest of section 5.
 - **Plan 18** (`Docs/18-baseline-profile-plan.md`): baseline profile, last.
 
 ## Commands

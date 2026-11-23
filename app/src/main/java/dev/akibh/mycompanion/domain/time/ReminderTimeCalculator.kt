@@ -2,6 +2,7 @@ package dev.akibh.mycompanion.domain.time
 
 import dev.akibh.mycompanion.domain.model.ReminderTime
 import dev.akibh.mycompanion.domain.model.Repeat
+import java.time.DateTimeException
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -40,12 +41,18 @@ class ReminderTimeCalculator @Inject constructor(private val clock: Clock) {
 
     /**
      * When a repeating reminder fires next after [previousTrigger], skipping any times missed while
-     * the phone was off. Null for a one-off.
+     * the phone was off. Null for a one-off. Daily, weekly and monthly fire at [clockTime] (the
+     * reminder's wanted local time); without one they keep the clock time of [previousTrigger].
      */
-    fun next(repeat: Repeat, previousTrigger: Long): Long? =
-        runCatching { nextChecked(repeat, previousTrigger) }.getOrNull()
+    fun next(repeat: Repeat, previousTrigger: Long, clockTime: LocalTime? = null): Long? = try {
+        nextChecked(repeat, previousTrigger, clockTime)
+    } catch (_: ArithmeticException) {
+        null // out of the representable range
+    } catch (_: DateTimeException) {
+        null
+    }
 
-    private fun nextChecked(repeat: Repeat, previousTrigger: Long): Long? {
+    private fun nextChecked(repeat: Repeat, previousTrigger: Long, clockTime: LocalTime?): Long? {
         if (repeat == Repeat.Never || !repeat.isValid()) return null
         val after = maxOf(clock.nowMillis(), previousTrigger)
         if (repeat is Repeat.Every) {
@@ -55,30 +62,30 @@ class ReminderTimeCalculator @Inject constructor(private val clock: Clock) {
         }
         if (repeat is Repeat.CalendarDays) return calendarNext(repeat.anchor, repeat.count, after, months = false)
         if (repeat is Repeat.CalendarMonths) return calendarNext(repeat.anchor, repeat.count, after, months = true)
-        val from = zoned(previousTrigger)
+        val time = clockTime ?: zoned(previousTrigger).toLocalTime()
         val localNow = zoned(after)
         // Jump directly to the current calendar period, then check at most the next week/month.
         return when (repeat) {
+            // Step by local date and rebuild the time each day: a day in a daylight-saving gap
+            // fires an hour late, but the days after it are back at the wanted time.
             Repeat.Daily -> {
-                var candidate = localNow.toLocalDate().atTime(from.toLocalTime()).atZone(clock.zone)
-                if (candidate.toInstant().toEpochMilli() <= after) candidate = candidate.plusDays(1)
-                candidate.toInstant().toEpochMilli()
+                var day = localNow.toLocalDate()
+                if (at(day, time) <= after) day = day.plusDays(1)
+                at(day, time)
             }
             is Repeat.Weekly -> {
-                var candidate = localNow.toLocalDate().atTime(from.toLocalTime()).atZone(clock.zone)
-                while (candidate.toInstant().toEpochMilli() <= after || candidate.dayOfWeek !in repeat.days) {
-                    candidate = candidate.plusDays(1)
-                }
-                candidate.toInstant().toEpochMilli()
+                var day = localNow.toLocalDate()
+                while (at(day, time) <= after || day.dayOfWeek !in repeat.days) day = day.plusDays(1)
+                at(day, time)
             }
             is Repeat.Monthly -> {
                 var month = YearMonth.from(localNow)
                 var candidate = month.atDay(minOf(repeat.dayOfMonth, month.lengthOfMonth()))
-                    .atTime(from.toLocalTime()).atZone(clock.zone)
+                    .atTime(time).atZone(clock.zone)
                 if (candidate.toInstant().toEpochMilli() <= after) {
                     month = month.plusMonths(1)
                     candidate = month.atDay(minOf(repeat.dayOfMonth, month.lengthOfMonth()))
-                        .atTime(from.toLocalTime()).atZone(clock.zone)
+                        .atTime(time).atZone(clock.zone)
                 }
                 candidate.toInstant().toEpochMilli()
             }
@@ -110,6 +117,9 @@ class ReminderTimeCalculator @Inject constructor(private val clock: Clock) {
     /** Used by calendar recurrence to persist the requested local date/time, not a UTC offset. */
     fun localDateTime(millis: Long): LocalDateTime = zoned(millis).toLocalDateTime()
 
+    /** The local clock time of [millis] in the current zone. */
+    fun clockTime(millis: Long): LocalTime = zoned(millis).toLocalTime()
+
     fun inMinutes(minutes: Int): Long = clock.nowMillis() + minutes * MINUTE
 
     /** The local date of [millis], e.g. to show "every month on the 24th". */
@@ -120,6 +130,10 @@ class ReminderTimeCalculator @Inject constructor(private val clock: Clock) {
         is Repeat.Monthly -> day.dayOfMonth == minOf(repeat.dayOfMonth, day.toLocalDate().lengthOfMonth())
         else -> true
     }
+
+    private fun at(day: LocalDate, time: LocalTime): Long = day.atTime(
+        time
+    ).atZone(clock.zone).toInstant().toEpochMilli()
 
     private fun zoned(millis: Long): ZonedDateTime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(millis), clock.zone)
 

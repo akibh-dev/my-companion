@@ -14,7 +14,12 @@ import dev.akibh.mycompanion.data.local.MIGRATION_2_3
 import dev.akibh.mycompanion.data.local.MIGRATION_3_4
 import dev.akibh.mycompanion.data.local.MIGRATION_4_5
 import dev.akibh.mycompanion.data.local.MIGRATION_5_6
+import dev.akibh.mycompanion.data.local.MIGRATION_6_7
+import dev.akibh.mycompanion.data.local.MIGRATION_7_8
 import dev.akibh.mycompanion.domain.model.ReminderSound
+import java.time.Instant
+import java.time.LocalTime
+import java.time.ZoneId
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
@@ -60,6 +65,10 @@ class Plan13MigrationTest {
                             "INSERT INTO reminders (id,title,message,trigger_at,repeat,contact_id,delivered) VALUES " +
                                 "(1,'Keep reminder','Message',9999999999999,'EVERY:60',1,0)",
                         )
+                        db.execSQL(
+                            "INSERT INTO reminders (id,title,message,trigger_at,repeat,contact_id,delivered) VALUES " +
+                                "(2,'Daily','',$DAILY_TRIGGER,'DAILY',NULL,0)",
+                        )
                         db.execSQL("INSERT INTO playlists (id,name,created_at) VALUES (1,'Keep playlist',100)")
                         db.execSQL(
                             "INSERT INTO playlist_items " +
@@ -81,7 +90,14 @@ class Plan13MigrationTest {
                 }).build()
             FrameworkSQLiteOpenHelperFactory().create(config).use { it.writableDatabase }
             val db = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build()
+                .addMigrations(
+                    MIGRATION_2_3,
+                    MIGRATION_3_4,
+                    MIGRATION_4_5,
+                    MIGRATION_5_6,
+                    MIGRATION_6_7,
+                    MIGRATION_7_8
+                ).build()
             try {
                 assertThat(db.contactDao().get(1)?.name).isEqualTo("Fixture")
                 val reminder = db.reminderDao().get(1)!!.toDomain()
@@ -89,6 +105,12 @@ class Plan13MigrationTest {
                 assertThat(reminder.repeat.encode()).isEqualTo("EVERY:60")
                 // Version 6: old reminders open the Reminders tab (no link).
                 assertThat(reminder.link).isNull()
+                // Version 7: daily/weekly/monthly reminders get their clock time; others don't need one.
+                assertThat(reminder.localTime).isNull()
+                // Version 8: nothing starts as missed.
+                assertThat(reminder.missed).isFalse()
+                assertThat(db.reminderDao().get(2)!!.toDomain().localTime)
+                    .isEqualTo(LocalTime.ofInstant(Instant.ofEpochMilli(DAILY_TRIGGER), ZoneId.systemDefault()))
                 assertThat(
                     reminder.sound
                 ).isEqualTo(if (version == 3) ReminderSound.Silent else ReminderSound.Default)
@@ -104,5 +126,9 @@ class Plan13MigrationTest {
         } finally {
             context.deleteDatabase(name)
         }
+    }
+
+    private companion object {
+        const val DAILY_TRIGGER = 1_800_000_000_000L
     }
 }

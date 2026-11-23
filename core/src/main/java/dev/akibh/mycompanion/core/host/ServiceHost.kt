@@ -96,6 +96,9 @@ class HostService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val running = mutableMapOf<String, Job>()
 
+    /** The newest start request; stopping with it lets a start that came in meanwhile win. */
+    private var lastStartId = 0
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
@@ -111,7 +114,13 @@ class HostService : Service() {
         }
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        lastStartId = startId
+        // A start can arrive while this instance is about to stop (paused, then resumed at once).
+        startForeground(NOTIFICATION_ID, notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        host.setRunning(true)
+        return START_STICKY
+    }
 
     private fun run(wanted: Set<String>) {
         (running.keys - wanted).forEach { name ->
@@ -124,7 +133,12 @@ class HostService : Service() {
             running[component.name] = job
             log.i(TAG, "started ${component.name}")
         }
-        if (wanted.isEmpty()) stopSelf()
+        if (wanted.isEmpty()) {
+            // Not running from here on, so a sync that wants it back starts it again instead of
+            // trusting an instance that is on its way out.
+            host.setRunning(false)
+            if (lastStartId == 0) stopSelf() else stopSelf(lastStartId)
+        }
     }
 
     override fun onDestroy() {

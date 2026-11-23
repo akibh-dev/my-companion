@@ -17,7 +17,8 @@ import java.util.Locale
 import javax.inject.Inject
 
 /**
- * "Today, 5:30 PM", "Tomorrow, 8:00 AM", "Mon 28 Oct, 9:00 AM" — or "Today, 17:30" when the phone
+ * "Today, 5:30 PM", "Tomorrow, 8:00 AM", "Mon 28 Oct, 9:00 AM", "Fri 7 Jan 2028, 9:00 AM" (another
+ * year shows it) — or "Today, 17:30" when the phone
  * uses 24-hour time ([is24Hour] is asked each time, so changing the setting applies at once).
  */
 class ReminderTimeFormatter(
@@ -33,6 +34,7 @@ class ReminderTimeFormatter(
     private val time24 = DateTimeFormatter.ofPattern("HH:mm", locale)
     private val time: DateTimeFormatter get() = if (is24Hour()) time24 else time12
     private val date = DateTimeFormatter.ofPattern("EEE d MMM", locale)
+    private val dateWithYear = DateTimeFormatter.ofPattern("EEE d MMM yyyy", locale)
 
     fun format(epochMillis: Long): String {
         val zone = clock.zone
@@ -41,7 +43,7 @@ class ReminderTimeFormatter(
         val day = when (ChronoUnit.DAYS.between(today, target.toLocalDate())) {
             0L -> "Today"
             1L -> "Tomorrow"
-            else -> target.format(date)
+            else -> target.format(if (target.year == today.year) date else dateWithYear)
         }
         return "$day, ${target.format(time)}"
     }

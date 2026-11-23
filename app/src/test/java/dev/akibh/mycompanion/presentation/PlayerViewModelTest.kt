@@ -16,6 +16,7 @@ import dev.akibh.mycompanion.fakes.video
 import dev.akibh.mycompanion.presentation.player.PlayerEvent
 import dev.akibh.mycompanion.presentation.player.PlayerSection
 import dev.akibh.mycompanion.presentation.player.PlayerViewModel
+import kotlin.random.Random
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
@@ -111,11 +112,16 @@ class PlayerViewModelTest {
         viewModel.onOpenPlaylist(mix.id)
 
         viewModel.onPlayPlaylist(mix.id, startIndex = 1)
+        // Shuffle doesn't always start on the first track.
+        viewModel.random = object : Random() {
+            override fun nextBits(bitCount: Int) = 0
+            override fun nextInt(until: Int) = until - 1
+        }
         viewModel.onPlayPlaylist(mix.id, shuffle = true)
 
         assertThat(playback.calls).containsAtLeast(
             "playNow:${a.id},${b.id}@1 shuffle=false",
-            "playNow:${a.id},${b.id}@0 shuffle=true",
+            "playNow:${a.id},${b.id}@1 shuffle=true",
         )
         assertThat(viewModel.uiState.value.section).isEqualTo(PlayerSection.QUEUE)
     }

@@ -14,7 +14,9 @@ import dev.akibh.mycompanion.core.settings.AiEngine
 import dev.akibh.mycompanion.core.settings.Feature
 import dev.akibh.mycompanion.core.settings.Settings
 import dev.akibh.mycompanion.core.settings.SettingsStore
+import dev.akibh.mycompanion.domain.model.Reminder
 import dev.akibh.mycompanion.fakes.FakeClock
+import dev.akibh.mycompanion.fakes.FakeReminderRepository
 import dev.akibh.mycompanion.fakes.MainDispatcherRule
 import dev.akibh.mycompanion.presentation.home.HomeViewModel
 import java.nio.file.Files
@@ -73,6 +75,7 @@ class HomeViewModelTest {
     }
 
     private val clock = FakeClock()
+    private val reminders = FakeReminderRepository()
     private val heartbeats = HeartbeatLog(app, clock)
     private val viewModel by lazy {
         HomeViewModel(
@@ -80,13 +83,24 @@ class HomeViewModelTest {
             settingsStore,
             requirements,
             ServiceHost(app, setOf(rules), AppLog(Files.createTempDirectory("log").toFile(), mirrorToLogcat = false)),
-            heartbeats
+            heartbeats,
+            reminders,
         )
     }
 
     /** Keeps the state flowing, unconfined so it's up to date as soon as this returns. */
     private fun TestScope.subscribe() {
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
+    }
+
+    @Test
+    fun `reminders that came due with notifications off are counted`() = runTest {
+        subscribe()
+        assertThat(viewModel.uiState.value.missedReminders).isEqualTo(0)
+
+        reminders.save(Reminder(title = "Pills", message = "", triggerAtMillis = 0, missed = true))
+
+        assertThat(viewModel.uiState.first { it.missedReminders > 0 }.missedReminders).isEqualTo(1)
     }
 
     @Test

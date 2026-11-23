@@ -25,6 +25,12 @@ class FormattingTest {
     }
 
     @Test
+    fun `a date in another year shows the year`() {
+        assertThat(formatter.format(millisAt(2027, 10, 25, 9, 0))).isEqualTo("Mon 25 Oct 2027, 9:00 AM")
+        assertThat(formatter.format(millisAt(2026, 12, 31, 9, 0))).isEqualTo("Thu 31 Dec, 9:00 AM")
+    }
+
+    @Test
     fun `clock time label`() {
         assertThat(formatter.clockTime(8, 5)).isEqualTo("8:05 AM")
         assertThat(formatter.clockTime(0, 0)).isEqualTo("12:00 AM")

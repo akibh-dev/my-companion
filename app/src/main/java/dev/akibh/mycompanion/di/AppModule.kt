@@ -18,6 +18,8 @@ import dev.akibh.mycompanion.data.local.MIGRATION_2_3
 import dev.akibh.mycompanion.data.local.MIGRATION_3_4
 import dev.akibh.mycompanion.data.local.MIGRATION_4_5
 import dev.akibh.mycompanion.data.local.MIGRATION_5_6
+import dev.akibh.mycompanion.data.local.MIGRATION_6_7
+import dev.akibh.mycompanion.data.local.MIGRATION_7_8
 import dev.akibh.mycompanion.data.local.PlaybackHistoryDao
 import dev.akibh.mycompanion.data.local.PlaylistDao
 import dev.akibh.mycompanion.data.local.ReminderDao
@@ -61,7 +63,15 @@ object DatabaseModule {
     @Singleton
     fun database(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            .addMigrations(
+                MIGRATION_1_2,
+                MIGRATION_2_3,
+                MIGRATION_3_4,
+                MIGRATION_4_5,
+                MIGRATION_5_6,
+                MIGRATION_6_7,
+                MIGRATION_7_8,
+            )
             .build()
 
     @Provides
