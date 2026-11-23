@@ -52,7 +52,20 @@ data class LibraryUiState(
             .maxByOrNull { it.lastOpenedAt!! }
 
     fun availabilityOf(book: Book): Availability = availability[book.uri] ?: Availability.OK
+
+    /**
+     * What the list shows. Nothing until the database has answered: showing the empty library (or
+     * "All · 0") while it loads made them flash on every open.
+     */
+    val body: LibraryBody
+        get() = when {
+            loading -> LibraryBody.NOTHING_YET
+            all.isEmpty() -> LibraryBody.EMPTY
+            else -> LibraryBody.BOOKS
+        }
 }
+
+enum class LibraryBody { NOTHING_YET, EMPTY, BOOKS }
 
 /** A book that couldn't be opened from the library, and why. */
 data class Problem(val book: Book, val availability: Availability)

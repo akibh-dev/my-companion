@@ -218,7 +218,8 @@ private fun LibraryContent(
         verticalArrangement = Arrangement.spacedBy(if (state.grid) 18.dp else 10.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
-        if (!state.loading && state.all.isEmpty()) {
+        if (state.body == LibraryBody.NOTHING_YET) return@LazyVerticalGrid
+        if (state.body == LibraryBody.EMPTY) {
             item(span = { GridItemSpan(maxLineSpan) }) { EmptyLibrary(onAdd) }
             return@LazyVerticalGrid
         }
