@@ -1,5 +1,6 @@
 package dev.akibh.mycompanion.data.youtube
 
+import dev.akibh.mycompanion.core.log.AppLog
 import dev.akibh.mycompanion.di.IoDispatcher
 import dev.akibh.mycompanion.domain.model.Video
 import dev.akibh.mycompanion.domain.port.VideoInfoSource
@@ -10,6 +11,7 @@ import dev.akibh.mycompanion.domain.youtube.StreamExpiry
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.NewPipe
@@ -33,11 +35,23 @@ interface AudioStreamSource {
 
 /** YouTube via NewPipeExtractor (no API key, no Google account). */
 @Singleton
-class NewPipeYouTube @Inject constructor(
-    private val downloader: OkHttpDownloader,
+class NewPipeYouTube internal constructor(
     private val clock: Clock,
-    @IoDispatcher private val io: CoroutineDispatcher,
+    private val io: CoroutineDispatcher,
+    private val log: AppLog,
+    /** Reads a watch page; swapped in tests, since NewPipe's entry point is static. */
+    private val extract: (url: String) -> StreamInfo,
 ) : VideoInfoSource, AudioStreamSource {
+
+    @Inject constructor(
+        downloader: OkHttpDownloader,
+        clock: Clock,
+        @IoDispatcher io: CoroutineDispatcher,
+        log: AppLog,
+    ) : this(clock, io, log, { url ->
+        ensureInitialised(downloader)
+        StreamInfo.getInfo(ServiceList.YouTube, url)
+    })
 
     override suspend fun fetch(videoId: String): Video = withContext(io) {
         val info = info(videoId)
@@ -68,29 +82,45 @@ class NewPipeYouTube @Inject constructor(
         )
     }
 
-    private fun info(videoId: String): StreamInfo {
-        ensureInitialised()
-        return try {
-            StreamInfo.getInfo(ServiceList.YouTube, "https://www.youtube.com/watch?v=$videoId")
-        } catch (e: ExtractionException) {
-            throw YouTubeException.from(e)
-        } catch (e: IOException) {
-            throw YouTubeException.from(e)
-        }
+    /**
+     * Every extractor failure becomes a [YouTubeException] (an IOException the player and screens
+     * already handle). A RuntimeException is what a YouTube page change usually looks like; left
+     * alone it would end the process from the player's loading thread.
+     */
+    private fun info(videoId: String): StreamInfo = try {
+        extract("https://www.youtube.com/watch?v=$videoId")
+    } catch (e: YouTubeException) {
+        throw e
+    } catch (e: ExtractionException) {
+        throw failed(videoId, e)
+    } catch (e: IOException) {
+        throw failed(videoId, e)
+    } catch (e: CancellationException) {
+        // A RuntimeException too, but it means "stop", not "YouTube changed".
+        throw e
+    } catch (e: RuntimeException) {
+        throw failed(videoId, e)
     }
 
-    private fun ensureInitialised() {
-        synchronized(NewPipeYouTube::class.java) {
-            if (!initialised) {
-                NewPipe.init(downloader)
-                initialised = true
-            }
-        }
+    private fun failed(videoId: String, error: Exception): YouTubeException {
+        log.w(TAG, "couldn't read $videoId", error)
+        return YouTubeException.from(error)
     }
 
     private companion object {
+        const val TAG = "YouTube"
+
         @Volatile
         var initialised = false
+
+        fun ensureInitialised(downloader: OkHttpDownloader) {
+            synchronized(NewPipeYouTube::class.java) {
+                if (!initialised) {
+                    NewPipe.init(downloader)
+                    initialised = true
+                }
+            }
+        }
     }
 }
 
