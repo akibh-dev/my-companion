@@ -2,6 +2,11 @@
 <resources>
     <style name="Theme.MyCompanion" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">#F7F7F7</item>
+        <!-- Launch animation: Buddy on its black icon circle, then MainActivity fades it out. -->
+        <item name="android:windowSplashScreenBackground">#F7F7F7</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_buddy</item>
+        <item name="android:windowSplashScreenAnimationDuration">1000</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/launcher_background</item>
     </style>
 
     <!-- See-through activities: call shortcuts and the share sheet. -->

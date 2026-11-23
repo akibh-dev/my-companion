@@ -41,7 +41,7 @@ class AndroidReminderNotifier @Inject constructor(
         val snooze = broadcast(id, ReminderReceiver.snoozeIntent(context, reminder.id), ACTION_SNOOZE)
         val done = broadcast(id, ReminderReceiver.doneIntent(context, reminder.id), ACTION_DONE)
         val builder = NotificationCompat.Builder(context, channel)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(dev.akibh.mycompanion.core.R.drawable.ic_buddy)
             .setContentTitle(reminder.title)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)

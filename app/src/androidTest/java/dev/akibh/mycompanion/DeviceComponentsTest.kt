@@ -103,7 +103,7 @@ class DeviceComponentsTest {
             val style = NotificationCompat.MessagingStyle(Person.Builder().setName("Me fixture").build())
                 .addMessage("Synthetic message", 1, Person.Builder().setName("Sender fixture").build())
             val notification = NotificationCompat.Builder(context, "device-fixture")
-                .setSmallIcon(R.drawable.ic_notification).setStyle(style).build()
+                .setSmallIcon(dev.akibh.mycompanion.core.R.drawable.ic_buddy).setStyle(style).build()
             notification.actions = arrayOf(action)
             for (app in ChatApp.entries) {
                 val sbn = StatusBarNotification(

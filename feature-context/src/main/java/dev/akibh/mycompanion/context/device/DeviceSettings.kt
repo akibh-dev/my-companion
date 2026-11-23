@@ -161,7 +161,7 @@ class AndroidDeviceSettings @Inject constructor(@ApplicationContext private val 
             PendingIntent.FLAG_IMMUTABLE
         )
         val notification = NotificationCompat.Builder(context, CHANNEL)
-            .setSmallIcon(R.drawable.ic_rule)
+            .setSmallIcon(dev.akibh.mycompanion.core.R.drawable.ic_buddy)
             .setContentTitle(title)
             .setContentText("A context rule wants this. Tap to change it.")
             .setContentIntent(tap)
