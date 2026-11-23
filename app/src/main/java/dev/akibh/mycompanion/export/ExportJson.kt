@@ -51,6 +51,11 @@ object ExportJson {
     const val SETTINGS_FORMAT = "my-companion-settings"
     const val SETTINGS_VERSION = 1
 
+    /** The ranges the voice and auto-reply screens offer; restored values are kept inside them. */
+    val MAX_CHARS_RANGE = 60..600
+    val SPEECH_RATE_RANGE = 0.5f..2f
+    val COOLDOWN_RANGE = 5..240
+
     fun people(contacts: List<Contact>): JSONObject = document(
         "people",
         contacts.map { JSONObject().put("name", it.name).put("whatsAppNumber", it.phone) },
@@ -242,8 +247,10 @@ object ExportJson {
                 blockRules = blockRules(voiceJson.optJSONArray("blockRules")),
                 readSilent = voiceJson.optBoolean("readSilent", voiceDefaults.readSilent),
                 senders = strings(voiceJson.optJSONArray("senders")) ?: voiceDefaults.senders,
-                maxChars = voiceJson.optInt("maxChars", voiceDefaults.maxChars),
-                speechRate = voiceJson.optDouble("speechRate", voiceDefaults.speechRate.toDouble()).toFloat(),
+                // Clamped to what the screens allow: a hand-edited backup can't set what the app can't.
+                maxChars = voiceJson.optInt("maxChars", voiceDefaults.maxChars).coerceIn(MAX_CHARS_RANGE),
+                speechRate = voiceJson.optDouble("speechRate", voiceDefaults.speechRate.toDouble()).toFloat()
+                    .takeIf { it.isFinite() }?.coerceIn(SPEECH_RATE_RANGE) ?: voiceDefaults.speechRate,
                 readingMode = enumOf<ReadingMode>(voiceJson.optString("readingMode")) ?: voiceDefaults.readingMode,
             ),
             autoReply = AutoReplySettings(
@@ -252,7 +259,9 @@ object ExportJson {
                 blockList = strings(replyJson.optJSONArray("blockList")) ?: replyDefaults.blockList,
                 groups = enumOf<GroupPolicy>(replyJson.optString("groups")) ?: replyDefaults.groups,
                 mentionWords = strings(replyJson.optJSONArray("mentionWords")) ?: replyDefaults.mentionWords,
-                cooldownMinutes = replyJson.optInt("cooldownMinutes", replyDefaults.cooldownMinutes),
+                // A zero or negative cool-down would turn off the one-reply-per-chat throttle.
+                cooldownMinutes = replyJson.optInt("cooldownMinutes", replyDefaults.cooldownMinutes)
+                    .coerceIn(COOLDOWN_RANGE),
                 label = replyJson.optString("label", replyDefaults.label),
                 apps = enums<ChatApp>(replyJson.optJSONArray("apps")) ?: replyDefaults.apps,
                 busy = replyJson.optBoolean("busy", false),

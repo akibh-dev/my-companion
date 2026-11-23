@@ -7,6 +7,7 @@ import dev.akibh.mycompanion.core.settings.SettingsStore
 import dev.akibh.mycompanion.library.data.LibraryBackups
 import dev.akibh.mycompanion.quran.data.BookmarkRepository
 import dev.akibh.mycompanion.voice.system.VoiceSettingsStore
+import java.io.InputStream
 import javax.inject.Inject
 import kotlinx.coroutines.flow.first
 
@@ -46,7 +47,20 @@ class SettingsBackup @Inject constructor(
         bundle.library?.let { library.restore(it) }
     }
 
-    private companion object {
-        const val INDENT = 2
+    companion object {
+        private const val INDENT = 2
+
+        /**
+         * A settings backup is far smaller than this even with a big library and years of reading
+         * stats; anything larger isn't one, and reading it whole could run the app out of memory.
+         */
+        const val MAX_BACKUP_BYTES = 4 * 1024 * 1024
+
+        /** Reads a picked file as text, refusing anything over [MAX_BACKUP_BYTES] without reading it all. */
+        fun read(input: InputStream): String {
+            val bytes = input.readNBytes(MAX_BACKUP_BYTES + 1)
+            require(bytes.size <= MAX_BACKUP_BYTES) { "That file is too big to be a My Companion settings backup" }
+            return bytes.toString(Charsets.UTF_8)
+        }
     }
 }
