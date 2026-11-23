@@ -40,13 +40,14 @@ Each step on its own branch and PR, each bug fix with a regression test.
 ## Switching to the release key (once)
 
 Android refuses an update signed with a different key, so moving off the debug key needs one
-reinstall, which deletes the app's data:
+uninstall, which deletes the app's data. Only the settings backup can be restored (switches, voice
+and auto-reply settings, Quran bookmarks, the library list); "Export my data" is a readable ZIP with
+no import. Decided 2026-11-23: start fresh on 1.0.0 rather than copy the data over with adb.
 
-1. In the app: Settings → Export → full backup to a file outside the app.
+1. Settings → Export & backup → Save settings…
 2. Uninstall the old build, install the 1.0.0 APK.
-3. Import the backup, then re-grant the permissions (notification access, accessibility, etc.).
-   Linked library books and saved places come back from the backup; the Quran and voice models are
-   bundled.
+3. Restore settings…, re-grant permissions, re-link book files; set up people, reminders,
+   playlists, rules, places and reply templates again.
 
 After that, every later release installs over it as an update.
 
