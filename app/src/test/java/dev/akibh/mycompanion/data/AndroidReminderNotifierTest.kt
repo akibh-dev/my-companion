@@ -10,6 +10,7 @@ import com.google.common.truth.Truth.assertThat
 import dev.akibh.mycompanion.MainActivity
 import dev.akibh.mycompanion.Tab
 import dev.akibh.mycompanion.data.notification.AndroidReminderNotifier
+import dev.akibh.mycompanion.data.notification.AndroidReminderNotifier.Companion.TAG
 import dev.akibh.mycompanion.domain.model.Contact
 import dev.akibh.mycompanion.domain.model.Reminder
 import dev.akibh.mycompanion.presentation.call.CallActivity
@@ -37,7 +38,7 @@ class AndroidReminderNotifierTest {
     fun `posts a high-priority reminder with snooze and done`() {
         assertThat(notifier.show(reminder, contact = null)).isTrue()
 
-        val notification = shadowOf(manager).getNotification(12)!!
+        val notification = shadowOf(manager).getNotification(TAG, 12)!!
         assertThat(notification.extras.getCharSequence(Notification.EXTRA_TITLE).toString()).isEqualTo("Call Mum")
         assertThat(notification.extras.getCharSequence(Notification.EXTRA_TEXT).toString()).isEqualTo("It's Sunday")
         assertThat(notification.channelId).isEqualTo(AndroidReminderNotifier.CHANNEL_ID)
@@ -50,7 +51,7 @@ class AndroidReminderNotifierTest {
     fun `tapping the notification opens the Reminders tab`() {
         notifier.show(reminder, contact = null)
 
-        val tap = shadowOf(shadowOf(manager).getNotification(12)!!.contentIntent).savedIntent
+        val tap = shadowOf(shadowOf(manager).getNotification(TAG, 12)!!.contentIntent).savedIntent
         assertThat(tap.component!!.className).isEqualTo(MainActivity::class.java.name)
         assertThat(tap.getStringExtra(MainActivity.EXTRA_TAB)).isEqualTo(Tab.REMINDERS.name)
     }
@@ -59,7 +60,7 @@ class AndroidReminderNotifierTest {
     fun `a reminder with a link opens that screen, like the Quran reminder opens the reader`() {
         notifier.show(reminder.copy(link = "quran/read/0"), contact = null)
 
-        val tap = shadowOf(shadowOf(manager).getNotification(12)!!.contentIntent).savedIntent
+        val tap = shadowOf(shadowOf(manager).getNotification(TAG, 12)!!.contentIntent).savedIntent
         assertThat(tap.component!!.className).isEqualTo(MainActivity::class.java.name)
         assertThat(tap.getStringExtra(MainActivity.EXTRA_ROUTE)).isEqualTo("quran/read/0")
         assertThat(tap.hasExtra(MainActivity.EXTRA_TAB)).isFalse()
@@ -68,7 +69,7 @@ class AndroidReminderNotifierTest {
     @Test
     fun `snooze and done talk to the reminder receiver`() {
         notifier.show(reminder, contact = null)
-        val (snooze, done) = shadowOf(manager).getNotification(12)!!.actions
+        val (snooze, done) = shadowOf(manager).getNotification(TAG, 12)!!.actions
 
         val snoozeIntent = shadowOf(snooze.actionIntent).savedIntent
         assertThat(snoozeIntent.action).isEqualTo(ReminderReceiver.ACTION_SNOOZE)
@@ -80,7 +81,7 @@ class AndroidReminderNotifierTest {
     fun `a linked contact adds a call button`() {
         notifier.show(reminder, mum)
 
-        val call = shadowOf(manager).getNotification(12)!!.actions.last()
+        val call = shadowOf(manager).getNotification(TAG, 12)!!.actions.last()
         assertThat(call.title.toString()).isEqualTo("Call Mum")
         val pending = shadowOf(call.actionIntent)
         assertThat(pending.isActivityIntent).isTrue()
@@ -112,6 +113,25 @@ class AndroidReminderNotifierTest {
         notifier.cancel(12)
 
         assertThat(shadowOf(manager).size()).isEqualTo(0)
+    }
+
+    @Test
+    fun `a reminder whose id matches the host service notification leaves that notification alone`() {
+        val hostId = 41
+        val foreground = Notification.Builder(app, AndroidReminderNotifier.CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_popup_reminder)
+            .setContentTitle("My Companion is running")
+            .build()
+        manager.notify(hostId, foreground)
+
+        notifier.show(reminder.copy(id = hostId.toLong()), null)
+        assertThat(shadowOf(manager).getNotification(hostId).extras.getCharSequence(Notification.EXTRA_TITLE).toString())
+            .isEqualTo("My Companion is running")
+        assertThat(shadowOf(manager).getNotification(TAG, hostId)).isNotNull()
+
+        notifier.cancel(hostId)
+        assertThat(shadowOf(manager).getNotification(TAG, hostId)).isNull()
+        assertThat(shadowOf(manager).getNotification(hostId)).isNotNull()
     }
 
     @Test

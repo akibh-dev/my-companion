@@ -58,11 +58,11 @@ class AndroidReminderNotifier @Inject constructor(
             builder.addAction(0, "Call ${contact.name}", callIntent(id, contact))
         }
 
-        manager.notify(id, builder.build())
+        manager.notify(TAG, id, builder.build())
         return true
     }
 
-    override fun cancel(notificationId: Int) = manager.cancel(notificationId)
+    override fun cancel(notificationId: Int) = manager.cancel(TAG, notificationId)
 
     /** Opens the reminder's screen when it has one (the Quran reminder opens the reader), else Reminders. */
     private fun openAppIntent(id: Int, link: String?): PendingIntent = PendingIntent.getActivity(
@@ -84,6 +84,12 @@ class AndroidReminderNotifier @Inject constructor(
 
     companion object {
         const val CHANNEL_ID = "reminders"
+
+        /**
+         * Reminder notifications are posted under this tag: their ids are reminder ids, which would
+         * otherwise collide with the app's fixed ids (the host service's 41, rule prompts 3101/3102).
+         */
+        const val TAG = "reminder"
         private const val FLAGS = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         private const val ACTION_OPEN = 0
         private const val ACTION_SNOOZE = 1

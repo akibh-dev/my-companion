@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.core.app.NotificationManagerCompat
+import dev.akibh.mycompanion.data.notification.AndroidReminderNotifier
 import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
 import dev.akibh.mycompanion.di.IoDispatcher
@@ -50,7 +51,7 @@ class CallActivity : ComponentActivity() {
         }
 
         val notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, NO_NOTIFICATION)
-        if (notificationId != NO_NOTIFICATION) NotificationManagerCompat.from(this).cancel(notificationId)
+        if (notificationId != NO_NOTIFICATION) NotificationManagerCompat.from(this).cancel(AndroidReminderNotifier.TAG, notificationId)
 
         if (contactId == NO_ID) {
             finish()
