@@ -9,9 +9,13 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
 import dev.akibh.mycompanion.MainActivity
+import dev.akibh.mycompanion.presentation.home.LIBRARY_ROUTE
+import dev.akibh.mycompanion.presentation.home.PERMISSIONS_ROUTE
 import dev.akibh.mycompanion.presentation.onboarding.FirstRun
 import dev.akibh.mycompanion.presentation.onboarding.FirstRunGuide
 import dev.akibh.mycompanion.presentation.onboarding.guidePages
+import dev.akibh.mycompanion.quran.domain.QuranReminder
+import dev.akibh.mycompanion.system.QuranTileService
 import dev.akibh.mycompanion.ui.theme.CompanionTheme
 import org.junit.Rule
 import org.junit.Test
@@ -80,5 +84,16 @@ class FirstRunGuideTest {
 
         assertThat(intent.component!!.className).isEqualTo(MainActivity::class.java.name)
         assertThat(intent.getStringExtra(MainActivity.EXTRA_ROUTE)).isEqualTo("export")
+    }
+
+    @Test
+    fun `an intent can only open the screens the app itself links to`() {
+        // What the Quran widget/tile/reminder, the library widget and the guide send.
+        listOf(QuranTileService.CONTINUE_ROUTE, QuranReminder.ROUTE, LIBRARY_ROUTE, "export", PERMISSIONS_ROUTE)
+            .forEach { assertThat(MainActivity.isOpenableRoute(it)).isTrue() }
+
+        // Anything else another app might put in the extra.
+        listOf("quran/read/604", "ai", "reminders", "", "export/../ai")
+            .forEach { assertThat(MainActivity.isOpenableRoute(it)).isFalse() }
     }
 }
