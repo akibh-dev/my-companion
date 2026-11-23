@@ -2,6 +2,7 @@ package dev.akibh.mycompanion.domain.model
 
 import java.time.DayOfWeek
 import java.time.LocalDateTime
+import java.time.LocalTime
 
 /**
  * A custom notification the user asked for.
@@ -23,6 +24,11 @@ data class Reminder(
     val paused: Boolean = false,
     /** Screen route the notification opens (e.g. "quran/read/0"); null opens the Reminders tab. */
     val link: String? = null,
+    /**
+     * The local clock time a daily, weekly or monthly reminder fires at. Kept apart from
+     * [triggerAtMillis] so a timezone change or a daylight-saving gap can't shift it for good.
+     */
+    val localTime: LocalTime? = null,
 ) {
     /** Notification ids are ints; reminder ids stay far below Int.MAX_VALUE on a personal device. */
     val notificationId: Int get() = id.toInt()
@@ -54,6 +60,9 @@ sealed interface Repeat {
     data class CalendarMonths(val count: Int, val anchor: LocalDateTime) : Repeat
 
     val isRepeating: Boolean get() = this != Never
+
+    /** Daily, weekly and monthly fire at a wanted local clock time ([Reminder.localTime]). */
+    val keepsClockTime: Boolean get() = this == Daily || this is Weekly || this is Monthly
 
     fun isValid(): Boolean = when (this) {
         Never, Daily -> true

@@ -23,6 +23,8 @@ import dev.akibh.mycompanion.fakes.FakeReminderRepository
 import dev.akibh.mycompanion.fakes.millisAt
 import java.time.DayOfWeek
 import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.ZoneId
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
@@ -207,8 +209,42 @@ class ReminderUseCasesTest {
 
         val tomorrow = millisAt(2026, 10, 24, 8, 0)
         assertThat(notifier.shown).hasSize(1)
-        assertThat(reminders.get(saved.id)).isEqualTo(saved.copy(triggerAtMillis = tomorrow))
+        // A reminder saved before the wanted time was stored takes it from its trigger.
+        assertThat(reminders.get(saved.id))
+            .isEqualTo(saved.copy(triggerAtMillis = tomorrow, localTime = LocalTime.of(8, 0)))
         assertThat(scheduler.scheduled).containsExactly(saved.id, tomorrow)
+    }
+
+    @Test
+    fun `a daily reminder keeps its clock time after a timezone change`() = runTest {
+        val nine = (schedule("Pills", "", ReminderTime.AtTime(9, 0), Repeat.Daily) as ScheduleResult.Scheduled).reminder
+        assertThat(nine.localTime).isEqualTo(LocalTime.of(9, 0))
+
+        // The phone moves from Dhaka (UTC+6) to Moscow (UTC+3) and the system says the zone changed.
+        val moscow = ZoneId.of("Europe/Moscow")
+        val travelClock = FakeClock(now = millisAt(2026, 10, 23, 12, 0, moscow), zone = moscow)
+        val travelCalculator = ReminderTimeCalculator(travelClock)
+        val travelFire = FireReminderUseCase(reminders, contacts, notifier, scheduler, travelCalculator)
+        RestoreRemindersUseCase(reminders, scheduler, travelFire, CleanUpRemindersUseCase(reminders, travelClock), travelClock)()
+
+        val tomorrowNine = millisAt(2026, 10, 24, 9, 0, moscow)
+        assertThat(reminders.get(nine.id)!!.triggerAtMillis).isEqualTo(tomorrowNine)
+        assertThat(scheduler.scheduled).containsExactly(nine.id, tomorrowNine)
+
+        travelClock.now = tomorrowNine
+        travelFire(nine.id)
+        assertThat(reminders.get(nine.id)!!.triggerAtMillis).isEqualTo(millisAt(2026, 10, 25, 9, 0, moscow))
+    }
+
+    @Test
+    fun `only clock-time repeats store a local time`() = runTest {
+        val every = (schedule("Water", "", ReminderTime.InMinutes(30), Repeat.Every(120)) as ScheduleResult.Scheduled)
+        val once = (schedule("Once", "", ReminderTime.AtTime(18, 0)) as ScheduleResult.Scheduled)
+        val monthly = (schedule("Rent", "", ReminderTime.InMinutes(30), Repeat.Monthly(23)) as ScheduleResult.Scheduled)
+
+        assertThat(every.reminder.localTime).isNull()
+        assertThat(once.reminder.localTime).isNull()
+        assertThat(monthly.reminder.localTime).isEqualTo(LocalTime.of(10, 30))
     }
 
     @Test

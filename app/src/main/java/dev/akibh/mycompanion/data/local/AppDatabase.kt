@@ -8,7 +8,7 @@ import androidx.room.RoomDatabase
         ContactEntity::class, ReminderEntity::class, PlaylistEntity::class, PlaylistItemEntity::class,
         ReminderSoundEntity::class, PlaybackHistoryEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {

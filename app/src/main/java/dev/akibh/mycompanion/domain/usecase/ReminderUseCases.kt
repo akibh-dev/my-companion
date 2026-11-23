@@ -10,6 +10,7 @@ import dev.akibh.mycompanion.domain.repository.ContactRepository
 import dev.akibh.mycompanion.domain.repository.ReminderRepository
 import dev.akibh.mycompanion.domain.time.Clock
 import dev.akibh.mycompanion.domain.time.ReminderTimeCalculator
+import java.time.LocalTime
 import javax.inject.Inject
 
 sealed interface ScheduleResult {
@@ -64,6 +65,7 @@ class ScheduleReminderUseCase @Inject constructor(
                 sound = sound,
                 paused = existing?.paused == true,
                 link = link ?: existing?.link,
+                localTime = if (repeat.keepsClockTime) wantedClockTime(time, trigger) else null,
             ),
         )
 
@@ -100,6 +102,13 @@ class ScheduleReminderUseCase @Inject constructor(
         return ScheduleResult.Scheduled(reminder)
     }
 
+    /** The clock time the user asked for, even when a daylight-saving gap moved the first trigger. */
+    private fun wantedClockTime(time: ReminderTime, trigger: Long): LocalTime = when (time) {
+        is ReminderTime.AtTime -> LocalTime.of(time.hour, time.minute)
+        is ReminderTime.AtDateTime -> time.dateTime.toLocalTime()
+        is ReminderTime.InMinutes -> calculator.clockTime(trigger)
+    }
+
     private fun ReminderTime.isValid(): Boolean = when (this) {
         is ReminderTime.InMinutes -> minutes in 0..MAX_MINUTES
         is ReminderTime.AtTime -> hour in 0..23 && minute in 0..59
@@ -133,9 +142,14 @@ class FireReminderUseCase @Inject constructor(
         val contact = reminder.contactId?.let { contacts.get(it) }
         val shown = notifier.show(reminder, contact)
 
-        when (val nextTrigger = calculator.next(reminder.repeat, reminder.triggerAtMillis)) {
+        // Reminders saved before the wanted time was stored take it from this trigger, once.
+        val clockTime = reminder.localTime
+            ?: calculator.clockTime(reminder.triggerAtMillis).takeIf { reminder.repeat.keepsClockTime }
+        when (val nextTrigger = calculator.next(reminder.repeat, reminder.triggerAtMillis, clockTime)) {
             null -> reminders.save(reminder.copy(delivered = true))
-            else -> scheduler.schedule(reminders.save(reminder.copy(triggerAtMillis = nextTrigger)))
+            else -> scheduler.schedule(
+                reminders.save(reminder.copy(triggerAtMillis = nextTrigger, localTime = clockTime)),
+            )
         }
         return shown
     }
@@ -212,17 +226,11 @@ class RestoreRemindersUseCase @Inject constructor(
         cleanUp()
         val now = clock.nowMillis()
         reminders.getPending().filterNot { it.paused }.forEach { reminder ->
+            val rebuild = reminder.rebuildsFromLocalTime()
             when {
-                reminder.repeat is Repeat.CalendarDays || reminder.repeat is Repeat.CalendarMonths ||
-                    (reminder.repeat.isRepeating && reminder.triggerAtMillis <= now) -> {
-                    val previous = if (
-                        reminder.repeat is Repeat.CalendarDays || reminder.repeat is Repeat.CalendarMonths
-                    ) {
-                        now - 1
-                    } else {
-                        reminder.triggerAtMillis
-                    }
-                    calculator.next(reminder.repeat, previous)?.let { next ->
+                rebuild || (reminder.repeat.isRepeating && reminder.triggerAtMillis <= now) -> {
+                    val previous = if (rebuild) now - 1 else reminder.triggerAtMillis
+                    calculator.next(reminder.repeat, previous, reminder.localTime)?.let { next ->
                         scheduler.schedule(reminders.save(reminder.copy(triggerAtMillis = next)))
                     }
                 }
@@ -232,6 +240,14 @@ class RestoreRemindersUseCase @Inject constructor(
         }
     }
 }
+
+/**
+ * Calendar repeats and clock-time repeats with a stored [Reminder.localTime] are rebuilt from the
+ * wanted local time in the current zone, so a timezone or clock change moves them to the right moment.
+ */
+private fun Reminder.rebuildsFromLocalTime(): Boolean =
+    repeat is Repeat.CalendarDays || repeat is Repeat.CalendarMonths ||
+        (repeat.keepsClockTime && localTime != null)
 
 /**
  * Delivered one-off reminders are kept for a day, so Snooze / Done / Call on a notification still
@@ -274,12 +290,8 @@ class SetReminderPausedUseCase @Inject constructor(
         when {
             resumed.triggerAtMillis > now -> scheduler.schedule(resumed)
             resumed.repeat.isRepeating -> {
-                val previous = if (resumed.repeat is Repeat.CalendarDays || resumed.repeat is Repeat.CalendarMonths) {
-                    now - 1
-                } else {
-                    resumed.triggerAtMillis
-                }
-                calculator.next(resumed.repeat, previous)?.let { next ->
+                val previous = if (resumed.rebuildsFromLocalTime()) now - 1 else resumed.triggerAtMillis
+                calculator.next(resumed.repeat, previous, resumed.localTime)?.let { next ->
                     return reminders.save(resumed.copy(triggerAtMillis = next)).also(scheduler::schedule)
                 }
             }
