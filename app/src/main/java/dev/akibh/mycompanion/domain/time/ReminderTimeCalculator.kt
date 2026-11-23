@@ -131,7 +131,9 @@ class ReminderTimeCalculator @Inject constructor(private val clock: Clock) {
         else -> true
     }
 
-    private fun at(day: LocalDate, time: LocalTime): Long = day.atTime(time).atZone(clock.zone).toInstant().toEpochMilli()
+    private fun at(day: LocalDate, time: LocalTime): Long = day.atTime(
+        time
+    ).atZone(clock.zone).toInstant().toEpochMilli()
 
     private fun zoned(millis: Long): ZonedDateTime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(millis), clock.zone)
 

@@ -4,6 +4,8 @@ import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import dev.akibh.mycompanion.domain.model.Contact
+import dev.akibh.mycompanion.domain.model.Reminder
+import dev.akibh.mycompanion.domain.repository.ReminderRepository
 import dev.akibh.mycompanion.domain.time.ReminderTimeCalculator
 import dev.akibh.mycompanion.domain.usecase.CancelReminderUseCase
 import dev.akibh.mycompanion.domain.usecase.FireReminderUseCase
@@ -25,10 +27,8 @@ import dev.akibh.mycompanion.presentation.reminders.WhenChoice
 import java.time.DayOfWeek
 import java.time.LocalDateTime
 import java.util.Locale
-import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.CompletableDeferred
-import dev.akibh.mycompanion.domain.repository.ReminderRepository
-import dev.akibh.mycompanion.domain.model.Reminder
+import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
 

@@ -226,7 +226,13 @@ class ReminderUseCasesTest {
         val travelClock = FakeClock(now = millisAt(2026, 10, 23, 12, 0, moscow), zone = moscow)
         val travelCalculator = ReminderTimeCalculator(travelClock)
         val travelFire = FireReminderUseCase(reminders, contacts, notifier, scheduler, travelCalculator)
-        RestoreRemindersUseCase(reminders, scheduler, travelFire, CleanUpRemindersUseCase(reminders, travelClock), travelClock)()
+        RestoreRemindersUseCase(
+            reminders,
+            scheduler,
+            travelFire,
+            CleanUpRemindersUseCase(reminders, travelClock),
+            travelClock
+        )()
 
         val tomorrowNine = millisAt(2026, 10, 24, 9, 0, moscow)
         assertThat(reminders.get(nine.id)!!.triggerAtMillis).isEqualTo(tomorrowNine)
@@ -298,7 +304,9 @@ class ReminderUseCasesTest {
 
     @Test
     fun `snoozing a paused repeat's notification still rings`() = runTest {
-        val daily = reminders.save(reminder(trigger = millisAt(2026, 10, 24, 8, 0), repeat = Repeat.Daily).copy(paused = true))
+        val daily = reminders.save(
+            reminder(trigger = millisAt(2026, 10, 24, 8, 0), repeat = Repeat.Daily).copy(paused = true)
+        )
 
         val snoozed = snooze(daily.id)!!
 

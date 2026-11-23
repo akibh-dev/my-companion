@@ -90,7 +90,14 @@ class Plan13MigrationTest {
                 }).build()
             FrameworkSQLiteOpenHelperFactory().create(config).use { it.writableDatabase }
             val db = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8).build()
+                .addMigrations(
+                    MIGRATION_2_3,
+                    MIGRATION_3_4,
+                    MIGRATION_4_5,
+                    MIGRATION_5_6,
+                    MIGRATION_6_7,
+                    MIGRATION_7_8
+                ).build()
             try {
                 assertThat(db.contactDao().get(1)?.name).isEqualTo("Fixture")
                 val reminder = db.reminderDao().get(1)!!.toDomain()

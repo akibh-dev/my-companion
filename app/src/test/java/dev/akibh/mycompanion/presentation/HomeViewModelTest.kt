@@ -13,9 +13,9 @@ import dev.akibh.mycompanion.core.settings.AiEngine
 import dev.akibh.mycompanion.core.settings.Feature
 import dev.akibh.mycompanion.core.settings.Settings
 import dev.akibh.mycompanion.core.settings.SettingsStore
+import dev.akibh.mycompanion.domain.model.Reminder
 import dev.akibh.mycompanion.fakes.FakeClock
 import dev.akibh.mycompanion.fakes.FakeReminderRepository
-import dev.akibh.mycompanion.domain.model.Reminder
 import dev.akibh.mycompanion.fakes.MainDispatcherRule
 import dev.akibh.mycompanion.presentation.home.HomeViewModel
 import kotlinx.coroutines.CoroutineScope

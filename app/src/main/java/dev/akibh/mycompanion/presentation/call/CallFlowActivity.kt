@@ -30,12 +30,12 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
-import dev.akibh.mycompanion.data.notification.AndroidReminderNotifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
+import dev.akibh.mycompanion.data.notification.AndroidReminderNotifier
 import dev.akibh.mycompanion.domain.port.CallAccess
 import dev.akibh.mycompanion.domain.port.WhatsAppCallKind
 import dev.akibh.mycompanion.presentation.contacts.CallMessages
@@ -55,7 +55,11 @@ class CallFlowActivity : ComponentActivity() {
             return
         }
         val notificationId = intent.getIntExtra(CallActivity.EXTRA_NOTIFICATION_ID, Int.MIN_VALUE)
-        if (notificationId != Int.MIN_VALUE) NotificationManagerCompat.from(this).cancel(AndroidReminderNotifier.TAG, notificationId)
+        if (notificationId != Int.MIN_VALUE) {
+            NotificationManagerCompat.from(
+                this
+            ).cancel(AndroidReminderNotifier.TAG, notificationId)
+        }
         val kind = intent.getStringExtra(EXTRA_KIND)?.let { value ->
             WhatsAppCallKind.entries.firstOrNull { it.name == value }
         } ?: WhatsAppCallKind.VOICE

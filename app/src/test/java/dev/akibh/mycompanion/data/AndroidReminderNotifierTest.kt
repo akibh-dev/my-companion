@@ -8,8 +8,8 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
 import dev.akibh.mycompanion.MainActivity
-import dev.akibh.mycompanion.core.log.AppLog
 import dev.akibh.mycompanion.Tab
+import dev.akibh.mycompanion.core.log.AppLog
 import dev.akibh.mycompanion.data.notification.AndroidReminderNotifier
 import dev.akibh.mycompanion.data.notification.AndroidReminderNotifier.Companion.TAG
 import dev.akibh.mycompanion.domain.model.Contact
@@ -131,7 +131,9 @@ class AndroidReminderNotifierTest {
         manager.notify(hostId, foreground)
 
         notifier.show(reminder.copy(id = hostId.toLong()), null)
-        assertThat(shadowOf(manager).getNotification(hostId).extras.getCharSequence(Notification.EXTRA_TITLE).toString())
+        assertThat(
+            shadowOf(manager).getNotification(hostId).extras.getCharSequence(Notification.EXTRA_TITLE).toString()
+        )
             .isEqualTo("My Companion is running")
         assertThat(shadowOf(manager).getNotification(TAG, hostId)).isNotNull()
 

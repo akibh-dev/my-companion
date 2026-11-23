@@ -103,7 +103,10 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
             while (rows.moveToNext()) {
                 if (!Repeat.decode(rows.getString(2)).keepsClockTime) continue
                 val time = LocalTime.ofInstant(Instant.ofEpochMilli(rows.getLong(1)), zone)
-                db.execSQL("UPDATE reminders SET local_time = ? WHERE id = ?", arrayOf(time.toString(), rows.getLong(0)))
+                db.execSQL(
+                    "UPDATE reminders SET local_time = ? WHERE id = ?",
+                    arrayOf(time.toString(), rows.getLong(0))
+                )
             }
         }
     }
