@@ -88,7 +88,7 @@ class BanglishNotificationSpeechDeviceTest {
             .addMessage(
                 message,
                 System.currentTimeMillis(),
-                Person.Builder().setName("My Companion test").build(),
+                Person.Builder().setName("Buddy test").build(),
             )
         val notification = NotificationCompat.Builder(context, BanglishNotificationDemo.CHANNEL)
             .setSmallIcon(dev.akibh.mycompanion.core.R.drawable.ic_buddy)

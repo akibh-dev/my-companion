@@ -126,7 +126,7 @@ class AndroidReminderNotifierTest {
         val hostId = 41
         val foreground = Notification.Builder(app, AndroidReminderNotifier.CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_popup_reminder)
-            .setContentTitle("My Companion is running")
+            .setContentTitle("Buddy is running")
             .build()
         manager.notify(hostId, foreground)
 
@@ -134,7 +134,7 @@ class AndroidReminderNotifierTest {
         assertThat(
             shadowOf(manager).getNotification(hostId).extras.getCharSequence(Notification.EXTRA_TITLE).toString()
         )
-            .isEqualTo("My Companion is running")
+            .isEqualTo("Buddy is running")
         assertThat(shadowOf(manager).getNotification(TAG, hostId)).isNotNull()
 
         notifier.cancel(hostId)

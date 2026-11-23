@@ -147,7 +147,7 @@ fun ShareSheet(
                     .imePadding(),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text("My Companion player", style = MaterialTheme.typography.titleMedium)
+                Text("Buddy player", style = MaterialTheme.typography.titleMedium)
                 when (val status = state.status) {
                     LinkStatus.Idle, LinkStatus.Loading -> Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 3.dp)

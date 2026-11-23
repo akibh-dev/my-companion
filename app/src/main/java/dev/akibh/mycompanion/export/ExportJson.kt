@@ -218,15 +218,15 @@ object ExportJson {
      * old backup still restores what it can. A backup from a newer version is refused: its fields may
      * mean something else.
      *
-     * @throws IllegalArgumentException when the text isn't a My Companion settings backup, or is newer.
+     * @throws IllegalArgumentException when the text isn't a Buddy settings backup, or is newer.
      */
     fun parseSettings(text: String): SettingsBundle {
         val root = runCatching { JSONObject(text) }.getOrNull()
         if (root == null || root.optString("format") != SETTINGS_FORMAT) {
-            throw IllegalArgumentException("That file isn't a My Companion settings backup")
+            throw IllegalArgumentException("That file isn't a Buddy settings backup")
         }
         if (root.optInt("version", SETTINGS_VERSION) > SETTINGS_VERSION) {
-            throw IllegalArgumentException("That backup is from a newer version of My Companion. Update the app first.")
+            throw IllegalArgumentException("That backup is from a newer version of Buddy. Update the app first.")
         }
         val appJson = root.optJSONObject("app") ?: JSONObject()
         val voiceJson = root.optJSONObject("voice") ?: JSONObject()

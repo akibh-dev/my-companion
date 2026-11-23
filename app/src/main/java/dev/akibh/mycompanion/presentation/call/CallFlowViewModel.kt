@@ -69,7 +69,7 @@ class CallFlowViewModel @Inject constructor(
                     CallPreparation.CallPermissionRequired -> permission(false, false, CallAccess.PHONE)
                     is CallPreparation.ChooseVariant -> choose(preparation.variants)
                     is CallPreparation.Unavailable -> unavailable(preparation.reason)
-                    CallPreparation.ContactNotFound -> completed("This person was removed from My Companion")
+                    CallPreparation.ContactNotFound -> completed("This person was removed from Buddy")
                     CallPreparation.AppMissing -> completed("WhatsApp isn't installed")
                 }
             } catch (cancelled: CancellationException) {

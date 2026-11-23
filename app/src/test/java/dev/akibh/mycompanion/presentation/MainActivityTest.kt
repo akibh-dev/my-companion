@@ -76,7 +76,7 @@ class MainActivityTest {
     @Test
     fun `opens on Home with the pause switch, and switches tabs`() {
         compose.waitUntilAtLeastOneExists(hasText("Active"), timeoutMillis = 10_000)
-        compose.onNodeWithText("My Companion").assertIsDisplayed()
+        compose.onNodeWithText("Buddy").assertIsDisplayed()
 
         compose.onNodeWithContentDescription("People").performClick()
         compose.waitUntilAtLeastOneExists(hasText("No one here yet"), timeoutMillis = 10_000)
@@ -125,7 +125,7 @@ class MainActivityTest {
 
         // Home restores its scroll position; branding is part of the list in the approved design.
         compose.onNode(hasScrollToIndexAction()).performScrollToIndex(0)
-        compose.waitUntilAtLeastOneExists(hasText("My Companion"), timeoutMillis = 10_000)
+        compose.waitUntilAtLeastOneExists(hasText("Buddy"), timeoutMillis = 10_000)
     }
 
     @Test

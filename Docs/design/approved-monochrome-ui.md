@@ -123,3 +123,10 @@ over a five-dot smile on an arc. Everything sits inside the 66 dp safe circle of
   the black icon circle. The dots pop on, both eyes blink, then the right eye winks and opens red (under
   1 s, the splash screen's limit). `MainActivity` takes over the splash's exit so it waits for the wink
   to finish, then fades out, never holding the app back more than a second.
+
+## App name: Buddy — 23 November 2026
+
+The app is called **Buddy** wherever it shows its name (launcher, Home header, first-run screen,
+notifications, widget, tile, share sheet), matching the dot-face icon. The package
+(`dev.akibh.mycompanion`) and repo name stay, so updates install over 1.0.0. The Home header is one
+short word now, so it no longer shrinks to fit.

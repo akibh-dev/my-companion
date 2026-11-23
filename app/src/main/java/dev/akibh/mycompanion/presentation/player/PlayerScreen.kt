@@ -243,7 +243,7 @@ private fun LinkBox(link: VideoActionsUiState, linkText: TextFieldState, actions
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "Or share a video from the YouTube app to My Companion",
+                    "Or share a video from the YouTube app to Buddy",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f).padding(start = 16.dp, end = 12.dp),
@@ -774,7 +774,7 @@ private fun LazyListScope.playlistDetail(open: OpenPlaylist, actions: PlayerActi
             EmptyState(
                 DotSymbol.NOTE,
                 "This playlist is empty",
-                "Share a YouTube video to My Companion and choose this playlist."
+                "Share a YouTube video to Buddy and choose this playlist."
             )
         }
         return

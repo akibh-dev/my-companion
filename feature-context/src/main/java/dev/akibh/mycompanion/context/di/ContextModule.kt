@@ -71,7 +71,7 @@ abstract class ContextModule {
             feature = Feature.CONTEXT_RULES,
             isGranted = { it.getSystemService(NotificationManager::class.java).isNotificationPolicyAccessGranted },
             settingsIntent = { Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS) },
-            steps = listOf("Find My Companion and switch it on"),
+            steps = listOf("Find Buddy and switch it on"),
         )
 
         @Provides @IntoSet

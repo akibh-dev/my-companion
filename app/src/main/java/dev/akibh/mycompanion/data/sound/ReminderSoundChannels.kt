@@ -45,7 +45,7 @@ class ReminderSoundChannels @Inject constructor(
                     selection.name,
                     previous?.importance ?: NotificationManager.IMPORTANCE_HIGH,
                 ).apply {
-                    description = "Custom notifications you create in My Companion"
+                    description = "Custom notifications you create in Buddy"
                     val overridden = previous != null && (
                         previous.sound == null ||
                             uriFingerprint(previous.sound.toString()) != previous.id.substringAfterLast('_')

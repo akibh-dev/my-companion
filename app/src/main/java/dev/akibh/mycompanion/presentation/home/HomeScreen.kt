@@ -9,7 +9,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -48,7 +47,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -154,10 +152,9 @@ fun HomeScreen(
     ) {
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                // One line, like the other tabs' titles; it shrinks rather than touching the settings button.
-                BoxWithConstraints(Modifier.weight(1f).padding(end = 12.dp)) {
-                    val fit = with(LocalDensity.current) { (maxWidth * 7f / WORDMARK_COLUMNS).toSp() }
-                    DotText("My Companion", fontSize = if (fit < 30.sp) fit else 30.sp)
+                // One line, like the other tabs' titles.
+                Box(Modifier.weight(1f).padding(end = 12.dp)) {
+                    DotText("Buddy", fontSize = 30.sp)
                 }
                 SettingsButton { onOpen("settings") }
             }
@@ -444,9 +441,6 @@ const val PERMISSIONS_ROUTE = "permissions"
 const val AI_ROUTE = "ai"
 const val QURAN_ROUTE = "quran"
 const val LIBRARY_ROUTE = "library"
-
-/** Dot columns "My Companion" spans in the dot alphabet (glyph widths plus one-dot gaps). */
-private const val WORDMARK_COLUMNS = 66f
 
 private const val HEARTBEAT_REST_MILLIS = 3_200L
 

@@ -4,6 +4,9 @@
 
 Android app for reviving features on my own terms. NO CAP.
 
+On the phone the app is called **Buddy** (after its dot-face icon); the repo and package keep the
+name `my-companion` / `dev.akibh.mycompanion`.
+
 Personal Android app (Kotlin) for the Nothing CMF Phone 1 (Android 16), on-device only:
 - **People**: WhatsApp voice/video call handoffs with permission recovery and chat fallback, home-screen call shortcuts
 - **Reminders**: custom notifications now, later or at a time; repeat daily, on chosen days, monthly or every few hours; custom sounds; snooze / done / call buttons; per-reminder pause; survive reboot

@@ -239,7 +239,7 @@ class ExportViewModelTest {
         viewModel.onRestorePicked(uri)
 
         val state = viewModel.state.value
-        assertThat(state.status).isEqualTo("That file isn't a My Companion settings backup")
+        assertThat(state.status).isEqualTo("That file isn't a Buddy settings backup")
         assertThat(state.pendingRestore).isNull()
         assertThat(state.busy).isFalse()
     }

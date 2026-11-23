@@ -1,8 +1,8 @@
 <resources>
-    <string name="app_name">My Companion</string>
+    <string name="app_name">Buddy</string>
 
     <!-- Quick actions widget -->
-    <string name="widget_label">My Companion quick actions</string>
+    <string name="widget_label">Buddy quick actions</string>
     <string name="widget_description">Pause everything and toggle voice mode</string>
     <string name="widget_pause">Pause</string>
     <string name="widget_resume">Resume</string>

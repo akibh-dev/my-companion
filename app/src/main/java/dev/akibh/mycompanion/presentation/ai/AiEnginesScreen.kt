@@ -112,7 +112,7 @@ class AiEnginesViewModel @Inject constructor(
 
 private val SAMPLES = mapOf(
     AiEngine.TRANSLITERATOR to "ami bhalo achi, tumi kemon acho?",
-    AiEngine.SPEECH_SYNTH to "Hello from My Companion.",
+    AiEngine.SPEECH_SYNTH to "Hello from Buddy.",
     AiEngine.SPEECH_RECOGNIZER to "",
     AiEngine.SUMMARIZER to "Meeting with the landlord. He wants the rent by the 5th.\n" +
         "- send photos of the leak\nNeed to call the plumber.",
