@@ -81,6 +81,23 @@ Checked and fine: share/view links (strict 11-char id), boot receiver, all Pendi
 and explicit (except the LocationManager one, which must be mutable), notification listener,
 template-only auto-reply, no PII in logs, SAF-only exports, parameterized queries, no committed secrets.
 
+**Done (branch `fix/player-access-control`):**
+
+- Player session: `PlayerSessionCallback.onConnect` gives full access to this app's own controllers (screens,
+  media notification) and to `controller.isTrusted` ones (System UI, Bluetooth, Auto, apps with notification access).
+  Any other app gets play/pause, seek, and previous/next only: no queue, metadata or timeline, no session commands
+  (there are no custom ones today).
+- Items from any controller: `mediaId` must match `^[A-Za-z0-9_-]{11}$` (others are dropped, the start index follows
+  the same item), and artwork is kept only for `https://i.ytimg.com/` URIs, so nothing else reaches history.
+- `setAllowCrossProtocolRedirects(false)`.
+- `MainActivity` opens a `route` extra only for the routes the app sends itself (Quran continue, library, export, permissions).
+- Settings import clamps `cooldownMinutes` (5–240), `maxChars` (60–600) and `speechRate` (0.5–2, NaN → default)
+  to the screens' ranges, and refuses files over 4 MB (a 1 MB cap could refuse a real backup with a big library and
+  years of reading stats). The risky-toggle list in the confirm dialog is not done.
+- Backups include `companion.db-wal`; `-shm` is left out on purpose (SQLite rebuilds it from the log).
+- Release keystore: not part of this branch.
+- Tests: `PlayerAccessTest`, `ExportJsonTest` (clamping, size cap), `FirstRunGuideTest` (route allowlist), `BackupRulesTest`.
+
 ## 4. Performance
 
 | Impact | Issue | Fix |
