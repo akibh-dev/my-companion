@@ -11,6 +11,7 @@ import dev.akibh.mycompanion.domain.repository.ReminderRepository
 import dev.akibh.mycompanion.domain.time.Clock
 import dev.akibh.mycompanion.domain.time.ReminderTimeCalculator
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 sealed interface ScheduleResult {
     /** Will fire at [Reminder.triggerAtMillis]. */
@@ -199,6 +200,9 @@ class CancelReminderUseCase @Inject constructor(
  * Alarms are wiped on reboot. Re-arm pending reminders, skip missed repeat occurrences,
  * deliver overdue one-offs, and clean up old delivered reminders. Calendar anchors are also
  * reinterpreted in the current timezone after clock/timezone changes.
+ *
+ * One reminder that fails (a bad row, an alarm the system refuses) must not stop the rest being
+ * re-armed, so each is tried on its own; the failures are returned for the caller to log.
  */
 class RestoreRemindersUseCase @Inject constructor(
     private val reminders: ReminderRepository,
@@ -208,27 +212,46 @@ class RestoreRemindersUseCase @Inject constructor(
     private val clock: Clock,
     private val calculator: ReminderTimeCalculator = ReminderTimeCalculator(clock),
 ) {
-    suspend operator fun invoke() {
-        cleanUp()
+    /** A reminder that couldn't be restored; [reminderId] is null for the clean-up before them. */
+    data class Failure(val reminderId: Long?, val error: Exception)
+
+    suspend operator fun invoke(): List<Failure> {
+        val failures = mutableListOf<Failure>()
+        attempt(null, failures) { cleanUp() }
         val now = clock.nowMillis()
         reminders.getPending().filterNot { it.paused }.forEach { reminder ->
-            when {
-                reminder.repeat is Repeat.CalendarDays || reminder.repeat is Repeat.CalendarMonths ||
-                    (reminder.repeat.isRepeating && reminder.triggerAtMillis <= now) -> {
-                    val previous = if (
-                        reminder.repeat is Repeat.CalendarDays || reminder.repeat is Repeat.CalendarMonths
-                    ) {
-                        now - 1
-                    } else {
-                        reminder.triggerAtMillis
-                    }
-                    calculator.next(reminder.repeat, previous)?.let { next ->
-                        scheduler.schedule(reminders.save(reminder.copy(triggerAtMillis = next)))
-                    }
+            attempt(reminder.id, failures) { restore(reminder, now) }
+        }
+        return failures
+    }
+
+    private suspend fun attempt(reminderId: Long?, failures: MutableList<Failure>, block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            failures += Failure(reminderId, e)
+        }
+    }
+
+    private suspend fun restore(reminder: Reminder, now: Long) {
+        when {
+            reminder.repeat is Repeat.CalendarDays || reminder.repeat is Repeat.CalendarMonths ||
+                (reminder.repeat.isRepeating && reminder.triggerAtMillis <= now) -> {
+                val previous = if (
+                    reminder.repeat is Repeat.CalendarDays || reminder.repeat is Repeat.CalendarMonths
+                ) {
+                    now - 1
+                } else {
+                    reminder.triggerAtMillis
                 }
-                reminder.triggerAtMillis > now -> scheduler.schedule(reminder)
-                else -> fire(reminder.id)
+                calculator.next(reminder.repeat, previous)?.let { next ->
+                    scheduler.schedule(reminders.save(reminder.copy(triggerAtMillis = next)))
+                }
             }
+            reminder.triggerAtMillis > now -> scheduler.schedule(reminder)
+            else -> fire(reminder.id)
         }
     }
 }
