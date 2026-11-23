@@ -8,6 +8,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
 import dev.akibh.mycompanion.MainActivity
+import dev.akibh.mycompanion.core.log.AppLog
 import dev.akibh.mycompanion.Tab
 import dev.akibh.mycompanion.data.notification.AndroidReminderNotifier
 import dev.akibh.mycompanion.data.notification.AndroidReminderNotifier.Companion.TAG
@@ -15,6 +16,8 @@ import dev.akibh.mycompanion.domain.model.Contact
 import dev.akibh.mycompanion.domain.model.Reminder
 import dev.akibh.mycompanion.presentation.call.CallActivity
 import dev.akibh.mycompanion.system.ReminderReceiver
+import java.nio.file.Files
+import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -25,7 +28,8 @@ class AndroidReminderNotifierTest {
 
     private val app: Application = ApplicationProvider.getApplicationContext()
     private val manager = app.getSystemService(NotificationManager::class.java)
-    private val notifier = AndroidReminderNotifier(app)
+    private val log = AppLog(Files.createTempDirectory("log").toFile(), mirrorToLogcat = false)
+    private val notifier = AndroidReminderNotifier(app, log)
     private val reminder = Reminder(id = 12, title = "Call Mum", message = "It's Sunday", triggerAtMillis = 0)
     private val mum = Contact(id = 3, name = "Mum", phone = "+8801711123456")
 
@@ -96,6 +100,8 @@ class AndroidReminderNotifierTest {
 
         assertThat(notifier.show(reminder, null)).isFalse()
         assertThat(shadowOf(manager).size()).isEqualTo(0)
+        log.flush()
+        assertThat(runBlocking { log.read() }.map { it.message }).contains("reminder 12 missed: notifications are off")
     }
 
     @Test

@@ -116,6 +116,8 @@ data class UpcomingReminder(
     val repeatText: String?,
     val contactName: String?,
     val paused: Boolean = false,
+    /** Came due while notifications were off. */
+    val missed: Boolean = false,
 )
 
 /** One "When" chip, ready to draw. */
@@ -204,6 +206,7 @@ class RemindersViewModel @Inject constructor(
                         repeatText = formatter.repeat(reminder.repeat),
                         contactName = reminder.contactId?.let(names::get),
                         paused = reminder.paused,
+                        missed = reminder.missed,
                     )
                 },
             )

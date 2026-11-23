@@ -25,6 +25,7 @@ import java.time.DayOfWeek
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
@@ -245,6 +246,42 @@ class ReminderUseCasesTest {
         assertThat(every.reminder.localTime).isNull()
         assertThat(once.reminder.localTime).isNull()
         assertThat(monthly.reminder.localTime).isEqualTo(LocalTime.of(10, 30))
+    }
+
+    @Test
+    fun `a one-off that can't be shown is flagged missed and kept for another try`() = runTest {
+        val saved = reminders.save(reminder())
+        clock.now = saved.triggerAtMillis
+        notifier.enabled = false
+
+        assertThat(fire(saved.id)).isFalse()
+
+        assertThat(reminders.get(saved.id)!!.delivered).isFalse()
+        assertThat(reminders.get(saved.id)!!.missed).isTrue()
+        assertThat(reminders.observeMissedCount().first()).isEqualTo(1)
+
+        // Notifications are back on; the next restore (boot, clock change) shows it.
+        notifier.enabled = true
+        restore()
+        assertThat(notifier.shown.map { it.first.id }).containsExactly(saved.id)
+        assertThat(reminders.get(saved.id)!!.delivered).isTrue()
+        assertThat(reminders.observeMissedCount().first()).isEqualTo(0)
+    }
+
+    @Test
+    fun `a repeat that can't be shown moves on but is flagged missed until it shows again`() = runTest {
+        val saved = reminders.save(reminder(trigger = millisAt(2026, 10, 23, 8, 0), repeat = Repeat.Daily))
+        notifier.enabled = false
+
+        fire(saved.id)
+        val missed = reminders.get(saved.id)!!
+        assertThat(missed.missed).isTrue()
+        assertThat(missed.triggerAtMillis).isEqualTo(millisAt(2026, 10, 24, 8, 0))
+
+        notifier.enabled = true
+        clock.now = millisAt(2026, 10, 24, 8, 0)
+        fire(saved.id)
+        assertThat(reminders.get(saved.id)!!.missed).isFalse()
     }
 
     @Test

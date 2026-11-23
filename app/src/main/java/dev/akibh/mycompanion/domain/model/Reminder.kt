@@ -29,6 +29,8 @@ data class Reminder(
      * [triggerAtMillis] so a timezone change or a daylight-saving gap can't shift it for good.
      */
     val localTime: LocalTime? = null,
+    /** Its last time came but the notification couldn't be shown (notifications off); Home counts these. */
+    val missed: Boolean = false,
 ) {
     /** Notification ids are ints; reminder ids stay far below Int.MAX_VALUE on a personal device. */
     val notificationId: Int get() = id.toInt()

@@ -53,4 +53,6 @@ class RoomReminderRepository @Inject constructor(private val dao: ReminderDao) :
     override suspend fun delete(id: Long) = dao.delete(id)
 
     override suspend fun deleteDeliveredBefore(beforeMillis: Long) = dao.deleteDeliveredBefore(beforeMillis)
+
+    override fun observeMissedCount(): Flow<Int> = dao.observeMissedCount()
 }

@@ -126,6 +126,9 @@ class ScheduleReminderUseCase @Inject constructor(
 /**
  * The alarm went off: post the notification, then either queue the next time (repeating)
  * or mark it delivered (one-off). Returns whether the notification was posted.
+ *
+ * When it can't be posted (notifications off) the reminder is flagged [Reminder.missed]: a one-off
+ * stays undelivered, so the next restore (boot, clock change) tries again, and Home shows the count.
  */
 class FireReminderUseCase @Inject constructor(
     private val reminders: ReminderRepository,
@@ -146,9 +149,9 @@ class FireReminderUseCase @Inject constructor(
         val clockTime = reminder.localTime
             ?: calculator.clockTime(reminder.triggerAtMillis).takeIf { reminder.repeat.keepsClockTime }
         when (val nextTrigger = calculator.next(reminder.repeat, reminder.triggerAtMillis, clockTime)) {
-            null -> reminders.save(reminder.copy(delivered = true))
+            null -> reminders.save(reminder.copy(delivered = shown, missed = !shown))
             else -> scheduler.schedule(
-                reminders.save(reminder.copy(triggerAtMillis = nextTrigger, localTime = clockTime)),
+                reminders.save(reminder.copy(triggerAtMillis = nextTrigger, localTime = clockTime, missed = !shown)),
             )
         }
         return shown

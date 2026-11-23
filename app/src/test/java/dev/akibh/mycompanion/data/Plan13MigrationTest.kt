@@ -15,6 +15,7 @@ import dev.akibh.mycompanion.data.local.MIGRATION_3_4
 import dev.akibh.mycompanion.data.local.MIGRATION_4_5
 import dev.akibh.mycompanion.data.local.MIGRATION_5_6
 import dev.akibh.mycompanion.data.local.MIGRATION_6_7
+import dev.akibh.mycompanion.data.local.MIGRATION_7_8
 import dev.akibh.mycompanion.domain.model.ReminderSound
 import java.time.Instant
 import java.time.LocalTime
@@ -89,7 +90,7 @@ class Plan13MigrationTest {
                 }).build()
             FrameworkSQLiteOpenHelperFactory().create(config).use { it.writableDatabase }
             val db = Room.databaseBuilder(context, AppDatabase::class.java, name)
-                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7).build()
+                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8).build()
             try {
                 assertThat(db.contactDao().get(1)?.name).isEqualTo("Fixture")
                 val reminder = db.reminderDao().get(1)!!.toDomain()
@@ -99,6 +100,8 @@ class Plan13MigrationTest {
                 assertThat(reminder.link).isNull()
                 // Version 7: daily/weekly/monthly reminders get their clock time; others don't need one.
                 assertThat(reminder.localTime).isNull()
+                // Version 8: nothing starts as missed.
+                assertThat(reminder.missed).isFalse()
                 assertThat(db.reminderDao().get(2)!!.toDomain().localTime)
                     .isEqualTo(LocalTime.ofInstant(Instant.ofEpochMilli(DAILY_TRIGGER), ZoneId.systemDefault()))
                 assertThat(

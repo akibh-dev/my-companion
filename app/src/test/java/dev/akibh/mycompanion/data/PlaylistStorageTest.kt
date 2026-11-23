@@ -15,6 +15,7 @@ import dev.akibh.mycompanion.data.local.MIGRATION_3_4
 import dev.akibh.mycompanion.data.local.MIGRATION_4_5
 import dev.akibh.mycompanion.data.local.MIGRATION_5_6
 import dev.akibh.mycompanion.data.local.MIGRATION_6_7
+import dev.akibh.mycompanion.data.local.MIGRATION_7_8
 import dev.akibh.mycompanion.data.repository.RoomContactRepository
 import dev.akibh.mycompanion.data.repository.RoomPlaylistRepository
 import dev.akibh.mycompanion.fakes.FakeClock
@@ -108,7 +109,9 @@ class PlaylistStorageTest {
         createVersion1Database()
 
         val database = Room.databaseBuilder(context, AppDatabase::class.java, MIGRATED_DB)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+            .addMigrations(
+                MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8,
+            )
             .allowMainThreadQueries()
             .build()
         db = database

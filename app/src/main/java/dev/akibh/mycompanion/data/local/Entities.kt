@@ -41,6 +41,7 @@ data class ReminderEntity(
     val link: String? = null,
     /** ISO local time ("09:00") a daily/weekly/monthly reminder fires at; null for the others. */
     @ColumnInfo(name = "local_time") val localTime: String? = null,
+    @ColumnInfo(defaultValue = "0") val missed: Boolean = false,
 ) {
     fun toDomain() = Reminder(
         id = id,
@@ -54,6 +55,7 @@ data class ReminderEntity(
         paused = paused,
         link = link,
         localTime = localTime?.let { runCatching { LocalTime.parse(it) }.getOrNull() },
+        missed = missed,
     )
 
     companion object {
@@ -69,6 +71,7 @@ data class ReminderEntity(
             paused = reminder.paused,
             link = reminder.link,
             localTime = reminder.localTime?.toString(),
+            missed = reminder.missed,
         )
     }
 }
@@ -103,5 +106,12 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
                 db.execSQL("UPDATE reminders SET local_time = ? WHERE id = ?", arrayOf(time.toString(), rows.getLong(0)))
             }
         }
+    }
+}
+
+/** Version 8 flags reminders whose notification couldn't be shown, for the "missed" count on Home. */
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE reminders ADD COLUMN missed INTEGER NOT NULL DEFAULT 0")
     }
 }

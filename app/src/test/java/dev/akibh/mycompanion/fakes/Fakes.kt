@@ -101,6 +101,8 @@ class FakeReminderRepository(initial: List<Reminder> = emptyList()) : ReminderRe
     override suspend fun deleteDeliveredBefore(beforeMillis: Long) {
         state.value = state.value.filterNot { it.delivered && it.triggerAtMillis < beforeMillis }
     }
+
+    override fun observeMissedCount(): Flow<Int> = state.map { list -> list.count { it.missed } }
 }
 
 class FakeAlarmScheduler : AlarmScheduler {

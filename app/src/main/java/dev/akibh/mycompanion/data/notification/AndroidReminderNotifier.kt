@@ -15,6 +15,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.akibh.mycompanion.MainActivity
 import dev.akibh.mycompanion.R
 import dev.akibh.mycompanion.Tab
+import dev.akibh.mycompanion.core.log.AppLog
 import dev.akibh.mycompanion.data.sound.ReminderSoundChannels
 import dev.akibh.mycompanion.domain.model.Contact
 import dev.akibh.mycompanion.domain.model.Reminder
@@ -26,6 +27,7 @@ import javax.inject.Inject
 
 class AndroidReminderNotifier @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val log: AppLog,
     private val sounds: ReminderSoundChannels = ReminderSoundChannels(context),
 ) : ReminderNotifier {
 
@@ -34,7 +36,10 @@ class AndroidReminderNotifier @Inject constructor(
     // Permission is checked in canPost(); lint can't follow that.
     @SuppressLint("MissingPermission")
     override fun show(reminder: Reminder, contact: Contact?): Boolean {
-        if (!canPost(context)) return false
+        if (!canPost(context)) {
+            log.w(LOG_TAG, "reminder ${reminder.id} missed: notifications are off")
+            return false
+        }
         val channel = sounds.channel(reminder.sound)
 
         val id = reminder.notificationId
@@ -90,6 +95,7 @@ class AndroidReminderNotifier @Inject constructor(
          * otherwise collide with the app's fixed ids (the host service's 41, rule prompts 3101/3102).
          */
         const val TAG = "reminder"
+        private const val LOG_TAG = "Reminders"
         private const val FLAGS = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         private const val ACTION_OPEN = 0
         private const val ACTION_SNOOZE = 1
