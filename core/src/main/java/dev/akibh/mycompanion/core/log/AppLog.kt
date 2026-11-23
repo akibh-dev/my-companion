@@ -9,6 +9,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
@@ -61,6 +62,11 @@ class AppLog(private val dir: File, private val mirrorToLogcat: Boolean) {
     /** Waits until everything written so far is on disk. */
     fun flush() {
         writer.submit {}.get()
+    }
+
+    /** Like [flush], but gives up after [timeoutMillis] (used while crashing, where hanging is worse). */
+    fun flush(timeoutMillis: Long) {
+        writer.submit {}.get(timeoutMillis, TimeUnit.MILLISECONDS)
     }
 
     private fun write(level: LogLevel, tag: String, message: String, error: Throwable?) {

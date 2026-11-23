@@ -8,6 +8,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import dev.akibh.mycompanion.core.log.AppLog
 import dev.akibh.mycompanion.data.QuranReminderBridge
 import dev.akibh.mycompanion.data.alarm.AndroidAlarmScheduler
 import dev.akibh.mycompanion.data.local.AppDatabase
@@ -47,6 +48,7 @@ import dev.akibh.mycompanion.system.ReminderEvents
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -85,11 +87,18 @@ object CoroutinesModule {
     @IoDispatcher
     fun io(): CoroutineDispatcher = Dispatchers.IO
 
-    /** Outlives any screen: used by broadcast receivers for short background work. */
+    /**
+     * Outlives any screen: used by broadcast receivers for short background work. A failing job is
+     * logged and the others carry on, instead of the process crashing with nothing in the app's log.
+     */
     @Provides
     @Singleton
     @ApplicationScope
-    fun appScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    fun appScope(log: AppLog): CoroutineScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, error ->
+            log.e("AppScope", "background job failed", error)
+        },
+    )
 }
 
 @Module

@@ -5,6 +5,7 @@ import dev.akibh.mycompanion.domain.model.Contact
 import dev.akibh.mycompanion.domain.model.Reminder
 import dev.akibh.mycompanion.domain.model.ReminderTime
 import dev.akibh.mycompanion.domain.model.Repeat
+import dev.akibh.mycompanion.domain.port.AlarmScheduler
 import dev.akibh.mycompanion.domain.time.ReminderTimeCalculator
 import dev.akibh.mycompanion.domain.usecase.CancelReminderUseCase
 import dev.akibh.mycompanion.domain.usecase.CleanUpRemindersUseCase
@@ -23,6 +24,7 @@ import dev.akibh.mycompanion.fakes.FakeReminderRepository
 import dev.akibh.mycompanion.fakes.millisAt
 import java.time.DayOfWeek
 import java.time.LocalDateTime
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
@@ -342,6 +344,45 @@ class ReminderUseCasesTest {
         assertThat(reminders.get(missed.id)!!.delivered).isTrue()
         assertThat(reminders.get(oldDone.id)).isNull()
         assertThat(reminders.get(recentDone.id)).isNotNull()
+    }
+
+    /** Refuses the alarm for one reminder, as AlarmManager can (e.g. too many alarms). */
+    private class RefusingScheduler(private val refuseId: Long, val inner: FakeAlarmScheduler) :
+        AlarmScheduler by inner {
+        override fun schedule(reminder: Reminder) {
+            if (reminder.id == refuseId) throw IllegalStateException("Maximum limit of concurrent alarms")
+            inner.schedule(reminder)
+        }
+    }
+
+    @Test
+    fun `one reminder that can't be restored doesn't stop the rest`() = runTest {
+        val first = reminders.save(reminder(title = "first", trigger = millisAt(2026, 10, 23, 11, 0)))
+        val second = reminders.save(reminder(title = "second", trigger = millisAt(2026, 10, 23, 12, 0)))
+        val missed = reminders.save(reminder(title = "missed", trigger = millisAt(2026, 10, 23, 9, 0)))
+        val refusing = RefusingScheduler(refuseId = first.id, inner = scheduler)
+        val restore = RestoreRemindersUseCase(reminders, refusing, fire, cleanUp, clock)
+
+        val failures = restore()
+
+        assertThat(failures.map { it.reminderId }).containsExactly(first.id)
+        assertThat(failures.single().error).isInstanceOf(IllegalStateException::class.java)
+        assertThat(scheduler.scheduled).containsExactly(second.id, second.triggerAtMillis)
+        assertThat(reminders.get(missed.id)!!.delivered).isTrue()
+    }
+
+    @Test
+    fun `cancelling a restore is not swallowed as a failure`() = runTest {
+        val first = reminders.save(reminder(title = "first", trigger = millisAt(2026, 10, 23, 11, 0)))
+        val cancelling = object : AlarmScheduler by scheduler {
+            override fun schedule(reminder: Reminder) = throw CancellationException("receiver gone")
+        }
+        val restore = RestoreRemindersUseCase(reminders, cancelling, fire, cleanUp, clock)
+
+        val thrown = runCatching { restore() }.exceptionOrNull()
+
+        assertThat(thrown).isInstanceOf(CancellationException::class.java)
+        assertThat(scheduler.scheduled).doesNotContainKey(first.id)
     }
 
     @Test

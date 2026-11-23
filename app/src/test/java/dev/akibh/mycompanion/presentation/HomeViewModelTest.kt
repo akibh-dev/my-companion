@@ -8,6 +8,7 @@ import com.google.common.truth.Truth.assertThat
 import dev.akibh.mycompanion.core.health.HeartbeatLog
 import dev.akibh.mycompanion.core.host.HostedComponent
 import dev.akibh.mycompanion.core.host.ServiceHost
+import dev.akibh.mycompanion.core.log.AppLog
 import dev.akibh.mycompanion.core.permissions.Requirement
 import dev.akibh.mycompanion.core.settings.AiEngine
 import dev.akibh.mycompanion.core.settings.Feature
@@ -16,6 +17,7 @@ import dev.akibh.mycompanion.core.settings.SettingsStore
 import dev.akibh.mycompanion.fakes.FakeClock
 import dev.akibh.mycompanion.fakes.MainDispatcherRule
 import dev.akibh.mycompanion.presentation.home.HomeViewModel
+import java.nio.file.Files
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -73,7 +75,13 @@ class HomeViewModelTest {
     private val clock = FakeClock()
     private val heartbeats = HeartbeatLog(app, clock)
     private val viewModel by lazy {
-        HomeViewModel(app, settingsStore, requirements, ServiceHost(app, setOf(rules)), heartbeats)
+        HomeViewModel(
+            app,
+            settingsStore,
+            requirements,
+            ServiceHost(app, setOf(rules), AppLog(Files.createTempDirectory("log").toFile(), mirrorToLogcat = false)),
+            heartbeats
+        )
     }
 
     /** Keeps the state flowing, unconfined so it's up to date as soon as this returns. */

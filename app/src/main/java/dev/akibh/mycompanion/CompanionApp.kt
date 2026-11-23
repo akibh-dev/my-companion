@@ -5,6 +5,7 @@ import dagger.hilt.android.HiltAndroidApp
 import dev.akibh.mycompanion.core.health.HeartbeatWorker
 import dev.akibh.mycompanion.core.host.ServiceHost
 import dev.akibh.mycompanion.core.log.AppLog
+import dev.akibh.mycompanion.core.log.CrashLogger
 import dev.akibh.mycompanion.core.settings.SettingsStore
 import dev.akibh.mycompanion.data.notification.AndroidReminderNotifier
 import dev.akibh.mycompanion.di.ApplicationScope
@@ -36,6 +37,8 @@ class CompanionApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // First, so a crash anywhere below still lands in the app's own log.
+        CrashLogger.install(log)
         AndroidReminderNotifier.ensureChannel(this)
         log.i("App", "process started")
         HeartbeatWorker.schedule(this)
