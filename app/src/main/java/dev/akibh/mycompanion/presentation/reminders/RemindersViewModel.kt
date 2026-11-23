@@ -21,6 +21,7 @@ import dev.akibh.mycompanion.domain.usecase.SetReminderPausedUseCase
 import java.time.DayOfWeek
 import java.time.LocalDateTime
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -288,12 +289,16 @@ class RemindersViewModel @Inject constructor(
     private val mutableSavedCount = MutableStateFlow(0)
     val savedCount: StateFlow<Int> = mutableSavedCount
 
+    /** The save in flight; a second tap while it runs would save the same reminder twice. */
+    private var submitting: Job? = null
+
     fun onSubmit() {
+        if (submitting?.isActive == true) return
         val current = form.value
         val repeat = current.toRepeat() ?: return
         val titleText = title.text.toString()
         val messageText = message.text.toString()
-        viewModelScope.launch {
+        submitting = viewModelScope.launch {
             val result = scheduleReminder(
                 title = titleText,
                 message = messageText,

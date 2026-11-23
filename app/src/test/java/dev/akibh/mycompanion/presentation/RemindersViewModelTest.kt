@@ -26,6 +26,9 @@ import java.time.DayOfWeek
 import java.time.LocalDateTime
 import java.util.Locale
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.CompletableDeferred
+import dev.akibh.mycompanion.domain.repository.ReminderRepository
+import dev.akibh.mycompanion.domain.model.Reminder
 import org.junit.Rule
 import org.junit.Test
 
@@ -336,5 +339,33 @@ class RemindersViewModelTest {
             )
         )
         assertThat(calculator.next(updated.repeat, updated.triggerAtMillis)).isEqualTo(millisAt(2027, 5, 28, 9, 0))
+    }
+
+    @Test
+    fun `a double tap on save makes one reminder`() = runTest {
+        val saving = CompletableDeferred<Unit>()
+        val slowReminders = object : ReminderRepository by reminders {
+            override suspend fun save(reminder: Reminder): Reminder {
+                saving.await()
+                return reminders.save(reminder)
+            }
+        }
+        val form = RemindersViewModel(
+            reminders = reminders,
+            contacts = contacts,
+            scheduleReminder = ScheduleReminderUseCase(slowReminders, scheduler, calculator, fire),
+            cancelReminder = CancelReminderUseCase(reminders, scheduler, notifier),
+            setPaused = SetReminderPausedUseCase(reminders, scheduler, notifier, fire, clock),
+            formatter = ReminderTimeFormatter(clock, Locale.US),
+            calculator = calculator,
+        )
+        form.title.setTextAndPlaceCursorAtEnd("Stretch")
+        form.onChoiceChange(WhenChoice.InMinutes(30))
+
+        form.onSubmit()
+        form.onSubmit()
+        saving.complete(Unit)
+
+        assertThat(reminders.all.map { it.title }).containsExactly("Stretch")
     }
 }
