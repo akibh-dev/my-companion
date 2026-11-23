@@ -60,7 +60,7 @@ jobs:
           ROBOLECTRIC_REPO_URL: https://maven-central.storage-download.googleapis.com/maven2
         run: |
           set -o pipefail
-          ./gradlew ktlintCheck testDebugUnitTest lintDebug assembleDebug \
+          ./gradlew ktlintCheck testDebugUnitTest lintDebug assembleDebug lintRelease assembleRelease \
             --continue --stacktrace 2>&1 | tee build.log
 
       - name: Publish CI report

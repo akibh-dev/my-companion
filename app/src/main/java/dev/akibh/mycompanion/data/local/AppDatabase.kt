@@ -9,7 +9,7 @@ import androidx.room.RoomDatabase
         ReminderSoundEntity::class, PlaybackHistoryEntity::class,
     ],
     version = 6,
-    exportSchema = false,
+    exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun contactDao(): ContactDao

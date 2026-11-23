@@ -39,11 +39,29 @@ android {
         }
     }
 
+    // The release key lives outside the repo (Docs/23-release-1.0-plan.md): its path and passwords come
+    // from ~/.gradle/gradle.properties. Without them (CI) the release build falls back to the debug key,
+    // so it still builds, but only a locally built, release-signed APK is ever published.
+    // Passing -PMYCOMPANION_RELEASE_STORE_FILE= (empty) signs with the debug key instead, so a release
+    // build can be tried on the phone over the current install without losing its data.
+    val releaseStore = providers.gradleProperty("MYCOMPANION_RELEASE_STORE_FILE").orNull?.takeIf { it.isNotBlank() }
+    signingConfigs {
+        if (releaseStore != null) {
+            create("release") {
+                storeFile = file(releaseStore)
+                storePassword = providers.gradleProperty("MYCOMPANION_RELEASE_STORE_PASSWORD").get()
+                keyAlias = providers.gradleProperty("MYCOMPANION_RELEASE_KEY_ALIAS").get()
+                keyPassword = providers.gradleProperty("MYCOMPANION_RELEASE_KEY_PASSWORD").get()
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
-            // Personal app: sign release with the debug key so the APK installs directly.
-            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 
@@ -123,6 +141,7 @@ kotlin {
 
 kapt {
     correctErrorTypes = true
+    arguments { arg("room.schemaLocation", "$projectDir/schemas") }
 }
 
 ktlint {
