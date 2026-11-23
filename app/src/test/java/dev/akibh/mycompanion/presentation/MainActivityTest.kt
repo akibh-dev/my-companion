@@ -44,6 +44,7 @@ import org.junit.runner.Description
 import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowLooper
 
 /** Smoke test: the real app (Hilt graph, Room, both tabs) starts and navigates. */
 @OptIn(ExperimentalTestApi::class)
@@ -161,7 +162,10 @@ class MainActivityTest {
         compose.activityRule.scenario.moveToState(Lifecycle.State.STARTED)
         compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
 
+        // onResume reads the settings off the main thread and then starts the service back on it, so
+        // let the paused main looper run queued work on each check, or it depends on CI timing.
         compose.waitUntil(timeoutMillis = 10_000) {
+            ShadowLooper.idleMainLooper()
             collectStarted()
             HostService::class.java.name in started
         }
